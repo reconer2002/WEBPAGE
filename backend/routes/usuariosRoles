@@ -1,0 +1,55 @@
+const express = require('express');
+const router = express.Router();
+const db = require('../db');
+const authMiddleware = require('../middleware/auth');
+const permisoMiddleware = require('../middleware/permisos');
+
+//GET permiso de acceder al mantenedor (va primero por ser una ruta específica)
+router.get('/mantenedor', authMiddleware, permisoMiddleware('ver_mantenedor'), (req, res) => {
+  res.json({ message: 'Acceso concedido al mantenedor' });
+});
+
+//POST /api/usuarios/:id/roles - asignar o cambiar roles de un usuario
+router.post('/:id/roles', authMiddleware, permisoMiddleware('gestionar_roles'), async (req, res) => {
+  const usuarioId = req.params.id;
+  const { roles } = req.body;
+
+  if (!Array.isArray(roles)) {
+    return res.status(400).json({ message: 'roles debe ser un array de IDs' });
+  }
+
+  try {
+    // Borra roles actuales
+    await db.execute('DELETE FROM usuario_roles WHERE usuario_id = ?', [usuarioId]);
+
+    // Inserta nuevos roles
+    if (roles.length) {
+      const values = roles.map(rolId => `(${usuarioId}, ${rolId})`).join(',');
+      await db.execute(`INSERT INTO usuario_roles (usuario_id, rol_id) VALUES ${values}`);
+    }
+
+    res.json({ message: 'Roles actualizados' });
+  } catch (err) {
+    res.status(500).json({ message: 'Error al asignar roles', error: err.message });
+  }
+});
+
+//GET /api/usuarios/:id/roles - obtener roles de un usuario
+router.get('/:id/roles', authMiddleware, permisoMiddleware('moderar_usuarios'), async (req, res) => {
+  const usuarioId = req.params.id;
+
+  try {
+    const [roles] = await db.execute(
+      `SELECT r.* FROM roles r
+       JOIN usuario_roles ur ON r.id = ur.rol_id
+       WHERE ur.usuario_id = ?`, [usuarioId]
+    );
+
+    res.json(roles);
+  } catch (err) {
+    res.status(500).json({ message: 'Error al obtener roles', error: err.message });
+  }
+});
+
+
+module.exports = router;

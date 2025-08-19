@@ -1,8 +1,8 @@
 import api from './api';
 
-const login = async (email, password) => {
+const login = async (identificador, password) => {
   try {
-    const { data } = await api.post('/auth/login', { email, password });
+    const { data } = await api.post('/auth/login', { identificador, password });
     localStorage.setItem('token', data.token);
     return { success: true, token: data.token };
   } catch (err) {

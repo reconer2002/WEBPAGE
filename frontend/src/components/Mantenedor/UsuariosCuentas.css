@@ -1,0 +1,116 @@
+.usuarios-cuentas-container {
+  padding: 20px;
+  max-width: 1200px; /* un poco más ancho para que quepa mejor la tabla */
+  margin: auto;
+  font-family: Arial, sans-serif;
+}
+
+/* Contenedor de acciones */
+.acciones {
+  margin-bottom: 15px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.acciones-label {
+  font-weight: bold;
+  margin-right: 10px;
+}
+
+.acciones button {
+  padding: 6px 12px;
+  border: 1px solid #ccc;
+  background-color: #f5f5f5;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.acciones button:hover {
+  background-color: #e0e0e0;
+}
+
+/* Contenedor general de filtros */
+.filtros-contenedor {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 15px;
+}
+
+.filtros-label {
+  font-weight: bold;
+}
+
+.filtros {
+  display: flex;
+  gap: 15px; /* separa los filtros entre sí */
+  align-items: center;
+}
+
+/* Inputs y selects de filtros */
+.filtros select,
+.filtros input {
+  padding: 6px 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+/* Tabla */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed; /* mantiene columnas de ancho uniforme */
+}
+
+thead {
+  background-color: #f0f0f0;
+}
+
+th,
+td {
+  border: 1px solid #ccc;
+  padding: 10px;
+  text-align: left;
+  word-wrap: break-word; /* evita que el texto se salga de la celda */
+}
+
+th {
+  font-weight: bold;
+}
+
+tbody tr:nth-child(even) {
+  background-color: #fafafa;
+}
+
+tbody tr:hover {
+  background-color: #f1f1f1;
+}
+
+/* Select y botones en la tabla */
+select {
+  padding: 4px 6px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+}
+
+button {
+  padding: 4px 8px;
+  cursor: pointer;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  background-color: #f5f5f5;
+  transition: background-color 0.2s;
+}
+
+button:hover {
+  background-color: #e0e0e0;
+}
+
+/* Scroll para tabla si hay muchos usuarios */
+.usuarios-cuentas-container table {
+  display: block;
+  max-height: 500px;
+  overflow: auto;
+}

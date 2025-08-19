@@ -15,6 +15,7 @@ INSERT INTO permisos (nombre) VALUES
 ('personalizar_productos'),
 ('dejar_comentarios'),
 ('ver_mantenedor'),
+('ver_usuarios'),
 ('gestionar_roles'),
 ('moderar_usuarios'),
 ('editar_productos'),
@@ -46,13 +47,7 @@ INSERT INTO rol_permisos (rol_id, permiso_id) VALUES
 (4, 11); -- gestionar_descuentos
 
 -- Usuarios básicos
-INSERT INTO usuarios (nombre, email, password) VALUES
-('superadmin', 'superadmin@gmail.com', '$2a$10$ElttXEchpfV8xoMSjkCDoeO1ARp2MLWC2V6/qtnuXegZV2nQgoDX6'),
-('admin', 'admin@gmail.com', '$2a$10$ElttXEchpfV8xoMSjkCDoeO1ARp2MLWC2V6/qtnuXegZV2nQgoDX6'),
-('cliente', 'cliente@gmail.com', '$2a$10$ElttXEchpfV8xoMSjkCDoeO1ARp2MLWC2V6/qtnuXegZV2nQgoDX6');
-
--- Roles usuarios
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES
-(1, 2),  -- superadmin
-(2, 3),  -- admin
-(3, 1);  -- cliente
+INSERT INTO usuarios (nombre, email, password, rol_id) VALUES
+('superadmin', 'superadmin@gmail.com', '$2a$10$ElttXEchpfV8xoMSjkCDoeO1ARp2MLWC2V6/qtnuXegZV2nQgoDX6',2),
+('admin', 'admin@gmail.com', '$2a$10$ElttXEchpfV8xoMSjkCDoeO1ARp2MLWC2V6/qtnuXegZV2nQgoDX6',3),
+('cliente', 'cliente@gmail.com', '$2a$10$ElttXEchpfV8xoMSjkCDoeO1ARp2MLWC2V6/qtnuXegZV2nQgoDX6',1);

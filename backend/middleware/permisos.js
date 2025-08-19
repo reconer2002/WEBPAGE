@@ -6,13 +6,16 @@ module.exports = function (permisoRequerido) {
 
     try {
       const [rows] = await db.execute(`
-        SELECT p.nombre FROM permisos p
+        SELECT p.nombre 
+        FROM permisos p
         JOIN rol_permisos rp ON rp.permiso_id = p.id
-        JOIN usuario_roles ur ON ur.rol_id = rp.rol_id
-        WHERE ur.usuario_id = ?
+        JOIN roles r ON r.id = rp.rol_id
+        JOIN usuarios u ON u.rol_id = r.id
+        WHERE u.id = ?
       `, [userId]);
 
       const permisos = rows.map(row => row.nombre);
+
       if (!permisos.includes(permisoRequerido)) {
         return res.status(403).json({ message: 'No tienes permiso para realizar esta acción' });
       }

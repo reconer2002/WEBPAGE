@@ -1,0 +1,97 @@
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 24px;
+  background: #F2EFE7;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.logo img {
+  height: 50px;
+  object-fit: contain;
+}
+
+/* Sección derecha del header */
+.right-section {
+  display: flex;
+  flex-direction: column; /* apila formulario y navbar */
+  align-items: flex-end; /* todo alineado a la derecha */
+  gap: 8px; /* espacio vertical entre formulario y navbar */
+}
+
+/* Formulario en línea */
+.login-form {
+  display: flex;
+  gap: 8px;
+}
+
+.login-form input {
+  padding: 6px 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.btn {
+  padding: 6px 14px;
+  background: #9ACBD0;
+  color: white;
+  font-weight: bold;
+  border-radius: 6px;
+  text-decoration: none;
+  transition: background 0.2s ease;
+}
+
+.btn:hover {
+  background: #48A6A7;
+  color: white;
+}
+
+/* Bloque de usuario logueado */
+.user-block-logged {
+  display: flex;
+  align-items: center;
+  gap: 12px; /* espacio entre el mensaje y los botones */
+}
+
+.user-block-logged .btn {
+  margin: 0; /* elimina márgenes que puedan afectar */
+}
+
+/* Navbar secundaria */
+.sub-nav {
+  display: flex;
+  gap: 20px;
+  justify-content: flex-end; /* alinea navbar a la derecha */
+}
+
+.sub-nav a {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+  font-size: 15px;
+  color: #222;
+  transition: color 0.2s ease;
+}
+
+.sub-nav a:hover {
+  color: #006A71;
+}
+
+/* Icono carrito inline */
+.cart-icon-inline {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
+/* Estilo del mensaje de bienvenida */
+.welcome-msg {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-weight: 1000;
+  font-size: 16px;
+  color: #48A6A7;
+  text-transform: uppercase;
+}

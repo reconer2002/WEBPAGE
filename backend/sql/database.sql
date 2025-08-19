@@ -10,7 +10,9 @@ CREATE TABLE usuarios (
   nombre VARCHAR(100),
   email VARCHAR(100) UNIQUE,
   password VARCHAR(255),
-  creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  rol_id INT,
+  creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (rol_id) REFERENCES roles(id)
 );
 
 -- Tabla de roles de usuario (Cliente, SuperAdmin, Admin)
@@ -34,13 +36,22 @@ CREATE TABLE rol_permisos (
   FOREIGN KEY (permiso_id) REFERENCES permisos(id)
 );
 
--- Tabla que indica qué usuarios tienen qué roles
-CREATE TABLE usuario_roles (
-  usuario_id INT,
-  rol_id INT,
-  PRIMARY KEY (usuario_id, rol_id),
-  FOREIGN KEY (usuario_id) REFERENCES usuarios(id),
-  FOREIGN KEY (rol_id) REFERENCES roles(id)
+-- Tabla de categorías del mantenedor
+CREATE TABLE categorias_mantenedor (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  nombre VARCHAR(100),
+  permiso_id INT, -- permiso necesario para ver esta categoría
+  FOREIGN KEY (permiso_id) REFERENCES permisos(id)
+);
+
+-- Tabla de subcategorías del mantenedor
+CREATE TABLE subcategorias_mantenedor (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  categoria_id INT,
+  nombre VARCHAR(100),
+  permiso_id INT, -- permiso necesario para ver esta subcategoría
+  FOREIGN KEY (categoria_id) REFERENCES categorias_mantenedor(id),
+  FOREIGN KEY (permiso_id) REFERENCES permisos(id)
 );
 
 -- Procedimiento para ver los permisos de cada rol

@@ -7,15 +7,21 @@ require('dotenv').config();
 
 // POST /api/auth/login
 router.post('/login', async (req, res) => {
-  const { email, password } = req.body;
+  const { identificador, password } = req.body; //identificador puede ser email o nombre
 
   try {
-    const [rows] = await pool.query('SELECT * FROM usuarios WHERE email = ?', [email]);
-    if (rows.length === 0) return res.status(401).json({ error: 'Usuario no encontrado' });
+    const [rows] = await pool.query(
+      'SELECT * FROM usuarios WHERE email = ? OR nombre = ?',
+      [identificador, identificador]
+    );
+
+    if (rows.length === 0)
+      return res.status(401).json({ error: 'Usuario no encontrado' });
 
     const user = rows[0];
     const valid = await bcrypt.compare(password, user.password);
-    if (!valid) return res.status(401).json({ error: 'Contraseña incorrecta' });
+    if (!valid)
+      return res.status(401).json({ error: 'Contraseña incorrecta' });
 
     const token = jwt.sign(
       { id: user.id, email: user.email },
@@ -25,6 +31,7 @@ router.post('/login', async (req, res) => {
 
     res.json({ token });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
   }
 });
@@ -33,38 +40,29 @@ router.post('/login', async (req, res) => {
 const verifyToken = require('../middleware/auth');
 router.get('/me', verifyToken, async (req, res) => {
   try {
-    // 1. Obtener datos del usuario, incluyendo fecha de creación
     const [[usuario]] = await pool.query(
-      'SELECT id, nombre, email, creado_en FROM usuarios WHERE id = ?',
+      `SELECT u.id, u.nombre, u.email, u.creado_en, u.rol_id, r.nombre AS rol
+       FROM usuarios u
+       JOIN roles r ON u.rol_id = r.id
+       WHERE u.id = ?`,
       [req.user.id]
     );
 
     if (!usuario) return res.status(404).json({ error: 'Usuario no encontrado' });
 
-    // 2. Obtener roles
-    const [roles] = await pool.query(
-      `SELECT r.nombre FROM roles r
-       JOIN usuario_roles ur ON r.id = ur.rol_id
-       WHERE ur.usuario_id = ?`,
-      [usuario.id]
-    );
-
-    // 3. Obtener permisos
     const [permisos] = await pool.query(
-      `SELECT DISTINCT p.nombre FROM permisos p
+      `SELECT p.nombre FROM permisos p
        JOIN rol_permisos rp ON p.id = rp.permiso_id
-       JOIN usuario_roles ur ON rp.rol_id = ur.rol_id
-       WHERE ur.usuario_id = ?`,
-      [usuario.id]
+       WHERE rp.rol_id = ?`,
+      [usuario.rol_id]
     );
 
-    // 4. Enviar respuesta con usuario, fecha, roles y permisos
     res.json({
       id: usuario.id,
       nombre: usuario.nombre,
       email: usuario.email,
       creado_en: usuario.creado_en,
-      roles: roles.map(r => r.nombre),
+      rol: usuario.rol,
       permisos: permisos.map(p => p.nombre),
     });
   } catch (err) {
@@ -72,6 +70,7 @@ router.get('/me', verifyToken, async (req, res) => {
     res.status(500).json({ error: 'Error al obtener perfil', detalle: err.message });
   }
 });
+
 
 // POST /api/auth/logout
 router.post('/logout', (req, res) => {

@@ -1,0 +1,110 @@
+.usuarios-roles-container {
+  padding: 20px;
+  max-width: 1000px;
+  margin: auto;
+  font-family: Arial, sans-serif;
+}
+
+.agregar-rol-form {
+  margin-bottom: 15px;
+  display: flex;
+  gap: 10px;
+}
+
+.agregar-rol-form input {
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+}
+
+.agregar-rol-form button {
+  padding: 6px 12px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  background-color: #f5f5f5;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.agregar-rol-form button:hover {
+  background-color: #e0e0e0;
+}
+
+.filtro-permisos {
+  margin-bottom: 15px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: bold;
+}
+
+.filtro-permisos select {
+  padding: 6px 8px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+thead {
+  background-color: #f0f0f0;
+}
+
+th,
+td {
+  border: 1px solid #ccc;
+  padding: 10px;
+  text-align: left;
+  word-wrap: break-word;
+}
+
+th {
+  font-weight: bold;
+}
+
+tbody tr:nth-child(even) {
+  background-color: #fafafa;
+}
+
+tbody tr:hover {
+  background-color: #f1f1f1;
+}
+
+button {
+  padding: 4px 8px;
+  cursor: pointer;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  background-color: #f5f5f5;
+  transition: background-color 0.2s;
+}
+
+button:hover {
+  background-color: #e0e0e0;
+}
+
+.permiso-tag {
+  display: inline-block;
+  background-color: #e0f0ff;
+  padding: 2px 6px;
+  margin: 2px;
+  border-radius: 4px;
+}
+
+.permiso-tag button {
+  margin-left: 4px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-weight: bold;
+  color: #ff4d4f;
+}
+
+.agregar-permiso select {
+  margin-top: 4px;
+  padding: 2px 4px;
+}

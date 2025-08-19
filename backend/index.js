@@ -13,8 +13,8 @@ app.use('/api/usuarios', usuariosRoutes);
 const rolesRouter = require('./routes/roles');
 app.use('/api/roles', rolesRouter);
 
-const usuariosRolesRouter = require('./routes/usuariosRoles');
-app.use('/api/usuarior', usuariosRolesRouter);
+const mantenedor = require('./routes/mantenedor');
+app.use('/api/mantenedor', mantenedor);
 
 
 

@@ -51,3 +51,12 @@ INSERT INTO usuarios (nombre, email, password, rol_id) VALUES
 ('superadmin', 'superadmin@gmail.com', '$2a$10$ElttXEchpfV8xoMSjkCDoeO1ARp2MLWC2V6/qtnuXegZV2nQgoDX6',2),
 ('admin', 'admin@gmail.com', '$2a$10$ElttXEchpfV8xoMSjkCDoeO1ARp2MLWC2V6/qtnuXegZV2nQgoDX6',3),
 ('cliente', 'cliente@gmail.com', '$2a$10$ElttXEchpfV8xoMSjkCDoeO1ARp2MLWC2V6/qtnuXegZV2nQgoDX6',1);
+
+-- Categorías básicas
+INSERT INTO categorias_mantenedor (nombre, permiso_id) VALUES
+('USUARIOS',6);
+
+-- Subcategorías básicas
+INSERT INTO subcategorias_mantenedor (categoria_id, nombre, permiso_id) VALUES
+(1,'cuentas',8),
+(1,'roles',7);

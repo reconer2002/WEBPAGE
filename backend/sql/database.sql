@@ -84,3 +84,32 @@ BEGIN
   DEALLOCATE PREPARE stmt;
 END $$
 DELIMITER ;
+
+-- MANTENEDOR PAGINA CONFIGURACIÓN 0.1
+CREATE TABLE configuracion_pagina (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    logo_url VARCHAR(255),       -- ruta o url del logo en png
+    telefono1 VARCHAR(20),
+    telefono2 VARCHAR(20),
+    color1 VARCHAR(20),          -- hex ej: #FF0000
+    color2 VARCHAR(20),
+    color3 VARCHAR(20),
+    direccion VARCHAR(255),
+    correo_contacto VARCHAR(100),
+    instagram_url VARCHAR(255),
+    estado TINYINT(1) DEFAULT 1, -- 1 = activa, 0 = en mantenimiento
+    actualizado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP 
+                      ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Tabla de testimonios de clientes
+CREATE TABLE testimonios (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    nombre VARCHAR(25) NOT NULL,          -- nombre del cliente
+    calificacion TINYINT NOT NULL,        -- 1 a 5 estrellas, por ejemplo
+    descripcion TEXT NOT NULL,            -- comentario del cliente (texto largo)
+    foto_url VARCHAR(255),                -- url de la foto (/img/xxxx.png)
+    creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    actualizado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP 
+                  ON UPDATE CURRENT_TIMESTAMP
+);

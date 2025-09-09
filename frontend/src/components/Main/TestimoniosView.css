@@ -1,0 +1,81 @@
+.testimonios-section {
+  padding: 2.5rem 1rem;
+  text-align: center;
+}
+
+.titulo {
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin-bottom: 2rem;
+}
+
+.testimonios-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .testimonios-grid {
+    grid-template-columns: repeat(3, 1fr); /* 3 tarjetas por fila */
+  }
+}
+
+.testimonio-card {
+  position: relative; /* para overlay */
+  border-radius: 1rem;
+  overflow: hidden;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  width: 100%; /* ocupa toda la columna del grid */
+  display: flex;
+  flex-direction: column;
+}
+
+.testimonio-foto {
+  width: 100%;
+  flex: 1; /* hace que la imagen crezca con la tarjeta */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e5e7eb; /* color de fondo si no hay imagen */
+}
+
+.testimonio-foto img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain; /* ajusta toda la imagen dentro de la tarjeta */
+  display: block;
+}
+
+.foto-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280; /* gris medio */
+  font-size: 0.875rem;
+}
+
+/* Overlay de texto sobre la imagen */
+.testimonio-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 1rem;
+  background: linear-gradient(to top, rgba(0,0,0,0.7), rgba(0,0,0,0.1));
+  color: white;
+  text-align: left;
+}
+
+.testimonio-nombre {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.testimonio-texto {
+  margin-top: 0.5rem;
+  font-size: 0.95rem;
+}

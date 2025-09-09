@@ -1,40 +1,56 @@
-import React, { useState, useEffect } from 'react';
-import LoginWidget from '../components/LoginWidget/LoginWidget';
-import UserProfile from '../components/UserProfile/UserProfile';
-import authService from '../services/authService';
+// src/pages/HomePage.jsx
+import React, { useEffect, useState } from "react";
+import Header from "../components/Main/Header";
+import Footer from "../components/Main/Footer";
+import paginaService from "../services/paginaService";
+import MainSlider from "../components/Main/MainSlider"; // importamos el slider
+import TestimoniosView from "../components/Main/TestimoniosView"; // importamos testimonios
 
-function HomePage() {
-  const [user, setUser] = useState(null);
+const HomePage = ({ user, onLogin, onLogout }) => {
+  const [footerData, setFooterData] = useState({
+    logo: "",
+    telefono1: "",
+    telefono2: "",
+    correo_contacto: "",
+    direccion: "",
+    instagram_url: "",
+  });
 
   useEffect(() => {
-    // Si ya hay token guardado, obtener usuario automáticamente
-    const fetchUser = async () => {
-      try {
-        const userData = await authService.getCurrentUser();
-        setUser(userData);
-      } catch (err) {
-        console.error('Error al verificar sesión:', err);
-        setUser(null);
-      }
+    const fetchFooter = async () => {
+      const data = await paginaService.getFooterData();
+      setFooterData(data);
     };
-
-    fetchUser();
+    fetchFooter();
   }, []);
 
-  const handleLogout = () => {
-    authService.logout();
-    setUser(null);
-  };
-
   return (
-    <div>
-      {user ? (
-        <UserProfile user={user} onLogout={handleLogout} />
-      ) : (
-        <LoginWidget onLogin={setUser} />
-      )}
+    <div className="homepage-container">
+      {/* Header con usuario */}
+      <Header user={user} onLogin={onLogin} onLogout={onLogout} />
+
+      {/* Contenido principal de la Home */}
+      <main style={{ padding: "2rem", textAlign: "center" }}>
+        <h1>¡Bienvenido a la página principal!</h1>
+      </main>
+
+      {/* Slider principal */}
+      <MainSlider />
+
+      {/* Sección de testimonios */}
+      <TestimoniosView />
+
+      {/* Footer */}
+      <Footer
+        logo={footerData.logo}
+        telefono1={footerData.telefono1}
+        telefono2={footerData.telefono2}
+        correo_contacto={footerData.correo_contacto}
+        direccion={footerData.direccion}
+        instagram_url={footerData.instagram_url}
+      />
     </div>
   );
-}
+};
 
 export default HomePage;

@@ -27,12 +27,12 @@
 }
 
 .categoria-btn:hover {
-  background: #005fa3;
+  background: var(--color-secundario);
   transform: translateY(-2px);
 }
 
 .categoria-btn.active {
-  background: #004c80;
+  background: var(--color-primario);
 }
 
 .subcategorias-list {

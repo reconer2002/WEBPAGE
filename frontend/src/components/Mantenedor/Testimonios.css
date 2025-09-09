@@ -1,0 +1,100 @@
+/* src/components/mantenedor/Testimonios.css */
+
+/* Contenedor general */
+.testimonios-container {
+  max-width: 900px;
+  margin: 20px auto;
+  padding: 20px;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+}
+
+/* Título */
+.testimonios-container h2 {
+  text-align: center;
+  margin-bottom: 20px;
+  color: #333;
+}
+
+/* Formulario */
+.testimonios-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 30px;
+}
+
+.testimonios-form input[type="text"],
+.testimonios-form textarea,
+.testimonios-form input[type="file"] {
+  padding: 8px;
+  font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.testimonios-form textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+.testimonios-form button {
+  align-self: flex-start;
+  padding: 8px 16px;
+  background-color: #006a71;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.testimonios-form button:hover {
+  background-color: #005257;
+}
+
+/* Tabla */
+.testimonios-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.testimonios-table th,
+.testimonios-table td {
+  padding: 10px;
+  border: 1px solid #ddd;
+  text-align: left;
+}
+
+.testimonios-table th {
+  background-color: #006a71;
+  color: white;
+}
+
+.testimonios-table img {
+  max-width: 80px;
+  border-radius: 4px;
+}
+
+/* Botones de acciones */
+.testimonios-table button {
+  padding: 5px 10px;
+  margin-right: 5px;
+  font-size: 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.testimonios-table button:hover {
+  opacity: 0.8;
+}
+
+.testimonios-table button:first-of-type {
+  background-color: #009688; /* Editar */
+  color: white;
+}
+
+.testimonios-table button:last-of-type {
+  background-color: #f44336; /* Eliminar */
+  color: white;
+}

@@ -3,7 +3,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 12px 24px;
-  background: #F2EFE7;
+  background: var(--color-fondo);
   border-bottom: 1px solid #e5e5e5;
 }
 
@@ -35,7 +35,7 @@
 
 .btn {
   padding: 6px 14px;
-  background: #9ACBD0;
+  background: var(--color-secundario);
   color: white;
   font-weight: bold;
   border-radius: 6px;
@@ -44,7 +44,7 @@
 }
 
 .btn:hover {
-  background: #48A6A7;
+  background: var(--color-primario);
   color: white;
 }
 
@@ -77,7 +77,7 @@
 }
 
 .sub-nav a:hover {
-  color: #006A71;
+  filter: brightness(0.8);
 }
 
 /* Icono carrito inline */
@@ -92,6 +92,6 @@
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   font-weight: 1000;
   font-size: 16px;
-  color: #48A6A7;
+  color: var(--color-primario);
   text-transform: uppercase;
 }

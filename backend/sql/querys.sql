@@ -18,6 +18,11 @@ INSERT INTO permisos (nombre) VALUES
 ('ver_usuarios'),
 ('gestionar_roles'),
 ('moderar_usuarios'),
+('ver_pagina'),
+('configurar_pagina'),
+('desconectar_pagina'),
+('cambiar_colores'),
+('editar_testimonios'),
 ('editar_productos'),
 ('agregar_productos'),
 ('eliminar_productos'),
@@ -54,9 +59,29 @@ INSERT INTO usuarios (nombre, email, password, rol_id) VALUES
 
 -- Categorías básicas
 INSERT INTO categorias_mantenedor (nombre, permiso_id) VALUES
-('USUARIOS',6);
+('USUARIOS',6),
+('PAGINA',9),
+('TESTIMONIOS',13);
 
 -- Subcategorías básicas
 INSERT INTO subcategorias_mantenedor (categoria_id, nombre, permiso_id) VALUES
 (1,'cuentas',8),
-(1,'roles',7);
+(1,'roles',7),
+(2,'configuracion',10),
+(2,'conexion',11),
+(2,'colores',12),
+(3,'testimonios',13);
+
+-- Configuración de página básica
+INSERT INTO configuracion_pagina 
+  (logo_url, telefono1, telefono2, color1, color2, color3, estado, instagram_url, correo_contacto, direccion)
+VALUES
+  ('/img/Logo.png', '+56988776655', '+56911223344', '#006A71', '#9ACBD0', '#F2EFE7', 1, 
+   'https://www.instagram.com/mentes___creativas_/', 
+   'contacto@mentescreativas.cl', 
+   'Av. Creatividad 123, Santiago, Chile');
+
+-- Testimonios
+INSERT INTO testimonios (nombre, calificacion, descripcion, foto_url)
+VALUES
+('Vieja Seca - Banda', 5, 'Estamparon las poleras y polerones para nuestra banda en solo un par de días. La calidad y rapidez fueron increíbles, ¡totalmente recomendados!', '/img/testimonio1.png');

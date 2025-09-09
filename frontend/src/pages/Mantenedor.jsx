@@ -3,6 +3,10 @@ import { Folder, FolderOpen } from "lucide-react";
 import mantenedorService from "../services/mantenedor";
 import UsuariosCuentas from "../components/Mantenedor/UsuariosCuentas";
 import UsuariosRoles from "../components/Mantenedor/UsuariosRoles";
+import PaginaConfiguracion from "../components/Mantenedor/PaginaConfiguracion";
+import PaginaDesactivar from "../components/Mantenedor/PaginaDesactivar";
+import PaginaColores from "../components/Mantenedor/PaginaColores";
+import Testimonios from "../components/Mantenedor/Testimonios";
 import "./Mantenedor.css";
 
 const Mantenedor = () => {
@@ -58,12 +62,18 @@ const Mantenedor = () => {
   // Click en subcategoría usando IDs
   const handleSubcategoriaClick = (catId, subId) => {
     console.log("Subcategoria clickeada:", catId, subId); // debug
-
-    // Ajusta estos IDs según tu base de datos
     if (catId === 1 && subId === 1) {
       setSubcategoriaActiva("Cuentas");
     } else if (catId === 1 && subId === 2) {
-      setSubcategoriaActiva("Roles"); // <-- aquí detectamos Roles
+      setSubcategoriaActiva("Roles");
+    } else if (catId === 2 && subId === 3) {
+      setSubcategoriaActiva("PaginaConfiguracion");
+    } else if (catId === 2 && subId === 4) {
+      setSubcategoriaActiva("PaginaDesactivar");
+    } else if (catId === 2 && subId === 5) {
+      setSubcategoriaActiva("PaginaColores");
+    } else if (catId === 3 && subId === 6) { // <-- tu subcategoría testimonios
+      setSubcategoriaActiva("Testimonios");
     } else {
       setSubcategoriaActiva(null);
     }
@@ -121,6 +131,10 @@ const Mantenedor = () => {
       {/* Renderizamos subcategorías según la activa */}
       {subcategoriaActiva === "Cuentas" && <UsuariosCuentas />}
       {subcategoriaActiva === "Roles" && <UsuariosRoles />}
+      {subcategoriaActiva === "PaginaConfiguracion" && <PaginaConfiguracion />}
+      {subcategoriaActiva === "PaginaDesactivar" && <PaginaDesactivar />}
+      {subcategoriaActiva === "PaginaColores" && <PaginaColores />}
+      {subcategoriaActiva === "Testimonios" && <Testimonios />}
     </div>
   );
 };

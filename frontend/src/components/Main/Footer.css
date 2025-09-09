@@ -1,0 +1,85 @@
+.footer {
+  position: relative;
+  color: #fff;
+  padding: 2rem 1rem;
+  font-family: Arial, sans-serif;
+  overflow: hidden; /* para contener el pseudo */
+}
+
+.footer::before {
+  content: '';
+  position: absolute;
+  inset: 0; /* top:0; right:0; bottom:0; left:0 */
+  background-color: var(--color-primario);
+  filter: brightness(0.7); /* más oscuro */
+  z-index: 0; /* detrás del contenido */
+}
+
+.footer * {
+  position: relative;
+  z-index: 1; /* contenido por encima del fondo */
+}
+
+.footer-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.footer-logo img {
+  max-width: 150px;
+  filter: invert(100%) brightness(200%);
+}
+
+.logo-placeholder {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #ccc;
+}
+
+.footer-contact h4,
+.footer-socials h4 {
+  margin-bottom: 0.5rem;
+  color: #f4f4f4;
+}
+
+.footer-contact p {
+  margin: 0.2rem 0;
+  font-size: 0.9rem;
+}
+
+.footer-socials a {
+  font-size: 1.5rem;
+  margin-right: 0.5rem;
+  color: #fff;
+  transition: color 0.3s ease;
+}
+
+.footer-socials a:hover {
+  color: #e4405f; /* color de Instagram */
+}
+
+.footer-links {
+  display: flex;
+  flex-direction: column;
+}
+
+.footer-links a {
+  color: #aaa;
+  text-decoration: none;
+  margin: 0.2rem 0;
+  transition: color 0.3s ease;
+}
+
+.footer-links a:hover {
+  color: #fff;
+}
+
+.footer-bottom {
+  text-align: center;
+  margin-top: 2rem;
+  font-size: 0.8rem;
+  color: #aaa;
+}

@@ -3,9 +3,11 @@ import { useNavigate } from "react-router-dom";
 import "./Header.css";
 import LoginForm from "../LoginForm/LoginForm";
 import authService from "../../services/authService";
+import paginaService from "../../services/paginaService";
 
 const Header = () => {
   const [user, setUser] = useState(null);
+  const [logoUrl, setLogoUrl] = useState(""); // <-- estado para logo
   const navigate = useNavigate();
 
   // Obtener usuario actual al montar el componente
@@ -22,6 +24,15 @@ const Header = () => {
     fetchUser();
   }, []);
 
+  // Obtener logo desde backend
+  useEffect(() => {
+    const fetchLogo = async () => {
+      const data = await paginaService.getFooterData(); // reutilizamos el service
+      setLogoUrl(data.logo);
+    };
+    fetchLogo();
+  }, []);
+
   const handleLogout = () => {
     authService.logout();
     setUser(null);
@@ -36,7 +47,11 @@ const Header = () => {
     <header className="header">
       <div className="logo">
         <a href="#">
-          <img src="/src/assets/MentesCreativasIA.png" alt="Logo" />
+          {logoUrl ? (
+            <img src={logoUrl} alt="Logo" />
+          ) : (
+            <span className="logo-placeholder">Logo</span>
+          )}
         </a>
       </div>
 

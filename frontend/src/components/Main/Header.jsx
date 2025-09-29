@@ -4,10 +4,12 @@ import "./Header.css";
 import LoginForm from "../LoginForm/LoginForm";
 import authService from "../../services/authService";
 import paginaService from "../../services/paginaService";
+import cartService from "../../services/cartService";
 
 const Header = () => {
   const [user, setUser] = useState(null);
   const [logoUrl, setLogoUrl] = useState(""); // <-- estado para logo
+  const [cartCount, setCartCount] = useState(0);
   const navigate = useNavigate();
 
   // Obtener usuario actual al montar el componente
@@ -31,6 +33,25 @@ const Header = () => {
       setLogoUrl(data.logo);
     };
     fetchLogo();
+  }, []);
+
+  // Contador del carrito (localStorage + eventos)
+  useEffect(() => {
+    // valor inicial
+    setCartCount(cartService.getCount());
+
+    const onCart = (e) => {
+      setCartCount(e.detail?.count ?? cartService.getCount());
+    };
+    const onStorage = (e) => {
+      if (e.key === 'cart_v1') setCartCount(cartService.getCount());
+    };
+    window.addEventListener('cart:updated', onCart);
+    window.addEventListener('storage', onStorage);
+    return () => {
+      window.removeEventListener('cart:updated', onCart);
+      window.removeEventListener('storage', onStorage);
+    };
   }, []);
 
   const handleLogout = () => {
@@ -88,6 +109,9 @@ const Header = () => {
               className="cart-icon-inline"
             />
             Carrito
+            {cartCount > 0 && (
+              <span className="cart-badge" aria-label={`Artículos en carrito: ${cartCount}`}>{cartCount}</span>
+            )}
           </a>
         </nav>
       </div>

@@ -3,6 +3,8 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Header from "./components/Main/Header";
 import Footer from "./components/Main/Footer";
 import MantenedorPage from "./pages/Mantenedor";
+import CartPage from "./pages/Cart";
+import DisenosPage from "./pages/Disenos";
 import ProtectedRoute from "./components/ProtectedRoute";
 import PaginaDeshabilitada from "./components/Main/PaginaDeshabilitada";
 import HomePage from "./pages/HomePage";
@@ -73,6 +75,26 @@ function App() {
   return (
     <Router>
       <Routes>
+        {/* Carrito */}
+        <Route
+          path="/cart"
+          element={
+            <>
+              <CartPage />
+            </>
+          }
+        />
+
+        {/* Diseños (catálogo simple) */}
+        <Route
+          path="/diseños"
+          element={
+            <>
+              <DisenosPage />
+            </>
+          }
+        />
+
         {/* Mantenedor solo accesible para admins */}
         <Route
           path="/mantenedor"

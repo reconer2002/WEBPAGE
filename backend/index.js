@@ -24,6 +24,13 @@ app.use('/api/pagina', paginaRoutes);
 const testimoniosRouter = require('./routes/testimonios');
 app.use('/api/testimonios', testimoniosRouter);
 
+// Nuevas rutas: productos y carrito
+const productsRouter = require('./routes/products');
+app.use('/api/products', productsRouter);
+
+const cartRouter = require('./routes/cart');
+app.use('/api/cart', cartRouter);
+
 // Estáticos
 app.use('/img', express.static(path.join(__dirname, 'img')));
 

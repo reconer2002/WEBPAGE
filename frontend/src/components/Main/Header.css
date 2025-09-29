@@ -87,6 +87,26 @@
   object-fit: contain;
 }
 
+/* Badge de cantidad en el carrito */
+.nav-cart { position: relative; }
+.cart-badge {
+  position: absolute;
+  top: -6px;
+  right: -10px;
+  min-width: 18px;
+  padding: 0 6px;
+  height: 18px;
+  border-radius: 9px;
+  background: var(--color-primario);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 0 2px #fff;
+}
+
 /* Estilo del mensaje de bienvenida */
 .welcome-msg {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;

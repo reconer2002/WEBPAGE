@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import variantesService from "../../services/variantesMockService";
+import variantesService from "../../services/variantesService";
 import "./ProductosVariantesGrid.css";
 
 const ProductosVariantesGrid = ({ articulo }) => {
@@ -11,6 +11,7 @@ const ProductosVariantesGrid = ({ articulo }) => {
     nombre: "",
     categoria: "",
     imagen: null,
+    imagenFile: null, // para enviar al backend
   });
 
   useEffect(() => {
@@ -23,8 +24,8 @@ const ProductosVariantesGrid = ({ articulo }) => {
   const cargarVariantes = async () => {
     setLoading(true);
     try {
-      const data = await variantesService.getVariantes(articulo.id);
-      setVariantes(data);
+      const data = await variantesService.getVariantesByArticulo(articulo.id);
+      setVariantes(data); // ya vienen normalizadas con URL completa
     } catch (err) {
       console.error(err);
     } finally {
@@ -35,13 +36,23 @@ const ProductosVariantesGrid = ({ articulo }) => {
   const handleClickVariante = (v) => {
     setModoNuevo(false);
     setSeleccionado(v);
-    setFormData({ ...v });
+    setFormData({
+      nombre: v.valor,
+      categoria: v.nombre_categoria,
+      imagen: v.imagen,
+      imagenFile: null,
+    });
   };
 
   const handleClickNuevo = (categoria) => {
     setModoNuevo(true);
     setSeleccionado({ id: null });
-    setFormData({ nombre: "", categoria: categoria || "", imagen: null });
+    setFormData({
+      nombre: "",
+      categoria: categoria || "",
+      imagen: null,
+      imagenFile: null,
+    });
   };
 
   const handleCerrar = () => {
@@ -56,34 +67,24 @@ const ProductosVariantesGrid = ({ articulo }) => {
       if (files && files.length > 0) {
         setFormData((prev) => ({
           ...prev,
-          imagen: URL.createObjectURL(files[0]),
+          imagen: URL.createObjectURL(files[0]), // vista previa
+          imagenFile: files[0],                  // archivo real
         }));
       } else {
-        setFormData((prev) => ({ ...prev, imagen: null }));
+        setFormData((prev) => ({ ...prev, imagen: null, imagenFile: null }));
       }
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }));
     }
   };
 
-  const handleActualizar = async () => {
-    try {
-      await variantesService.updateVariante(
-        articulo.id,
-        seleccionado.id,
-        formData
-      );
-      cargarVariantes();
-      setSeleccionado(null);
-    } catch (err) {
-      console.error(err);
-      alert("Error al actualizar variante");
-    }
-  };
-
   const handleCrear = async () => {
     try {
-      await variantesService.createVariante(articulo.id, formData);
+      await variantesService.createVariante(articulo.id, {
+        nombre: formData.nombre,
+        categoria: formData.categoria,
+        imagen: formData.imagenFile,
+      });
       cargarVariantes();
       setSeleccionado(null);
       setModoNuevo(false);
@@ -93,11 +94,26 @@ const ProductosVariantesGrid = ({ articulo }) => {
     }
   };
 
+  const handleActualizar = async () => {
+    try {
+      await variantesService.updateVariante(seleccionado.id, {
+        nombre: formData.nombre,
+        categoria: formData.categoria,
+        imagen: formData.imagenFile,
+      });
+      cargarVariantes();
+      setSeleccionado(null);
+    } catch (err) {
+      console.error(err);
+      alert("Error al actualizar variante");
+    }
+  };
+
   const handleEliminar = async () => {
     if (!seleccionado?.id) return;
     if (!window.confirm("¿Eliminar esta variante?")) return;
     try {
-      await variantesService.deleteVariante(articulo.id, seleccionado.id);
+      await variantesService.deleteVariante(seleccionado.id);
       cargarVariantes();
       setSeleccionado(null);
     } catch (err) {
@@ -106,12 +122,12 @@ const ProductosVariantesGrid = ({ articulo }) => {
     }
   };
 
-  const categorias = [...new Set(variantes.map((v) => v.categoria))];
+  const categorias = [...new Set(variantes.map((v) => v.nombre_categoria))];
 
   const renderVariante = (v) => (
     <div className={`contenedor-foto ${!v.imagen ? "sin-imagen" : ""}`}>
-      {v.imagen ? <img src={v.imagen} alt={v.nombre} /> : <span>{v.nombre}</span>}
-      {v.imagen && <p className="descripcion">{v.nombre}</p>}
+      {v.imagen ? <img src={v.imagen} alt={v.valor} /> : <span>{v.valor}</span>}
+      {v.imagen && <p className="descripcion">{v.valor}</p>}
     </div>
   );
 
@@ -134,7 +150,7 @@ const ProductosVariantesGrid = ({ articulo }) => {
             <h4>{cat}</h4>
             <div className="grid-variantes">
               {variantes
-                .filter((v) => v.categoria === cat)
+                .filter((v) => v.nombre_categoria === cat)
                 .map((v) => (
                   <div
                     key={v.id}
@@ -164,9 +180,7 @@ const ProductosVariantesGrid = ({ articulo }) => {
                 <img src={formData.imagen} alt={formData.nombre} />
                 <span
                   className="icono-eliminar-imagen"
-                  onClick={() =>
-                    setFormData((prev) => ({ ...prev, imagen: null }))
-                  }
+                  onClick={() => setFormData((prev) => ({ ...prev, imagen: null, imagenFile: null }))}
                 >
                   ✕
                 </span>
@@ -174,19 +188,9 @@ const ProductosVariantesGrid = ({ articulo }) => {
             )}
 
             <p>Nombre:</p>
-            <input
-              type="text"
-              name="nombre"
-              value={formData.nombre}
-              onChange={handleChange}
-            />
+            <input type="text" name="nombre" value={formData.nombre} onChange={handleChange} />
             <p>Categoría:</p>
-            <input
-              type="text"
-              name="categoria"
-              value={formData.categoria}
-              onChange={handleChange}
-            />
+            <input type="text" name="categoria" value={formData.categoria} onChange={handleChange} />
             <p>Imagen:</p>
             <input type="file" name="imagen" onChange={handleChange} />
           </div>
@@ -210,3 +214,4 @@ const ProductosVariantesGrid = ({ articulo }) => {
 };
 
 export default ProductosVariantesGrid;
+

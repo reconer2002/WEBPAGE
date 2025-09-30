@@ -1,8 +1,8 @@
 // frontend/src/components/Mantenedor/ProductosArticulosGrid.jsx
 import React, { useEffect, useState } from "react";
-import productosService from "../../services/productosMockService";
+import productosService from "../../services/articulosService";
 import ProductosVariantesGrid from "./ProductosVariantesGrid";
-import ProductosObjetosGrid from "./ProductosObjetosGrid"; // <--- Nuevo componente
+import ProductosObjetosGrid from "./ProductosObjetosGrid";
 import "./ProductosArticulosGrid.css";
 
 const ProductosArticulosGrid = () => {
@@ -10,12 +10,16 @@ const ProductosArticulosGrid = () => {
   const [loading, setLoading] = useState(false);
   const [seleccionado, setSeleccionado] = useState(null);
   const [modoNuevo, setModoNuevo] = useState(false);
+
+  // Usamos fotoFile (File real) y fotoPreview (string para <img/>)
   const [formData, setFormData] = useState({
     nombre: "",
     precio: "",
     descripcion: "",
     descuento: 0,
-    foto: null,
+    ranking: 0,
+    fotoFile: null,
+    fotoPreview: null,
   });
 
   useEffect(() => {
@@ -38,11 +42,13 @@ const ProductosArticulosGrid = () => {
     setModoNuevo(false);
     setSeleccionado(art);
     setFormData({
-      nombre: art.nombre,
-      precio: art.precio,
-      descripcion: art.descripcion,
+      nombre: art.nombre || "",
+      precio: art.precio ?? "",
+      descripcion: art.descripcion || "",
       descuento: art.descuento || 0,
-      foto: art.foto || null,
+      ranking: art.ranking || 0,
+      fotoFile: null,               // no cambiamos la imagen hasta que el usuario suba una nueva
+      fotoPreview: art.foto || null // mostramos la actual
     });
   };
 
@@ -54,7 +60,9 @@ const ProductosArticulosGrid = () => {
       precio: "",
       descripcion: "",
       descuento: 0,
-      foto: null,
+      ranking: 0,
+      fotoFile: null,
+      fotoPreview: null,
     });
   };
 
@@ -64,18 +72,24 @@ const ProductosArticulosGrid = () => {
   };
 
   const handleChange = (e) => {
-    const { name, value, files } = e.target;
-    if (files && files.length > 0) {
+    const { name, value, files, type } = e.target;
+
+    // Manejo especial para el input file
+    if (type === "file") {
+      const file = files && files[0] ? files[0] : null;
       setFormData((prev) => ({
         ...prev,
-        [name]: URL.createObjectURL(files[0]),
+        fotoFile: file,
+        fotoPreview: file ? URL.createObjectURL(file) : prev.fotoPreview,
       }));
-    } else {
-      setFormData((prev) => ({ ...prev, [name]: value }));
+      return;
     }
+
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleActualizar = async () => {
+    if (!seleccionado?.id) return;
     try {
       await productosService.updateArticulo(seleccionado.id, formData);
       alert("Artículo actualizado");
@@ -175,7 +189,10 @@ const ProductosArticulosGrid = () => {
                 &#x2715;
               </div>
               <div className="info">
-                {formData.foto && <img src={formData.foto} alt={formData.nombre} />}
+                {formData.fotoPreview && (
+                  <img src={formData.fotoPreview} alt={formData.nombre} />
+                )}
+
                 <p>Nombre:</p>
                 <input
                   type="text"
@@ -184,6 +201,7 @@ const ProductosArticulosGrid = () => {
                   onChange={handleChange}
                   placeholder="Nombre"
                 />
+
                 <p>Precio:</p>
                 <input
                   type="number"
@@ -192,6 +210,7 @@ const ProductosArticulosGrid = () => {
                   onChange={handleChange}
                   placeholder="Precio"
                 />
+
                 <p>Descripción:</p>
                 <textarea
                   name="descripcion"
@@ -199,6 +218,7 @@ const ProductosArticulosGrid = () => {
                   onChange={handleChange}
                   placeholder="Descripción"
                 />
+
                 <p>% de descuento:</p>
                 <input
                   type="number"
@@ -207,8 +227,18 @@ const ProductosArticulosGrid = () => {
                   onChange={handleChange}
                   placeholder="Descuento"
                 />
+
+                <p>Ranking:</p>
+                <input
+                  type="number"
+                  name="ranking"
+                  value={formData.ranking}
+                  onChange={handleChange}
+                  placeholder="Ranking"
+                />
+
                 <p>Imagen:</p>
-                <input type="file" name="foto" onChange={handleChange} />
+                <input type="file" name="foto" accept="image/*" onChange={handleChange} />
               </div>
 
               <div className="botonera-panel">
@@ -228,11 +258,11 @@ const ProductosArticulosGrid = () => {
         </div>
       </section>
 
-      {/* Grid de variantes debajo */}
+      {/* Grids dependientes */}
       {!modoNuevo && seleccionado?.id && (
         <>
           <ProductosVariantesGrid articulo={seleccionado} />
-          <ProductosObjetosGrid articulo={seleccionado} /> {/* <--- Grid de objetos */}
+          <ProductosObjetosGrid articulo={seleccionado} />
         </>
       )}
     </>

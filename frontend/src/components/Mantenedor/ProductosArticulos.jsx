@@ -1,6 +1,6 @@
 // frontend/src/components/Mantenedor/ProductosArticulos.jsx
 import React, { useEffect, useState } from "react";
-import productosService from "../../services/productosMockService";
+import productosService from "../../services/articulosService";
 import ProductosArticulosGrid from "./ProductosArticulosGrid"; // <-- IMPORTAMOS AQUÍ
 import "./ProductosArticulos.css";
 

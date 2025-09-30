@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
-import objetosService from "../../services/objetosMockService";
-import variantesService from "../../services/variantesMockService";
+import objetosService from "../../services/objetosService";
+import variantesService from "../../services/variantesService";
 import "./ProductosObjetosGrid.css";
 
 const ProductosObjetosGrid = ({ articulo }) => {

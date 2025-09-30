@@ -55,7 +55,44 @@ CREATE TABLE IF NOT EXISTS subcategorias_mantenedor (
   FOREIGN KEY (permiso_id) REFERENCES permisos(id)
 );
 
-DELIMITER $$
+CREATE TABLE IF NOT EXISTS articulos (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  nombre VARCHAR(255) NOT NULL,
+  precio DECIMAL(10,2) NOT NULL,        -- precio base
+  descripcion TEXT,
+  foto VARCHAR(500),                    -- URL de imagen principal
+  descuento DECIMAL(5,2) DEFAULT 0,     -- % de descuento
+  ranking DECIMAL(3,2) DEFAULT 0        -- promedio de evaluaciones
+);
+
+CREATE TABLE IF NOT EXISTS variantes (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  articulo_id BIGINT NOT NULL,
+  nombre_categoria VARCHAR(100) NOT NULL, -- ej: "Talla", "Color"
+  valor VARCHAR(100) NOT NULL,            -- ej: "M", "Rojo"
+  imagen VARCHAR(500),                    -- opcional: para mostrar miniatura
+  FOREIGN KEY (articulo_id) REFERENCES articulos(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS objeto (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  articulo_id BIGINT NOT NULL,
+  existencias INT DEFAULT 0,
+  precio DECIMAL(10,2),                   -- precio específico (puede diferir del base)
+  FOREIGN KEY (articulo_id) REFERENCES articulos(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS objeto_variante (
+  objeto_id BIGINT NOT NULL,
+  variante_id BIGINT NOT NULL,
+  PRIMARY KEY (objeto_id, variante_id),
+  FOREIGN KEY (objeto_id) REFERENCES objeto(id) ON DELETE CASCADE,
+  FOREIGN KEY (variante_id) REFERENCES variantes(id) ON DELETE CASCADE
+);
+/* Procedimiento para mostrar roles y permisos.
+   Eliminamos las directivas DELIMITER porque se ejecutará
+   desde un cliente (mysql-connector) que acepta multi-statement.
+*/
 CREATE PROCEDURE IF NOT EXISTS mostrar_roles_permisos()
 BEGIN
   DECLARE sql_query TEXT;
@@ -71,7 +108,7 @@ BEGIN
   FROM permisos p;
 
   SET @final_sql = CONCAT(
-    'SELECT r.nombre AS rol, ', sql_query, 
+    'SELECT r.nombre AS rol, ', sql_query,
     ' FROM roles r
       LEFT JOIN rol_permisos rp ON r.id = rp.rol_id
       LEFT JOIN permisos p ON rp.permiso_id = p.id
@@ -82,8 +119,7 @@ BEGIN
   PREPARE stmt FROM @final_sql;
   EXECUTE stmt;
   DEALLOCATE PREPARE stmt;
-END $$
-DELIMITER ;
+END;
 """
 
 # SQL para insertar registros iniciales
@@ -141,14 +177,85 @@ INSERT INTO subcategorias_mantenedor (categoria_id, nombre, permiso_id) VALUES
 (1,'roles',7);
 """
 
+# SQL para datos de ejemplo de productos
+sql_datos_productos = """
+-- Insertar artículos de ejemplo
+INSERT INTO articulos (nombre, precio, descripcion, foto, descuento, ranking) VALUES
+('Camiseta Básica', 25.99, 'Camiseta de algodón 100% con corte clásico', 'https://example.com/camiseta.jpg', 0, 4.5),
+('Pantalón Jeans', 79.99, 'Pantalón jeans de corte recto en denim premium', 'https://example.com/jeans.jpg', 10, 4.2),
+('Zapatillas Deportivas', 129.99, 'Zapatillas para running con tecnología de amortiguación', 'https://example.com/zapatillas.jpg', 15, 4.8),
+('Chaqueta de Cuero', 199.99, 'Chaqueta de cuero genuino con forro interior', 'https://example.com/chaqueta.jpg', 5, 4.6);
+
+-- Insertar variantes para Camiseta Básica (ID 1)
+INSERT INTO variantes (articulo_id, nombre_categoria, valor, imagen) VALUES
+-- Tallas
+(1, 'Talla', 'XS', NULL),
+(1, 'Talla', 'S', NULL),
+(1, 'Talla', 'M', NULL),
+(1, 'Talla', 'L', NULL),
+(1, 'Talla', 'XL', NULL),
+-- Colores
+(1, 'Color', 'Blanco', 'https://example.com/camiseta-blanco.jpg'),
+(1, 'Color', 'Negro', 'https://example.com/camiseta-negro.jpg'),
+(1, 'Color', 'Gris', 'https://example.com/camiseta-gris.jpg'),
+(1, 'Color', 'Azul Marino', 'https://example.com/camiseta-azul.jpg');
+
+-- Insertar variantes para Pantalón Jeans (ID 2)
+INSERT INTO variantes (articulo_id, nombre_categoria, valor, imagen) VALUES
+-- Tallas
+(2, 'Talla', '28', NULL),
+(2, 'Talla', '30', NULL),
+(2, 'Talla', '32', NULL),
+(2, 'Talla', '34', NULL),
+(2, 'Talla', '36', NULL),
+-- Colores
+(2, 'Color', 'Azul Clásico', 'https://example.com/jeans-azul.jpg'),
+(2, 'Color', 'Negro', 'https://example.com/jeans-negro.jpg'),
+(2, 'Color', 'Gris Oscuro', 'https://example.com/jeans-gris.jpg');
+
+-- Insertar variantes para Zapatillas Deportivas (ID 3)
+INSERT INTO variantes (articulo_id, nombre_categoria, valor, imagen) VALUES
+-- Tallas
+(3, 'Talla', '38', NULL),
+(3, 'Talla', '39', NULL),
+(3, 'Talla', '40', NULL),
+(3, 'Talla', '41', NULL),
+(3, 'Talla', '42', NULL),
+(3, 'Talla', '43', NULL),
+-- Colores
+(3, 'Color', 'Blanco/Negro', 'https://example.com/zapatillas-blanco-negro.jpg'),
+(3, 'Color', 'Negro/Rojo', 'https://example.com/zapatillas-negro-rojo.jpg'),
+(3, 'Color', 'Azul/Blanco', 'https://example.com/zapatillas-azul-blanco.jpg');
+
+-- Insertar variantes para Chaqueta de Cuero (ID 4)
+INSERT INTO variantes (articulo_id, nombre_categoria, valor, imagen) VALUES
+-- Tallas
+(4, 'Talla', 'S', NULL),
+(4, 'Talla', 'M', NULL),
+(4, 'Talla', 'L', NULL),
+(4, 'Talla', 'XL', NULL),
+-- Colores
+(4, 'Color', 'Negro', 'https://example.com/chaqueta-negro.jpg'),
+(4, 'Color', 'Marrón', 'https://example.com/chaqueta-marron.jpg');
+"""
+
 def ejecutar_sql_multi(cursor, sql_script):
-    # Divide el script por ';' y ejecuta cada sentencia
-    statements = [s.strip() for s in sql_script.split(';') if s.strip()]
-    for stmt in statements:
-        try:
-            cursor.execute(stmt)
-        except Exception as e:
-            print(f"Error ejecutando sentencia: {stmt}\n{e}")
+  # Ejecuta un script SQL que puede contener múltiples sentencias y procedimientos.
+  # Usamos cursor.execute(..., multi=True) para que mysql-connector maneje correctamente
+  # bloques como CREATE PROCEDURE que contienen ';' internos.
+  try:
+    for result in cursor.execute(sql_script, multi=True):
+      # Algunos resultados pueden ser objetos con .statement o .rowcount
+      try:
+        _ = result.fetchall()
+      except Exception:
+        # No todas las sentencias retornan filas; ignorar
+        pass
+  except Exception as e:
+    # Imprimir el SQL truncado en caso de error para diagnóstico
+    preview = sql_script.strip().split('\n')[0:5]
+    preview_text = '\n'.join(preview)
+    print(f"Error ejecutando script (vista previa):\n{preview_text}\n{e}")
 
 def main():
     try:
@@ -165,6 +272,9 @@ def main():
 
         print("Insertando registros iniciales...")
         ejecutar_sql_multi(cursor, sql_inserts)
+
+        print("Insertando datos de ejemplo de productos...")
+        ejecutar_sql_multi(cursor, sql_datos_productos)
 
         conn.commit()
         print("✅ Base de datos generada con éxito.")

@@ -24,6 +24,15 @@ app.use('/api/pagina', paginaRoutes);
 const testimoniosRouter = require('./routes/testimonios');
 app.use('/api/testimonios', testimoniosRouter);
 
+const articulosRouter = require('./routes/articulos');
+app.use('/api/articulos', articulosRouter);
+
+const variantesRouter = require('./routes/variantes');
+app.use('/api/variantes', variantesRouter);
+
+const objetosRouter = require('./routes/objetos');
+app.use('/api/objetos', objetosRouter);
+
 // Estáticos
 app.use('/img', express.static(path.join(__dirname, 'img')));
 

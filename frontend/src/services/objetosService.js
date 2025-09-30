@@ -2,31 +2,31 @@
 import api from './api';
 
 const objetosService = {
-  // GET /articulos/:id/objetos
-  getObjetosByArticulo: async (articuloId) => {
+  getObjetos: async (articuloId) => {
     const res = await api.get(`/articulos/${articuloId}/objetos`);
-    return res.data;
+    return res.data; // ya vienen con {id, precio, existencias, variantes: [id, id]}
   },
 
-  // POST /articulos/:id/objetos  (crear SKU manual)
   createObjeto: async (articuloId, data) => {
-    const res = await api.post(`/articulos/${articuloId}/objetos`, data);
+    const payload = {
+      precio: data.precio,
+      existencias: data.existencias,
+      variante_ids: data.variantes // <-- array de IDs
+    };
+    const res = await api.post(`/articulos/${articuloId}/objetos`, payload);
     return res.data;
   },
 
-  // POST /articulos/:id/objetos/generar
-  generarObjetos: async (articuloId, data) => {
-    const res = await api.post(`/articulos/${articuloId}/objetos/generar`, data);
-    return res.data;
-  },
-
-  // PUT /objetos/:id
   updateObjeto: async (id, data) => {
-    const res = await api.put(`/objetos/${id}`, data);
+    const payload = {
+      precio: data.precio,
+      existencias: data.existencias,
+      variante_ids: data.variantes
+    };
+    const res = await api.put(`/objetos/${id}`, payload);
     return res.data;
   },
 
-  // DELETE /objetos/:id
   deleteObjeto: async (id) => {
     const res = await api.delete(`/objetos/${id}`);
     return res.data;

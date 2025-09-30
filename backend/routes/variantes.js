@@ -16,37 +16,6 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// POST /articulos/:id/variantes - Crear variante
-router.post('/articulos/:id/variantes', upload.single('imagen'), async (req, res) => {
-  try {
-    const { id: articuloId } = req.params;
-    const { nombre, categoria } = req.body;
-
-    if (!nombre || !categoria) {
-      return res.status(400).json({ error: 'nombre y categoria son requeridos' });
-    }
-
-    // Verificar que el artículo existe
-    const [existingArticle] = await db.query('SELECT * FROM articulos WHERE id = ?', [articuloId]);
-    if (existingArticle.length === 0) {
-      return res.status(404).json({ error: 'Artículo no encontrado' });
-    }
-
-    const imagenUrl = req.file ? `/img/variantes/${req.file.filename}` : null;
-
-    const [result] = await db.query(
-      'INSERT INTO variantes (articulo_id, nombre_categoria, valor, imagen) VALUES (?, ?, ?, ?)',
-      [articuloId, categoria, nombre, imagenUrl]
-    );
-
-    const [newVariant] = await db.query('SELECT * FROM variantes WHERE id = ?', [result.insertId]);
-    res.status(201).json(newVariant[0]);
-  } catch (error) {
-    console.error('Error al crear variante:', error);
-    res.status(500).json({ error: 'Error al crear variante' });
-  }
-});
-
 // PUT /variantes/:id - Editar variante
 router.put('/:id', upload.single('imagen'), async (req, res) => {
   try {

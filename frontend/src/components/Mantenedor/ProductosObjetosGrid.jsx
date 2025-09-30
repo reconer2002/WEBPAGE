@@ -1,3 +1,4 @@
+// ProductosObjetosGrid.jsx
 import React, { useEffect, useState } from "react";
 import objetosService from "../../services/objetosService";
 import variantesService from "../../services/variantesService";
@@ -5,72 +6,79 @@ import "./ProductosObjetosGrid.css";
 
 const ProductosObjetosGrid = ({ articulo }) => {
   const [objetos, setObjetos] = useState([]);
+  const [variantesArticulo, setVariantesArticulo] = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [filtros, setFiltros] = useState({});
-  const [variantesArticulo, setVariantesArticulo] = useState([]);
+  const [formData, setFormData] = useState({ precio: "", existencias: 0, variantes: {} });
   const [seleccionado, setSeleccionado] = useState(null);
   const [modoNuevo, setModoNuevo] = useState(false);
-  const [formData, setFormData] = useState({ precio: "", existencias: 0, variantes: {} });
+  const [opcionesFiltros, setOpcionesFiltros] = useState({}); // Valores únicos para filtros
 
   useEffect(() => {
-    if (!articulo?.id) return;
-    cargarDatos();
+    if (articulo?.id) cargarDatos();
   }, [articulo]);
 
   const cargarDatos = async () => {
-    try {
-      const objData = await objetosService.getObjetos(articulo.id);
-      setObjetos(objData);
+    const objs = await objetosService.getObjetos(articulo.id);
+    const vars = await variantesService.getVariantes(articulo.id);
 
-      const vars = await variantesService.getVariantes(articulo.id);
-      setVariantesArticulo(vars);
+    setObjetos(objs || []);
+    setVariantesArticulo(vars || []);
 
-      const cats = [...new Set(vars.map(v => v.categoria))];
-      setCategorias(cats);
+    // Categorías
+    const cats = [...new Set(vars.map(v => v.categoria))];
+    setCategorias(cats);
 
-      const filtrosIniciales = {};
-      cats.forEach(cat => (filtrosIniciales[cat] = ""));
-      setFiltros(filtrosIniciales);
-    } catch (err) {
-      console.error(err);
-    }
+    // Inicializar filtros
+    const filtrosInicial = {};
+    const opcionesInicial = {};
+    cats.forEach(cat => {
+      filtrosInicial[cat] = "";
+      // Valores únicos para filtros
+      opcionesInicial[cat] = [...new Set(vars.filter(v => v.categoria === cat).map(v => v.nombre))];
+    });
+    setFiltros(filtrosInicial);
+    setOpcionesFiltros(opcionesInicial);
   };
+
+  // Mapear objeto a { categoria: {id, nombre} }
+  const mapVariantesObjeto = (obj) => {
+    const m = {};
+    (obj.variantes || []).forEach(v => {
+      m[v.categoria] = { id: v.id, nombre: v.valor || v.nombre };
+    });
+    return m;
+  };
+
+  const objetosFiltrados = objetos.filter(obj => {
+    const variantesMap = mapVariantesObjeto(obj);
+    return categorias.every(cat => !filtros[cat] || (variantesMap[cat]?.nombre === filtros[cat]));
+  });
 
   const handleFiltroChange = (categoria, value) => {
     setFiltros(prev => ({ ...prev, [categoria]: value }));
   };
 
-  // Mapear IDs de variantes a {categoria: valor}
-  const objetosConValores = objetos.map(obj => {
-    const objVars = {};
-    obj.variantes.forEach(idVar => {
-      const varData = variantesArticulo.find(v => v.id === idVar);
-      if (varData) objVars[varData.categoria] = varData.nombre;
-    });
-    return { ...obj, variantesMap: objVars };
-  });
-
-  const objetosFiltrados = objetosConValores.filter(obj =>
-    categorias.every(cat => !filtros[cat] || obj.variantesMap[cat] === filtros[cat])
-  );
-
   const handleClickObjeto = (obj) => {
     setModoNuevo(false);
     setSeleccionado(obj);
-    const variantesMap = {};
-    obj.variantes.forEach(idVar => {
-      const v = variantesArticulo.find(v => v.id === idVar);
-      if (v) variantesMap[v.categoria] = v.id;
+
+    const variantesMap = mapVariantesObjeto(obj);
+    const formVars = {};
+    categorias.forEach(cat => {
+      formVars[cat] = variantesMap[cat]?.id || "";
     });
-    setFormData({ precio: obj.precio, existencias: obj.existencias, variantes: variantesMap });
+
+    setFormData({ precio: obj.precio, existencias: obj.existencias, variantes: formVars });
   };
 
   const handleClickNuevo = () => {
     setModoNuevo(true);
-    setSeleccionado({ id: null });
-    const variantesMap = {};
-    categorias.forEach(cat => variantesMap[cat] = "");
-    setFormData({ precio: "", existencias: 0, variantes: variantesMap });
+    setSeleccionado(null);
+
+    const formVars = {};
+    categorias.forEach(cat => formVars[cat] = "");
+    setFormData({ precio: "", existencias: 0, variantes: formVars });
   };
 
   const handleCerrar = () => {
@@ -78,94 +86,82 @@ const ProductosObjetosGrid = ({ articulo }) => {
     setModoNuevo(false);
   };
 
+  const handleVarianteChange = (cat, value) => {
+    setFormData(prev => ({ ...prev, variantes: { ...prev.variantes, [cat]: value } }));
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleVarianteChange = (categoria, value) => {
-    setFormData(prev => ({ ...prev, variantes: { ...prev.variantes, [categoria]: value } }));
-  };
-
   const handleCrear = async () => {
-    try {
-      const varianteIds = Object.values(formData.variantes).filter(Boolean);
-      await objetosService.createObjeto(articulo.id, {
-        precio: parseFloat(formData.precio),
-        existencias: parseInt(formData.existencias),
-        variantes: varianteIds
-      });
-      cargarDatos();
-      handleCerrar();
-    } catch (err) {
-      console.error(err);
-      alert("Error al crear objeto");
-    }
+    const varianteIds = Object.values(formData.variantes).filter(Boolean);
+    await objetosService.createObjeto(articulo.id, {
+      precio: parseFloat(formData.precio),
+      existencias: parseInt(formData.existencias),
+      variantes: varianteIds
+    });
+    cargarDatos();
+    handleCerrar();
   };
 
   const handleActualizar = async () => {
-    try {
-      const varianteIds = Object.values(formData.variantes).filter(Boolean);
-      await objetosService.updateObjeto(seleccionado.id, {
-        precio: parseFloat(formData.precio),
-        existencias: parseInt(formData.existencias),
-        variantes: varianteIds
-      });
-      cargarDatos();
-      handleCerrar();
-    } catch (err) {
-      console.error(err);
-      alert("Error al actualizar objeto");
-    }
+    const varianteIds = Object.values(formData.variantes).filter(Boolean);
+    await objetosService.updateObjeto(seleccionado.id, {
+      precio: parseFloat(formData.precio),
+      existencias: parseInt(formData.existencias),
+      variantes: varianteIds
+    });
+    cargarDatos();
+    handleCerrar();
   };
 
   const handleEliminar = async () => {
     if (!window.confirm("¿Eliminar este objeto?")) return;
-    try {
-      await objetosService.deleteObjeto(seleccionado.id);
-      cargarDatos();
-      handleCerrar();
-    } catch (err) {
-      console.error(err);
-      alert("Error al eliminar objeto");
-    }
+    await objetosService.deleteObjeto(seleccionado.id);
+    cargarDatos();
+    handleCerrar();
   };
 
   return (
     <div className="productos-objetos-grid-contenido">
       <h3>Objetos de {articulo.nombre}</h3>
 
+      {/* Filtros */}
       <div className="filtros">
-        {categorias.map(cat => {
-          const valoresUnicos = [...new Set(objetosConValores.map(obj => obj.variantesMap[cat]).filter(Boolean))];
-          return (
-            <div key={cat} className="filtro-categoria">
-              <label>{cat}:</label>
-              <select value={filtros[cat]} onChange={e => handleFiltroChange(cat, e.target.value)}>
-                <option value="">--</option>
-                {valoresUnicos.map(val => (
-                  <option key={val} value={val}>{val}</option>
-                ))}
-              </select>
-            </div>
-          );
-        })}
+        {categorias.map(cat => (
+          <div key={cat} className="filtro-categoria">
+            <label>{cat}:</label>
+            <select value={filtros[cat]} onChange={e => handleFiltroChange(cat, e.target.value)}>
+              <option value="">--</option>
+              {opcionesFiltros[cat]?.map(val => <option key={val} value={val}>{val}</option>)}
+            </select>
+          </div>
+        ))}
       </div>
 
       <div className="contenedor-principal">
+        {/* Grid de objetos */}
         <div className={`grid-objetos mostrador ${seleccionado || modoNuevo ? "reducido" : "completo"}`}>
-          {objetosFiltrados.map(obj => (
-            <div key={obj.id} className="objeto-item" onClick={() => handleClickObjeto(obj)}>
-              <p className="nombre">({categorias.map(cat => obj.variantesMap[cat] || "-").join("-")})</p>
-              <p>Precio: ${obj.precio}</p>
-              <p>Stock: {obj.existencias}</p>
-            </div>
-          ))}
+          {objetosFiltrados.map(obj => {
+            const variantesMap = mapVariantesObjeto(obj);
+            const nombreGrid = categorias.map(cat => variantesMap[cat]?.nombre || "-").join(" - ");
+            return (
+              <div key={obj.id} className="objeto-item" onClick={() => handleClickObjeto(obj)}>
+                <p className="nombre">{nombreGrid}</p>
+                <p>Precio: ${obj.precio}</p>
+                <p>Stock: {obj.existencias}</p>
+              </div>
+            );
+          })}
+
           <div className="objeto-item add-item" onClick={handleClickNuevo}>
             <p>➕ Añadir Objeto</p>
           </div>
         </div>
 
+        {/* Panel de edición/creación */}
         {(seleccionado || modoNuevo) && (
           <div className="seleccion abierto">
             <div className="cerrar" onClick={handleCerrar}>&#x2715;</div>
@@ -181,11 +177,12 @@ const ProductosObjetosGrid = ({ articulo }) => {
                 return (
                   <div key={cat}>
                     <p>{cat}:</p>
-                    <select value={formData.variantes[cat] || ""} onChange={e => handleVarianteChange(cat, parseInt(e.target.value))}>
+                    <select
+                      value={formData.variantes[cat] || ""}
+                      onChange={e => handleVarianteChange(cat, parseInt(e.target.value))}
+                    >
                       <option value="">--</option>
-                      {opciones.map(opt => (
-                        <option key={opt.id} value={opt.id}>{opt.nombre}</option>
-                      ))}
+                      {opciones.map(opt => <option key={opt.id} value={opt.id}>{opt.nombre}</option>)}
                     </select>
                   </div>
                 );

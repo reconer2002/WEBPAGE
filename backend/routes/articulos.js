@@ -260,20 +260,19 @@ router.get('/:id/objetos', async (req, res) => {
         o.articulo_id, 
         o.existencias, 
         o.precio,
-        GROUP_CONCAT(
-          CONCAT(v.nombre_categoria, ':', v.valor) 
-          ORDER BY v.nombre_categoria 
-          SEPARATOR ', '
-        ) as variantes_texto,
         JSON_ARRAYAGG(
-          JSON_OBJECT(
-            'id', v.id,
-            'nombre_categoria', v.nombre_categoria,
-            'valor', v.valor,
-            'imagen', v.imagen
-          )
+          CASE 
+            WHEN v.id IS NOT NULL THEN
+              JSON_OBJECT(
+                'id', v.id,
+                'categoria', v.nombre_categoria,
+                'nombre', v.valor,
+                'imagen', v.imagen
+              )
+            ELSE NULL
+          END
         ) as variantes
-      FROM objeto o
+      FROM objetos o
       LEFT JOIN objeto_variante ov ON o.id = ov.objeto_id
       LEFT JOIN variantes v ON ov.variante_id = v.id
       WHERE o.articulo_id = ?
@@ -283,7 +282,16 @@ router.get('/:id/objetos', async (req, res) => {
       [id]
     );
 
-    res.json(objects);
+    // Asegurar que variantes nunca sea [null] sino un array vacío si no hay
+    const objetosNormalizados = objects.map(obj => ({
+      id: obj.id,
+      articulo_id: obj.articulo_id,
+      existencias: obj.existencias,
+      precio: obj.precio,
+      variantes: obj.variantes.filter(v => v !== null)
+    }));
+
+    res.json(objetosNormalizados);
   } catch (error) {
     console.error('Error al obtener objetos:', error);
     res.status(500).json({ error: 'Error al obtener objetos' });
@@ -304,7 +312,7 @@ router.post('/:id/objetos', async (req, res) => {
 
     // Crear el objeto
     const [result] = await db.query(
-      'INSERT INTO objeto (articulo_id, existencias, precio) VALUES (?, ?, ?)',
+      'INSERT INTO objetos (articulo_id, existencias, precio) VALUES (?, ?, ?)',
       [id, existencias || 0, precio || null]
     );
 
@@ -322,27 +330,29 @@ router.post('/:id/objetos', async (req, res) => {
 
     // Retornar el objeto creado con sus variantes
     const [newObject] = await db.query(
-      `
-      SELECT 
-        o.id, 
-        o.articulo_id, 
-        o.existencias, 
-        o.precio,
-        JSON_ARRAYAGG(
-          JSON_OBJECT(
-            'id', v.id,
-            'nombre_categoria', v.nombre_categoria,
-            'valor', v.valor,
-            'imagen', v.imagen
-          )
-        ) as variantes
-      FROM objeto o
-      LEFT JOIN objeto_variante ov ON o.id = ov.objeto_id
-      LEFT JOIN variantes v ON ov.variante_id = v.id
-      WHERE o.id = ?
-      GROUP BY o.id
-      `,
-      [objetoId]
+        `
+        SELECT 
+            o.id, 
+            o.articulo_id, 
+            o.existencias, 
+            o.precio,
+            JSON_ARRAYAGG(
+            CASE WHEN v.id IS NOT NULL THEN
+                JSON_OBJECT(
+                'id', v.id,
+                'nombre_categoria', v.nombre_categoria,
+                'valor', v.valor,
+                'imagen', v.imagen
+                )
+            ELSE NULL END
+            ) as variantes
+        FROM objetos o
+        LEFT JOIN objeto_variante ov ON o.id = ov.objeto_id
+        LEFT JOIN variantes v ON ov.variante_id = v.id
+        WHERE o.id = ?
+        GROUP BY o.id
+        `,
+        [objetoId]
     );
 
     res.status(201).json(newObject[0]);
@@ -388,7 +398,7 @@ router.post('/:id/objetos/generar', async (req, res) => {
     for (const combinacion of combinaciones) {
       // Crear objeto
       const [result] = await db.query(
-        'INSERT INTO objeto (articulo_id, existencias, precio) VALUES (?, ?, ?)',
+        'INSERT INTO objetos (articulo_id, existencias, precio) VALUES (?, ?, ?)',
         [id, existencias_base || 0, precio_base || null]
       );
 

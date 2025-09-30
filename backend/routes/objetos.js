@@ -2,45 +2,56 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 
-// PUT /objetos/:id - Actualizar stock o precio de un SKU
+// PUT /objetos/:id - Actualizar objeto (precio, existencias y variantes)
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { existencias, precio } = req.body;
-    
-    // Verificar que el objeto existe
+    const { existencias, precio, variante_ids } = req.body;
+
+    // 1) Verificar que el objeto existe
     const [existingObject] = await db.query('SELECT * FROM objetos WHERE id = ?', [id]);
     if (existingObject.length === 0) {
       return res.status(404).json({ error: 'Objeto no encontrado' });
     }
-    
-    // Construir la consulta dinámicamente basada en los campos proporcionados
+
+    // 2) Actualizar precio y existencias si vienen
     const updates = [];
     const values = [];
-    
+
     if (existencias !== undefined) {
       updates.push('existencias = ?');
       values.push(existencias);
     }
-    
     if (precio !== undefined) {
       updates.push('precio = ?');
       values.push(precio);
     }
-    
-    if (updates.length === 0) {
-      return res.status(400).json({ error: 'Se debe proporcionar al menos existencias o precio para actualizar' });
+
+    if (updates.length > 0) {
+      values.push(id);
+      await db.query(
+        `UPDATE objetos SET ${updates.join(', ')} WHERE id = ?`,
+        values
+      );
     }
-    
-    values.push(id);
-    
-    await db.query(
-      `UPDATE objetos SET ${updates.join(', ')} WHERE id = ?`,
-      values
-    );
-    
-    // Retornar el objeto actualizado con sus variantes
-    const [updatedObject] = await db.query(`
+
+    // 3) Actualizar variantes (si se enviaron)
+    if (Array.isArray(variante_ids)) {
+      // Eliminar relaciones anteriores
+      await db.query('DELETE FROM objeto_variante WHERE objeto_id = ?', [id]);
+
+      // Insertar las nuevas
+      for (const varianteId of variante_ids) {
+        await db.query(
+          'INSERT INTO objeto_variante (objeto_id, variante_id) VALUES (?, ?)',
+          [id, varianteId]
+        );
+      }
+    }
+
+    // 4) Devolver objeto actualizado con sus variantes
+    const [updatedObject] = await db.query(
+      `
       SELECT 
         o.id, 
         o.articulo_id, 
@@ -51,8 +62,8 @@ router.put('/:id', async (req, res) => {
             WHEN v.id IS NOT NULL THEN
               JSON_OBJECT(
                 'id', v.id,
-                'nombre_categoria', v.nombre_categoria,
-                'valor', v.valor,
+                'categoria', v.nombre_categoria,
+                'nombre', v.valor,
                 'imagen', v.imagen
               )
             ELSE NULL
@@ -63,16 +74,22 @@ router.put('/:id', async (req, res) => {
       LEFT JOIN variantes v ON ov.variante_id = v.id
       WHERE o.id = ?
       GROUP BY o.id
-    `, [id]);
-    
-    res.json(updatedObject[0]);
+      `,
+      [id]
+    );
+
+    // Normalizar para no incluir NULL
+    const obj = updatedObject[0];
+    obj.variantes = obj.variantes.filter(v => v !== null);
+
+    res.json(obj);
   } catch (error) {
     console.error('Error al actualizar objeto:', error);
     res.status(500).json({ error: 'Error al actualizar objeto' });
   }
 });
 
-// DELETE /objetos/:id - Eliminar un SKU
+// DELETE /objetos/:id - Eliminar un SKU y sus variantes asociadas
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -82,9 +99,14 @@ router.delete('/:id', async (req, res) => {
     if (existingObject.length === 0) {
       return res.status(404).json({ error: 'Objeto no encontrado' });
     }
-    
+
+    // 1) Eliminar relaciones en objeto_variante
+    await db.query('DELETE FROM objeto_variante WHERE objeto_id = ?', [id]);
+
+    // 2) Eliminar el objeto
     await db.query('DELETE FROM objetos WHERE id = ?', [id]);
-    res.json({ message: 'Objeto eliminado exitosamente' });
+
+    res.json({ message: 'Objeto y sus variantes asociadas eliminados exitosamente' });
   } catch (error) {
     console.error('Error al eliminar objeto:', error);
     res.status(500).json({ error: 'Error al eliminar objeto' });

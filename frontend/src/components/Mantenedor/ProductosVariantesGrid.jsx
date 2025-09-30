@@ -11,7 +11,7 @@ const ProductosVariantesGrid = ({ articulo }) => {
     nombre: "",
     categoria: "",
     imagen: null,
-    imagenFile: null, // para enviar al backend
+    imagenFile: null,
   });
 
   useEffect(() => {
@@ -24,8 +24,8 @@ const ProductosVariantesGrid = ({ articulo }) => {
   const cargarVariantes = async () => {
     setLoading(true);
     try {
-      const data = await variantesService.getVariantesByArticulo(articulo.id);
-      setVariantes(data); // ya vienen normalizadas con URL completa
+      const data = await variantesService.getVariantes(articulo.id);
+      setVariantes(data); // ya vienen normalizadas
     } catch (err) {
       console.error(err);
     } finally {
@@ -37,8 +37,8 @@ const ProductosVariantesGrid = ({ articulo }) => {
     setModoNuevo(false);
     setSeleccionado(v);
     setFormData({
-      nombre: v.valor,
-      categoria: v.nombre_categoria,
+      nombre: v.nombre,
+      categoria: v.categoria,
       imagen: v.imagen,
       imagenFile: null,
     });
@@ -67,8 +67,8 @@ const ProductosVariantesGrid = ({ articulo }) => {
       if (files && files.length > 0) {
         setFormData((prev) => ({
           ...prev,
-          imagen: URL.createObjectURL(files[0]), // vista previa
-          imagenFile: files[0],                  // archivo real
+          imagen: URL.createObjectURL(files[0]),
+          imagenFile: files[0],
         }));
       } else {
         setFormData((prev) => ({ ...prev, imagen: null, imagenFile: null }));
@@ -122,12 +122,12 @@ const ProductosVariantesGrid = ({ articulo }) => {
     }
   };
 
-  const categorias = [...new Set(variantes.map((v) => v.nombre_categoria))];
+  const categorias = [...new Set(variantes.map((v) => v.categoria))];
 
   const renderVariante = (v) => (
     <div className={`contenedor-foto ${!v.imagen ? "sin-imagen" : ""}`}>
-      {v.imagen ? <img src={v.imagen} alt={v.valor} /> : <span>{v.valor}</span>}
-      {v.imagen && <p className="descripcion">{v.valor}</p>}
+      {v.imagen ? <img src={v.imagen} alt={v.nombre} /> : <span>{v.nombre}</span>}
+      {v.imagen && <p className="descripcion">{v.nombre}</p>}
     </div>
   );
 
@@ -137,20 +137,12 @@ const ProductosVariantesGrid = ({ articulo }) => {
         <h3>Variantes de {articulo.nombre}</h3>
         {loading && <p>Cargando variantes...</p>}
 
-        {variantes.length === 0 && (
-          <div className="grid-variantes">
-            <div className="variante-item add-item" onClick={() => handleClickNuevo("")}>
-              <p>➕ Añadir Variante</p>
-            </div>
-          </div>
-        )}
-
         {categorias.map((cat) => (
           <div key={cat} className="categoria">
             <h4>{cat}</h4>
             <div className="grid-variantes">
               {variantes
-                .filter((v) => v.nombre_categoria === cat)
+                .filter((v) => v.categoria === cat)
                 .map((v) => (
                   <div
                     key={v.id}

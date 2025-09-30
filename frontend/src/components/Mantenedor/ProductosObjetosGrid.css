@@ -1,0 +1,136 @@
+.productos-objetos-grid-contenido {
+  width: 100%;
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.filtros {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+.filtro-categoria label {
+  margin-right: 5px;
+  font-weight: bold;
+}
+
+.filtro-categoria select {
+  padding: 5px;
+}
+
+/* Contenedor principal para grid + panel */
+.productos-objetos-grid-contenido .contenedor-principal {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  align-items: flex-start; /* Evita que el grid se estire verticalmente */
+}
+
+/* Grid de objetos */
+.grid-objetos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  transition: width 0.45s ease;
+  align-items: flex-start; /* Cada card mantiene su altura */
+}
+
+.grid-objetos.mostrador.completo {
+  width: 100%;
+}
+
+.grid-objetos.mostrador.reducido {
+  width: 70%;
+}
+
+.objeto-item {
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 8px;
+  flex: 0 1 calc((100% - 40px)/4); /* Cambié 1 1 -> 0 1 para que no estire */
+  max-width: calc((100% - 40px)/4);
+  cursor: pointer;
+  transition: transform 0.2s ease, background-color 0.2s ease;
+}
+
+.objeto-item:hover {
+  background-color: #f0f0f0;
+  transform: translateY(-3px);
+}
+
+.objeto-item.add-item {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-style: italic;
+  background-color: #fafafa;
+}
+
+.objeto-item.add-item:hover {
+  background-color: #e0ffe0;
+}
+
+.objeto-item .nombre {
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+/* Panel lateral */
+.seleccion {
+  transition: width 0.45s ease, opacity 0.45s ease;
+  width: 0;
+  opacity: 0;
+  overflow: hidden;
+  border: none;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.seleccion.abierto {
+  width: 30%;
+  opacity: 1;
+  border: 1px solid #ccc;
+  padding: 20px;
+}
+
+.seleccion .cerrar {
+  cursor: pointer;
+  text-align: right;
+  font-size: 20px;
+}
+
+.seleccion .info p {
+  margin-bottom: 5px;
+  font-weight: bold;
+}
+
+.seleccion .info input,
+.seleccion .info select {
+  width: 100%;
+  margin-bottom: 10px;
+  padding: 6px;
+  box-sizing: border-box;
+}
+
+.botonera-panel {
+  display: flex;
+  justify-content: flex-start;
+  gap: 10px;
+  margin-top: 15px;
+  border-top: 1px solid #ccc;
+  padding-top: 10px;
+}
+
+.botonera-panel button {
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.botonera-panel .btn-danger {
+  background-color: #f85151;
+  color: white;
+  border: none;
+  border-radius: 4px;
+}

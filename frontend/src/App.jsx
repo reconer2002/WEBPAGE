@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+// App.jsx
+import React, { useState, useEffect } from "react"; 
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Header from "./components/Main/Header";
 import Footer from "./components/Main/Footer";
@@ -8,6 +9,7 @@ import PaginaDeshabilitada from "./components/Main/PaginaDeshabilitada";
 import HomePage from "./pages/HomePage";
 import authService from "./services/authService";
 import paginaService from "./services/paginaService";
+import HerramientaDiseño from "./components/Diseno/HerramientaDiseño";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -20,7 +22,6 @@ function App() {
     color3: "#f8f8f8",
   });
 
-  // Función para aplicar colores globales como variables CSS
   const aplicarColores = (colores) => {
     const root = document.documentElement;
     root.style.setProperty("--color-primario", colores.color1 || "#006a71");
@@ -50,7 +51,7 @@ function App() {
         aplicarColores(coloresDB);
       } catch (err) {
         console.error("Error obteniendo estado o colores:", err);
-        setEstadoPagina(true); // fallback: habilitado
+        setEstadoPagina(true);
       } finally {
         setLoadingEstadoPagina(false);
       }
@@ -60,10 +61,17 @@ function App() {
     fetchEstadoYColores();
   }, []);
 
-  // Función para actualizar colores y aplicarlos al instante
   const handleActualizarColores = (nuevosColores) => {
     setColores(nuevosColores);
     aplicarColores(nuevosColores);
+  };
+
+  const handleLogin = async (userData) => {
+    setUser(userData);
+  };
+
+  const handleLogout = () => {
+    setUser(null);
   };
 
   if (loadingUser || loadingEstadoPagina) {
@@ -73,12 +81,11 @@ function App() {
   return (
     <Router>
       <Routes>
-        {/* Mantenedor solo accesible para admins */}
         <Route
           path="/mantenedor"
           element={
             <>
-              <Header user={user} onLogin={setUser} onLogout={() => setUser(null)} />
+              <Header user={user} onLogin={handleLogin} onLogout={handleLogout} />
               <ProtectedRoute
                 user={user}
                 requiredPermission="ver_mantenedor"
@@ -91,22 +98,29 @@ function App() {
           }
         />
 
-        {/* Página principal o deshabilitada */}
+        <Route
+          path="/disenos"
+          element={
+            <>
+              <Header user={user} onLogin={handleLogin} onLogout={handleLogout} />
+              <HerramientaDiseño />
+              <Footer />
+            </>
+          }
+        />
+
         <Route
           path="*"
           element={
             estadoPagina ? (
               <HomePage
                 user={user}
-                onLogin={setUser}
-                onLogout={() => setUser(null)}
+                onLogin={handleLogin}
+                onLogout={handleLogout}
                 colores={colores}
               />
             ) : (
-              <>
-                <PaginaDeshabilitada onLogin={setUser} />
-                <Footer />
-              </>
+              <PaginaDeshabilitada onLogin={handleLogin} />
             )
           }
         />

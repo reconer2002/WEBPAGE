@@ -1,0 +1,182 @@
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;800&display=swap');
+
+:root {
+  --gap: 20px;
+  --panel-width: 40%; /* ancho del panel */
+  --transition: 0.45s;
+  --item-width-calc: calc((100% - (var(--gap) * 4)) / 5); /* 5 items por fila */
+}
+
+.grid-contenido {
+  max-width: 1200px;
+  width: 100%;
+  margin: 40px auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+}
+
+.mostrador {
+  transition: width var(--transition) ease;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.mostrador.reducido {
+  width: calc(100% - var(--panel-width));
+}
+
+.mostrador.completo {
+  width: 100%;
+}
+
+.fila {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gap);
+  margin-bottom: 40px;
+}
+
+.item {
+  flex: 1 1 var(--item-width-calc);
+  max-width: var(--item-width-calc);
+  padding: 20px;
+  text-align: center;
+  cursor: pointer;
+  border-radius: 5px;
+  box-sizing: border-box;
+  transition: all var(--transition) ease;
+}
+
+.item:hover {
+  background-color: #e6e6e6;
+  transform: translateY(-4px);
+}
+
+.contenedor-foto img {
+  width: 100%;
+  height: auto;
+  display: block;
+  margin-bottom: 10px;
+  transition: width var(--transition) ease, transform var(--transition) ease;
+}
+
+.descripcion {
+  font-weight: bold;
+  color: #707070;
+  margin: 6px 0;
+  transition: font-size var(--transition) ease;
+  font-size: 14px;
+}
+
+.precio {
+  font-size: 18px;
+  font-weight: bold;
+  color: #f85151;
+  transition: font-size var(--transition) ease;
+}
+
+.mostrador.reducido .descripcion {
+  font-size: 13px;
+}
+
+.mostrador.reducido .precio {
+  font-size: 16px;
+}
+
+.mostrador.reducido .contenedor-foto img {
+  transform: scale(0.95);
+}
+
+.seleccion {
+  box-sizing: border-box;
+  transition: width var(--transition) ease, opacity var(--transition) ease, padding var(--transition) ease;
+  overflow: hidden;
+  width: 0;
+  opacity: 0;
+  padding: 0;
+  border: none;
+}
+
+.seleccion.abierto {
+  width: var(--panel-width);
+  opacity: 1;
+  padding: 20px;
+  border: 1px solid #ccc;
+}
+
+.cerrar {
+  cursor: pointer;
+  align-self: flex-end;
+  font-size: 20px;
+}
+
+
+.info p {
+  margin-bottom: 3px;
+  font-size: 15px;
+  font-weight: bold;
+}
+
+.info img {
+  display: block;
+  width: 80%;
+  max-width: 250px;
+  margin: 0 auto 10px auto;
+  transition: width var(--transition) ease;
+}
+
+.info input,
+.info textarea {
+  width: 100%;
+  margin-bottom: 10px;
+  padding: 8px;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.info button {
+  margin-right: 10px;
+  padding: 8px 16px;
+  cursor: pointer;
+}
+
+.fila.botones {
+  margin-top: 0px;
+}
+
+/* Estilo especial para el item "Añadir" */
+.item.add-item {
+  color: #555;
+  font-style: italic;
+  background-color: #fafafa;
+}
+
+.item.add-item:hover {
+  background-color: #e0ffe0;
+  transform: translateY(-4px);
+}
+
+/* Botonera fija al fondo del panel lateral */
+.botonera-panel {
+  display: flex;
+  justify-content: flex-start;
+  gap: 10px;
+  padding-top: 15px;
+  border-top: 1px solid #ccc;
+  margin-top: 20px;
+}
+
+.botonera-panel button {
+  padding: 8px 16px;
+  cursor: pointer;
+}
+
+.botonera-panel .btn-danger {
+  background-color: #f85151;
+  color: white;
+  border: none;
+  border-radius: 4px;
+}
+
+

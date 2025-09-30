@@ -1,0 +1,114 @@
+.productos-container {
+  max-width: 1200px;
+  margin: 40px auto;
+}
+
+.productos-container h2 {
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.modo-toggle {
+  margin-bottom: 20px;
+}
+
+.modo-toggle button {
+  margin-right: 10px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.tabla-articulos {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.tabla-articulos th,
+.tabla-articulos td {
+  border: 1px solid #ccc;
+  padding: 8px;
+}
+
+.tabla-articulos tr:hover {
+  background-color: #f2f2f2;
+}
+
+/* Grid estilo mostrador */
+.grid-contenido{
+  display: flex;
+  transition: .5s ease;
+}
+
+.mostrador{
+  transition: .5s ease;
+}
+
+.fila{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.item{
+  width: 200px;
+  text-align: center;
+  padding: 20px;
+  cursor: pointer;
+  border-radius: 5px;
+  transition: .3s;
+}
+
+.item:hover{
+  background-color: #e6e6e6;
+}
+
+.contenedor-foto img{
+  width: 100%;
+}
+
+.descripcion{
+  font-weight: bold;
+  color: #707070;
+}
+
+.precio{
+  font-size: 18px;
+  font-weight: bold;
+  color: #f85151;
+}
+
+.seleccion{
+  transition: .5s ease;
+  opacity: 0;
+  border: 1px solid #ccc;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  overflow: hidden;
+  padding: 20px;
+}
+
+.cerrar{
+  cursor: pointer;
+  align-self: flex-end;
+  font-size: 20px;
+}
+
+.info img{
+  display: block;
+  width: 80%;
+  margin: 0 auto 10px auto;
+}
+
+.info input, .info textarea{
+  width: 100%;
+  margin-bottom: 10px;
+  padding: 8px;
+  font-size: 14px;
+}
+
+.info button{
+  margin-right: 10px;
+  padding: 8px 16px;
+  cursor: pointer;
+}

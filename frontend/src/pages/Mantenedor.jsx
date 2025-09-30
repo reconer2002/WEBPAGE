@@ -7,6 +7,7 @@ import PaginaConfiguracion from "../components/Mantenedor/PaginaConfiguracion";
 import PaginaDesactivar from "../components/Mantenedor/PaginaDesactivar";
 import PaginaColores from "../components/Mantenedor/PaginaColores";
 import Testimonios from "../components/Mantenedor/Testimonios";
+import ProductosArticulos from "../components/Mantenedor/ProductosArticulos"; // <-- nuevo
 import "./Mantenedor.css";
 
 const Mantenedor = () => {
@@ -37,7 +38,6 @@ const Mantenedor = () => {
     const entry = subcategorias[categoriaId];
 
     if (entry) {
-      // Toggle de subcategorías
       setSubcategorias((prev) => ({
         ...prev,
         [categoriaId]: { ...entry, open: !entry.open },
@@ -72,8 +72,10 @@ const Mantenedor = () => {
       setSubcategoriaActiva("PaginaDesactivar");
     } else if (catId === 2 && subId === 5) {
       setSubcategoriaActiva("PaginaColores");
-    } else if (catId === 3 && subId === 6) { // <-- tu subcategoría testimonios
+    } else if (catId === 3 && subId === 6) {
       setSubcategoriaActiva("Testimonios");
+    } else if (catId === 4 && subId === 7) { // <-- nueva categoría PRODUCTOS / Artículos
+      setSubcategoriaActiva("Articulos");
     } else {
       setSubcategoriaActiva(null);
     }
@@ -135,6 +137,7 @@ const Mantenedor = () => {
       {subcategoriaActiva === "PaginaDesactivar" && <PaginaDesactivar />}
       {subcategoriaActiva === "PaginaColores" && <PaginaColores />}
       {subcategoriaActiva === "Testimonios" && <Testimonios />}
+      {subcategoriaActiva === "Articulos" && <ProductosArticulos />} {/* <-- renderizamos el nuevo componente */}
     </div>
   );
 };

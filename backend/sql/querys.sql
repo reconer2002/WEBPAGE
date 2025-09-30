@@ -61,7 +61,8 @@ INSERT INTO usuarios (nombre, email, password, rol_id) VALUES
 INSERT INTO categorias_mantenedor (nombre, permiso_id) VALUES
 ('USUARIOS',6),
 ('PAGINA',9),
-('TESTIMONIOS',13);
+('TESTIMONIOS',13),
+('PRODUCTOS',14);
 
 -- Subcategorías básicas
 INSERT INTO subcategorias_mantenedor (categoria_id, nombre, permiso_id) VALUES
@@ -70,7 +71,8 @@ INSERT INTO subcategorias_mantenedor (categoria_id, nombre, permiso_id) VALUES
 (2,'configuracion',10),
 (2,'conexion',11),
 (2,'colores',12),
-(3,'testimonios',13);
+(3,'testimonios',13),
+(4,'articulos',15);
 
 -- Configuración de página básica
 INSERT INTO configuracion_pagina 
@@ -84,4 +86,4 @@ VALUES
 -- Testimonios
 INSERT INTO testimonios (nombre, calificacion, descripcion, foto_url)
 VALUES
-('Vieja Seca - Banda', 5, 'Estamparon las poleras y polerones para nuestra banda en solo un par de días. La calidad y rapidez fueron increíbles, ¡totalmente recomendados!', '/img/testimonio1.png');
+('Vieja Seca - Banda', 5, 'Estamparon las poleras y polerones para nuestra banda en solo un par de días. La calidad y rapidez fueron increíbles, ¡totalmente recomendados!', '/img/testimonios/testimonio1.png');

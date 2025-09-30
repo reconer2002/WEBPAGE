@@ -1,19 +1,11 @@
-import mysql.connector
-from mysql.connector import Error
-
-# Credenciales para MySQL
-MYSQL_HOST = "localhost"
-MYSQL_USER = "root"  # Usuario root
-MYSQL_PASSWORD = "1234"  # Contraseña 1234
-
-# SQL de creación de la base de datos y tablas
-sql_creacion = """
+-- Creación de la base de datos
 CREATE DATABASE IF NOT EXISTS mentescreativasstore;
 USE mentescreativasstore;
 
 -- MANEJO DE USUARIOS 0.1
 
-CREATE TABLE IF NOT EXISTS usuarios (
+-- Tabla de usuarios
+CREATE TABLE usuarios (
   id INT AUTO_INCREMENT PRIMARY KEY,
   nombre VARCHAR(100),
   email VARCHAR(100) UNIQUE,
@@ -23,17 +15,20 @@ CREATE TABLE IF NOT EXISTS usuarios (
   FOREIGN KEY (rol_id) REFERENCES roles(id)
 );
 
-CREATE TABLE IF NOT EXISTS roles (
+-- Tabla de roles de usuario (Cliente, SuperAdmin, Admin)
+CREATE TABLE roles (
   id INT AUTO_INCREMENT PRIMARY KEY,
   nombre VARCHAR(50) -- ejemplo: 'cliente', 'superadmin', 'admin'
 );
 
-CREATE TABLE IF NOT EXISTS permisos (
+-- Tabla de permisos por rol (SuperAdmin puede manejar el rol de Admin, Admin puede moderar la página, cliente puede comprar)
+CREATE TABLE permisos (
   id INT AUTO_INCREMENT PRIMARY KEY,
   nombre VARCHAR(100) -- ejemplo: 'enviar_mails', 'gestionar_productos', 'editar_usuarios'
 );
 
-CREATE TABLE IF NOT EXISTS rol_permisos (
+-- Tabla que indica qué roles tienen qué permisos
+CREATE TABLE rol_permisos (
   rol_id INT,
   permiso_id INT,
   PRIMARY KEY (rol_id, permiso_id),
@@ -41,14 +36,16 @@ CREATE TABLE IF NOT EXISTS rol_permisos (
   FOREIGN KEY (permiso_id) REFERENCES permisos(id)
 );
 
-CREATE TABLE IF NOT EXISTS categorias_mantenedor (
+-- Tabla de categorías del mantenedor
+CREATE TABLE categorias_mantenedor (
   id INT AUTO_INCREMENT PRIMARY KEY,
   nombre VARCHAR(100),
   permiso_id INT, -- permiso necesario para ver esta categoría
   FOREIGN KEY (permiso_id) REFERENCES permisos(id)
 );
 
-CREATE TABLE IF NOT EXISTS subcategorias_mantenedor (
+-- Tabla de subcategorías del mantenedor
+CREATE TABLE subcategorias_mantenedor (
   id INT AUTO_INCREMENT PRIMARY KEY,
   categoria_id INT,
   nombre VARCHAR(100),
@@ -57,38 +54,9 @@ CREATE TABLE IF NOT EXISTS subcategorias_mantenedor (
   FOREIGN KEY (permiso_id) REFERENCES permisos(id)
 );
 
--- Tabla de configuración de la página
-CREATE TABLE IF NOT EXISTS configuracion_pagina (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    logo_url VARCHAR(255),       -- ruta o url del logo en png
-    telefono1 VARCHAR(20),
-    telefono2 VARCHAR(20),
-    color1 VARCHAR(20),          -- hex ej: #FF0000
-    color2 VARCHAR(20),
-    color3 VARCHAR(20),
-    direccion VARCHAR(255),
-    correo_contacto VARCHAR(100),
-    instagram_url VARCHAR(255),
-    estado TINYINT(1) DEFAULT 1, -- 1 = activa, 0 = en mantenimiento
-    actualizado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP 
-                      ON UPDATE CURRENT_TIMESTAMP
-);
-
--- Tabla de testimonios de clientes
-CREATE TABLE IF NOT EXISTS testimonios (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    nombre VARCHAR(25) NOT NULL,          -- nombre del cliente
-    calificacion TINYINT NOT NULL,        -- 1 a 5 estrellas, por ejemplo
-    descripcion TEXT NOT NULL,            -- comentario del cliente (texto largo)
-    foto_url VARCHAR(255),                -- url de la foto (/img/xxxx.png)
-    creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    actualizado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP 
-                  ON UPDATE CURRENT_TIMESTAMP
-);
-
 -- Procedimiento para ver los permisos de cada rol
 DELIMITER $$
-CREATE PROCEDURE IF NOT EXISTS mostrar_roles_permisos()
+CREATE PROCEDURE mostrar_roles_permisos()
 BEGIN
   DECLARE sql_query TEXT;
 
@@ -114,13 +82,40 @@ BEGIN
   PREPARE stmt FROM @final_sql;
   EXECUTE stmt;
   DEALLOCATE PREPARE stmt;
-END $$
-
+END $$ 
 DELIMITER ;
-"""
 
-# SQL para insertar registros iniciales
-sql_inserts = """
+-- MANTENEDOR PAGINA CONFIGURACIÓN 0.1
+CREATE TABLE configuracion_pagina (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    logo_url VARCHAR(255),       -- ruta o url del logo en png
+    telefono1 VARCHAR(20),
+    telefono2 VARCHAR(20),
+    color1 VARCHAR(20),          -- hex ej: #FF0000
+    color2 VARCHAR(20),
+    color3 VARCHAR(20),
+    direccion VARCHAR(255),
+    correo_contacto VARCHAR(100),
+    instagram_url VARCHAR(255),
+    estado TINYINT(1) DEFAULT 1, -- 1 = activa, 0 = en mantenimiento
+    actualizado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP 
+                      ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Tabla de testimonios de clientes
+CREATE TABLE testimonios (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    nombre VARCHAR(25) NOT NULL,          -- nombre del cliente
+    calificacion TINYINT NOT NULL,        -- 1 a 5 estrellas, por ejemplo
+    descripcion TEXT NOT NULL,            -- comentario del cliente (texto largo)
+    foto_url VARCHAR(255),                -- url de la foto (/img/xxxx.png)
+    creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    actualizado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP 
+                  ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Registros
+
 -- Roles básicos
 INSERT INTO roles (nombre) VALUES
 ('cliente'),
@@ -208,43 +203,3 @@ VALUES
 INSERT INTO testimonios (nombre, calificacion, descripcion, foto_url)
 VALUES
 ('Vieja Seca - Banda', 5, 'Estamparon las poleras y polerones para nuestra banda en solo un par de días. La calidad y rapidez fueron increíbles, ¡totalmente recomendados!', '/img/testimonio1.png');
-"""
-
-def ejecutar_sql_multi(cursor, sql_script):
-    # Divide el script por ';' y ejecuta cada sentencia
-    statements = [s.strip() for s in sql_script.split(';') if s.strip()]
-    for stmt in statements:
-        try:
-            cursor.execute(stmt)
-        except Exception as e:
-            print(f"Error ejecutando sentencia: {stmt}\n{e}")
-
-def main():
-    try:
-        # Conexión inicial (sin base de datos seleccionada)
-        conn = mysql.connector.connect(
-            host=MYSQL_HOST,
-            user=MYSQL_USER,
-            password=MYSQL_PASSWORD
-        )
-        cursor = conn.cursor()
-
-        print("Creando base de datos y tablas...")
-        ejecutar_sql_multi(cursor, sql_creacion)
-
-        print("Insertando registros iniciales...")
-        ejecutar_sql_multi(cursor, sql_inserts)
-
-        conn.commit()
-        print("✅ Base de datos generada con éxito.")
-
-    except Error as e:
-        print(f"Error: {e}")
-    finally:
-        if conn.is_connected():
-            cursor.close()
-            conn.close()
-            print("Conexión cerrada.")
-
-if __name__ == "__main__":
-    main()

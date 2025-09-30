@@ -1,6 +1,20 @@
 const express = require('express');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 const router = express.Router();
 const db = require('../db');
+
+// --- Configuración multer para subir fotos de artículos ---
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, path.join(__dirname, '../img/articulos')); // guarda en /backend/img/articulos
+  },
+  filename: (req, file, cb) => {
+    cb(null, 'articulo-' + Date.now() + path.extname(file.originalname));
+  }
+});
+const upload = multer({ storage });
 
 // GET /articulos - Listar todos los artículos
 router.get('/', async (req, res) => {
@@ -31,17 +45,19 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST /articulos - Crear un artículo nuevo
-router.post('/', async (req, res) => {
+router.post('/', upload.single('foto'), async (req, res) => {
   try {
-    const { nombre, precio, descripcion, foto, descuento, ranking } = req.body;
+    const { nombre, precio, descripcion, descuento, ranking } = req.body;
     
     if (!nombre || !precio) {
       return res.status(400).json({ error: 'Nombre y precio son requeridos' });
     }
     
+    const fotoUrl = req.file ? `/img/articulos/${req.file.filename}` : null;
+    
     const [result] = await db.query(
       'INSERT INTO articulos (nombre, precio, descripcion, foto, descuento, ranking) VALUES (?, ?, ?, ?, ?, ?)',
-      [nombre, precio, descripcion || null, foto || null, descuento || 0, ranking || 0]
+      [nombre, precio, descripcion || null, fotoUrl, descuento || 0, ranking || 0]
     );
     
     const [newArticle] = await db.query('SELECT * FROM articulos WHERE id = ?', [result.insertId]);
@@ -53,10 +69,10 @@ router.post('/', async (req, res) => {
 });
 
 // PUT /articulos/:id - Actualizar artículo
-router.put('/:id', async (req, res) => {
+router.put('/:id', upload.single('foto'), async (req, res) => {
   try {
     const { id } = req.params;
-    const { nombre, precio, descripcion, foto, descuento, ranking } = req.body;
+    const { nombre, precio, descripcion, descuento, ranking } = req.body;
     
     // Verificar que el artículo existe
     const [existingArticle] = await db.query('SELECT * FROM articulos WHERE id = ?', [id]);
@@ -64,9 +80,28 @@ router.put('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Artículo no encontrado' });
     }
     
+    let fotoUrl = existingArticle[0].foto; // Mantener la foto actual por defecto
+    
+    // Si se subió una nueva imagen
+    if (req.file) {
+      fotoUrl = `/img/articulos/${req.file.filename}`;
+      
+      // Eliminar la imagen anterior si existe
+      if (existingArticle[0].foto) {
+        const oldImagePath = path.join(__dirname, '..', existingArticle[0].foto);
+        try {
+          if (fs.existsSync(oldImagePath)) {
+            fs.unlinkSync(oldImagePath);
+          }
+        } catch (error) {
+          console.log('No se pudo eliminar la imagen anterior:', error.message);
+        }
+      }
+    }
+    
     await db.query(
       'UPDATE articulos SET nombre = ?, precio = ?, descripcion = ?, foto = ?, descuento = ?, ranking = ? WHERE id = ?',
-      [nombre, precio, descripcion, foto, descuento, ranking, id]
+      [nombre, precio, descripcion, fotoUrl, descuento, ranking, id]
     );
     
     const [updatedArticle] = await db.query('SELECT * FROM articulos WHERE id = ?', [id]);
@@ -86,6 +121,18 @@ router.delete('/:id', async (req, res) => {
     const [existingArticle] = await db.query('SELECT * FROM articulos WHERE id = ?', [id]);
     if (existingArticle.length === 0) {
       return res.status(404).json({ error: 'Artículo no encontrado' });
+    }
+    
+    // Eliminar la imagen si existe
+    if (existingArticle[0].foto) {
+      const imagePath = path.join(__dirname, '..', existingArticle[0].foto);
+      try {
+        if (fs.existsSync(imagePath)) {
+          fs.unlinkSync(imagePath);
+        }
+      } catch (error) {
+        console.log('No se pudo eliminar la imagen:', error.message);
+      }
     }
     
     await db.query('DELETE FROM articulos WHERE id = ?', [id]);
@@ -116,10 +163,10 @@ router.get('/:id/variantes', async (req, res) => {
 });
 
 // POST /articulos/:id/variantes - Crear variante en un artículo
-router.post('/:id/variantes', async (req, res) => {
+router.post('/:id/variantes', upload.single('imagen'), async (req, res) => {
   try {
     const { id } = req.params;
-    const { nombre_categoria, valor, imagen } = req.body;
+    const { nombre_categoria, valor } = req.body;
     
     if (!nombre_categoria || !valor) {
       return res.status(400).json({ error: 'nombre_categoria y valor son requeridos' });
@@ -131,9 +178,11 @@ router.post('/:id/variantes', async (req, res) => {
       return res.status(404).json({ error: 'Artículo no encontrado' });
     }
     
+    const imagenUrl = req.file ? `/img/variantes/${req.file.filename}` : null;
+    
     const [result] = await db.query(
       'INSERT INTO variantes (articulo_id, nombre_categoria, valor, imagen) VALUES (?, ?, ?, ?)',
-      [id, nombre_categoria, valor, imagen || null]
+      [id, nombre_categoria, valor, imagenUrl]
     );
     
     const [newVariant] = await db.query('SELECT * FROM variantes WHERE id = ?', [result.insertId]);

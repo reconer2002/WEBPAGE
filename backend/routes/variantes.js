@@ -1,12 +1,26 @@
 const express = require('express');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 const router = express.Router();
 const db = require('../db');
 
+// --- Configuración multer para subir fotos de variantes ---
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, path.join(__dirname, '../img/variantes')); // guarda en /backend/img/variantes
+  },
+  filename: (req, file, cb) => {
+    cb(null, 'variante-' + Date.now() + path.extname(file.originalname));
+  }
+});
+const upload = multer({ storage });
+
 // PUT /variantes/:id - Editar variante
-router.put('/:id', async (req, res) => {
+router.put('/:id', upload.single('imagen'), async (req, res) => {
   try {
     const { id } = req.params;
-    const { nombre_categoria, valor, imagen } = req.body;
+    const { nombre_categoria, valor } = req.body;
     
     if (!nombre_categoria || !valor) {
       return res.status(400).json({ error: 'nombre_categoria y valor son requeridos' });
@@ -18,9 +32,28 @@ router.put('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Variante no encontrada' });
     }
     
+    let imagenUrl = existingVariant[0].imagen; // Mantener la imagen actual por defecto
+    
+    // Si se subió una nueva imagen
+    if (req.file) {
+      imagenUrl = `/img/variantes/${req.file.filename}`;
+      
+      // Eliminar la imagen anterior si existe
+      if (existingVariant[0].imagen) {
+        const oldImagePath = path.join(__dirname, '..', existingVariant[0].imagen);
+        try {
+          if (fs.existsSync(oldImagePath)) {
+            fs.unlinkSync(oldImagePath);
+          }
+        } catch (error) {
+          console.log('No se pudo eliminar la imagen anterior:', error.message);
+        }
+      }
+    }
+    
     await db.query(
       'UPDATE variantes SET nombre_categoria = ?, valor = ?, imagen = ? WHERE id = ?',
-      [nombre_categoria, valor, imagen || null, id]
+      [nombre_categoria, valor, imagenUrl, id]
     );
     
     const [updatedVariant] = await db.query('SELECT * FROM variantes WHERE id = ?', [id]);
@@ -52,6 +85,18 @@ router.delete('/:id', async (req, res) => {
       return res.status(400).json({ 
         error: 'No se puede eliminar la variante porque está siendo utilizada en objetos existentes' 
       });
+    }
+    
+    // Eliminar la imagen si existe
+    if (existingVariant[0].imagen) {
+      const imagePath = path.join(__dirname, '..', existingVariant[0].imagen);
+      try {
+        if (fs.existsSync(imagePath)) {
+          fs.unlinkSync(imagePath);
+        }
+      } catch (error) {
+        console.log('No se pudo eliminar la imagen:', error.message);
+      }
     }
     
     await db.query('DELETE FROM variantes WHERE id = ?', [id]);

@@ -1,5 +1,5 @@
 // App.jsx
-import React, { useState, useEffect } from "react"; 
+import React, { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Header from "./components/Main/Header";
 import Footer from "./components/Main/Footer";
@@ -9,7 +9,11 @@ import PaginaDeshabilitada from "./components/Main/PaginaDeshabilitada";
 import HomePage from "./pages/HomePage";
 import authService from "./services/authService";
 import paginaService from "./services/paginaService";
-import HerramientaDiseño from "./components/Diseno/HerramientaDiseño";
+import DisenosPage from "./components/Diseno/DisenosPage";
+import Cart from "./pages/Cart";
+import Register from "./components/LoginForm/Register";
+import Profile from "./pages/Profile";
+import VerifyAccount from "./pages/VerifyAccount";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -85,13 +89,20 @@ function App() {
           path="/mantenedor"
           element={
             <>
-              <Header user={user} onLogin={handleLogin} onLogout={handleLogout} />
+              <Header
+                user={user}
+                onLogin={handleLogin}
+                onLogout={handleLogout}
+              />
               <ProtectedRoute
                 user={user}
                 requiredPermission="ver_mantenedor"
                 loading={loadingUser}
               >
-                <MantenedorPage colores={colores} onActualizarColores={handleActualizarColores} />
+                <MantenedorPage
+                  colores={colores}
+                  onActualizarColores={handleActualizarColores}
+                />
               </ProtectedRoute>
               <Footer />
             </>
@@ -102,8 +113,74 @@ function App() {
           path="/disenos"
           element={
             <>
-              <Header user={user} onLogin={handleLogin} onLogout={handleLogout} />
-              <HerramientaDiseño />
+              <Header
+                user={user}
+                onLogin={handleLogin}
+                onLogout={handleLogout}
+              />
+              <DisenosPage user={user} loading={loadingUser} />
+              <Footer />
+            </>
+          }
+        />
+
+        <Route
+          path="/perfil"
+          element={
+            <>
+              <Header
+                user={user}
+                onLogin={handleLogin}
+                onLogout={handleLogout}
+              />
+              <ProtectedRoute user={user} loading={loadingUser}>
+                <Profile user={user} onUserUpdate={setUser} />
+              </ProtectedRoute>
+              <Footer />
+            </>
+          }
+        />
+
+        <Route
+          path="/verificar-cuenta"
+          element={
+            <>
+              <Header
+                user={user}
+                onLogin={handleLogin}
+                onLogout={handleLogout}
+              />
+              <VerifyAccount onVerified={setUser} />
+              <Footer />
+            </>
+          }
+        />
+
+        <Route
+          path="/cart"
+          element={
+            <>
+              <Header
+                user={user}
+                onLogin={handleLogin}
+                onLogout={handleLogout}
+              />
+              <Cart user={user} />
+              <Footer />
+            </>
+          }
+        />
+
+        <Route
+          path="/register"
+          element={
+            <>
+              <Header
+                user={user}
+                onLogin={handleLogin}
+                onLogout={handleLogout}
+              />
+              <Register onRegister={handleLogin} />
               <Footer />
             </>
           }

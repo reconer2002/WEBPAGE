@@ -1,9 +1,16 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Stage, Layer, Text, Image as KonvaImage, Transformer } from "react-konva";
+import {
+  Stage,
+  Layer,
+  Text,
+  Image as KonvaImage,
+  Transformer,
+} from "react-konva";
 import useImage from "use-image";
 import "./HerramientaDiseño.css";
 import articulosService from "../../services/articulosService";
 import variantesService from "../../services/variantesService";
+import disenosService from "../../services/disenosService";
 import ImagenElemento from "./ImagenElemento";
 
 const HerramientaDiseño = () => {
@@ -22,11 +29,19 @@ const HerramientaDiseño = () => {
   const panelRef = useRef(null);
 
   const [textInputValue, setTextInputValue] = useState("");
-  const [textStyle, setTextStyle] = useState({ fontSize: 20, fill: "#000000", fontFamily: "Arial", fontStyle: "normal" });
+  const [textStyle, setTextStyle] = useState({
+    fontSize: 20,
+    fill: "#000000",
+    fontFamily: "Arial",
+    fontStyle: "normal",
+  });
   const [imageEditMode, setImageEditMode] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [pendingArticulo, setPendingArticulo] = useState(null);
-  const [imageDimensions, setImageDimensions] = useState({ width: 100, height: 100 });
+  const [imageDimensions, setImageDimensions] = useState({
+    width: 100,
+    height: 100,
+  });
 
   const [baseImage] = useImage(articuloSeleccionado?.foto || "");
 
@@ -39,7 +54,9 @@ const HerramientaDiseño = () => {
         if (articulosData.length > 0) {
           const primerArticulo = articulosData[0];
           setArticuloSeleccionado(primerArticulo);
-          const variantesData = await variantesService.getVariantes(primerArticulo.id);
+          const variantesData = await variantesService.getVariantes(
+            primerArticulo.id
+          );
           setVariantes(variantesData);
         }
       } catch (error) {
@@ -56,7 +73,11 @@ const HerramientaDiseño = () => {
       if (!selectedId) return;
       const selectedElement = elementos.find((el) => el.id === selectedId);
       if (!selectedElement) return;
-      if (selectedElement.type === "text" && document.activeElement === inputRef.current) return;
+      if (
+        selectedElement.type === "text" &&
+        document.activeElement === inputRef.current
+      )
+        return;
 
       switch (e.key) {
         case "Delete":
@@ -80,12 +101,34 @@ const HerramientaDiseño = () => {
   }, [selectedId, elementos]);
 
   const agregarTexto = () => {
-    const nuevoTexto = { id: Date.now(), type: "text", x: 50, y: 50, text: "Texto", fontSize: 20, fill: "#000000", fontFamily: "Arial", fontStyle: "normal", rotation: 0, scale: 1 };
+    const nuevoTexto = {
+      id: Date.now(),
+      type: "text",
+      x: 50,
+      y: 50,
+      text: "Texto",
+      fontSize: 20,
+      fill: "#000000",
+      fontFamily: "Arial",
+      fontStyle: "normal",
+      rotation: 0,
+      scale: 1,
+    };
     setElementos((prev) => [...prev, nuevoTexto]);
   };
 
   const agregarImagen = (url) => {
-    const nuevaImagen = { id: Date.now(), type: "image", x: 50, y: 50, url, width: 100, height: 100, rotation: 0, draggable: true };
+    const nuevaImagen = {
+      id: Date.now(),
+      type: "image",
+      x: 50,
+      y: 50,
+      url,
+      width: 100,
+      height: 100,
+      rotation: 0,
+      draggable: true,
+    };
     setElementos((prev) => [...prev, nuevaImagen]);
   };
 
@@ -125,7 +168,9 @@ const HerramientaDiseño = () => {
       setSelectedId(null);
       setArticuloSeleccionado(pendingArticulo);
       setVariantesSeleccionadas({});
-      const variantesData = await variantesService.getVariantes(pendingArticulo.id);
+      const variantesData = await variantesService.getVariantes(
+        pendingArticulo.id
+      );
       setVariantes(variantesData);
     } catch (error) {
       console.error(error);
@@ -140,7 +185,9 @@ const HerramientaDiseño = () => {
     try {
       setArticuloSeleccionado(pendingArticulo);
       setVariantesSeleccionadas({});
-      const variantesData = await variantesService.getVariantes(pendingArticulo.id);
+      const variantesData = await variantesService.getVariantes(
+        pendingArticulo.id
+      );
       setVariantes(variantesData);
     } catch (error) {
       console.error(error);
@@ -161,12 +208,48 @@ const HerramientaDiseño = () => {
     return acc;
   }, {});
 
-  const captureAndUploadViews = () => {
-    console.log("Guardando diseño...", { articulo: articuloSeleccionado, variantes: variantesSeleccionadas, elementos });
-    alert("Diseño guardado (funcionalidad en desarrollo)");
+  const captureAndUploadViews = async () => {
+    try {
+      // Primero validar si hay usuario autenticado
+      const token = localStorage.getItem("token");
+      if (!token) {
+        alert("Necesitas iniciar sesión para guardar el diseño");
+        return;
+      }
+
+      const canvas = stageRef.current.toCanvas();
+      const imagen = canvas.toDataURL();
+
+      const nombre = prompt("Ingresa un nombre para tu diseño:");
+      if (!nombre) return;
+
+      const diseno = {
+        nombre,
+        articulo_id: articuloSeleccionado.id,
+        imagen,
+        elementos,
+        variantes: variantesSeleccionadas,
+      };
+
+      await disenosService.guardarDiseno(diseno);
+      alert("Diseño guardado exitosamente");
+    } catch (error) {
+      console.error("Error al guardar diseño:", error);
+      if (error.response?.status === 401) {
+        alert("Necesitas iniciar sesión para guardar el diseño");
+      } else {
+        alert(
+          "Error al guardar el diseño: " +
+            (error.response?.data?.error || error.message)
+        );
+      }
+    }
   };
 
-  const actualizarElemento = (id, cambios) => setElementos((prev) => prev.map((el) => (el.id === id ? { ...el, ...cambios } : el)));
+  const actualizarElemento = (id, cambios) =>
+    setElementos((prev) =>
+      prev.map((el) => (el.id === id ? { ...el, ...cambios } : el))
+    );
 
   const eliminarElemento = (id) => {
     setElementos((prev) => prev.filter((el) => el.id !== id));
@@ -179,7 +262,12 @@ const HerramientaDiseño = () => {
   const duplicarElemento = (id) => {
     const elemento = elementos.find((el) => el.id === id);
     if (!elemento) return;
-    const nuevoElemento = { ...elemento, id: Date.now(), x: elemento.x + 20, y: elemento.y + 20 };
+    const nuevoElemento = {
+      ...elemento,
+      id: Date.now(),
+      x: elemento.x + 20,
+      y: elemento.y + 20,
+    };
     setElementos((prev) => [...prev, nuevoElemento]);
     setSelectedId(nuevoElemento.id);
     if (elemento.type === "image") {
@@ -204,8 +292,14 @@ const HerramientaDiseño = () => {
   };
 
   const actualizarDimensionesImagen = (id, width, height) => {
-    actualizarElemento(id, { width: Math.max(20, width), height: Math.max(20, height) });
-    setImageDimensions({ width: Math.max(20, width), height: Math.max(20, height) });
+    actualizarElemento(id, {
+      width: Math.max(20, width),
+      height: Math.max(20, height),
+    });
+    setImageDimensions({
+      width: Math.max(20, width),
+      height: Math.max(20, height),
+    });
   };
 
   const handleSelectElement = (el) => {
@@ -213,7 +307,14 @@ const HerramientaDiseño = () => {
     if (el.type === "text") {
       setImageEditMode(false);
       setTextInputValue(el.text);
-      setTextStyle({ fontSize: el.fontSize, fill: el.fill, fontFamily: el.fontFamily || "Arial", fontStyle: el.fontStyle || "normal", rotation: el.rotation || 0, scale: el.scale || 1 });
+      setTextStyle({
+        fontSize: el.fontSize,
+        fill: el.fill,
+        fontFamily: el.fontFamily || "Arial",
+        fontStyle: el.fontStyle || "normal",
+        rotation: el.rotation || 0,
+        scale: el.scale || 1,
+      });
       setTimeout(() => inputRef.current?.focus(), 10);
     } else if (el.type === "image") {
       setImageEditMode(true);
@@ -232,9 +333,22 @@ const HerramientaDiseño = () => {
       <div className="preview-column">
         <div className="canvas-inner">
           <div className="stage-wrapper">
-            <Stage width={canvasWidth} height={canvasHeight} ref={stageRef} onMouseDown={(e) => { if (e.target === e.target.getStage()) setSelectedId(null); }}>
+            <Stage
+              width={canvasWidth}
+              height={canvasHeight}
+              ref={stageRef}
+              onMouseDown={(e) => {
+                if (e.target === e.target.getStage()) setSelectedId(null);
+              }}
+            >
               <Layer>
-                {baseImage && <KonvaImage image={baseImage} width={canvasWidth} height={canvasHeight} />}
+                {baseImage && (
+                  <KonvaImage
+                    image={baseImage}
+                    width={canvasWidth}
+                    height={canvasHeight}
+                  />
+                )}
                 {elementos.map((el) => {
                   if (el.type === "text") {
                     const isSelected = el.id === selectedId;
@@ -252,29 +366,68 @@ const HerramientaDiseño = () => {
                           rotation={el.rotation || 0}
                           scale={{ x: el.scale || 1, y: el.scale || 1 }}
                           draggable
-                          onDragEnd={(e) => actualizarElemento(el.id, { x: e.target.x(), y: e.target.y() })}
+                          onDragEnd={(e) =>
+                            actualizarElemento(el.id, {
+                              x: e.target.x(),
+                              y: e.target.y(),
+                            })
+                          }
                           onTransformEnd={(e) => {
                             const node = e.target;
                             const scaleX = node.scaleX();
                             const scaleY = node.scaleY();
                             node.scaleX(1);
                             node.scaleY(1);
-                            const newFontSize = Math.max(8, Math.round(el.fontSize * Math.max(scaleX, scaleY)));
+                            const newFontSize = Math.max(
+                              8,
+                              Math.round(el.fontSize * Math.max(scaleX, scaleY))
+                            );
                             const newRotation = node.rotation();
-                            actualizarElemento(el.id, { x: node.x(), y: node.y(), rotation: newRotation, fontSize: newFontSize, scale: 1 });
-                            if (isSelected) setTextStyle((prev) => ({ ...prev, fontSize: newFontSize }));
+                            actualizarElemento(el.id, {
+                              x: node.x(),
+                              y: node.y(),
+                              rotation: newRotation,
+                              fontSize: newFontSize,
+                              scale: 1,
+                            });
+                            if (isSelected)
+                              setTextStyle((prev) => ({
+                                ...prev,
+                                fontSize: newFontSize,
+                              }));
                           }}
                           onDblClick={() => handleSelectElement(el)}
                           onClick={() => handleSelectElement(el)}
                         />
                         {isSelected && (
-                          <Transformer rotateEnabled={false} enabledAnchors={["top-left", "top-right", "bottom-left", "bottom-right"]} boundBoxFunc={(oldBox, newBox) => (newBox.width < 20 || newBox.height < 20 ? oldBox : newBox)} />
+                          <Transformer
+                            rotateEnabled={false}
+                            enabledAnchors={[
+                              "top-left",
+                              "top-right",
+                              "bottom-left",
+                              "bottom-right",
+                            ]}
+                            boundBoxFunc={(oldBox, newBox) =>
+                              newBox.width < 20 || newBox.height < 20
+                                ? oldBox
+                                : newBox
+                            }
+                          />
                         )}
                       </React.Fragment>
                     );
                   }
                   if (el.type === "image") {
-                    return <ImagenElemento key={el.id} el={el} onUpdate={actualizarElemento} isSelected={selectedId === el.id} onSelect={() => handleSelectElement(el)} />;
+                    return (
+                      <ImagenElemento
+                        key={el.id}
+                        el={el}
+                        onUpdate={actualizarElemento}
+                        isSelected={selectedId === el.id}
+                        onSelect={() => handleSelectElement(el)}
+                      />
+                    );
                   }
                   return null;
                 })}
@@ -289,15 +442,29 @@ const HerramientaDiseño = () => {
         <div className="herramienta-diseño-sidebar">
           <div className="top-actions">
             <button onClick={agregarTexto}>Agregar texto</button>
-            <label className="image-upload-btn">🖼️ Agregar imagen
-              <input type="file" accept="image/*" onChange={handleImageUpload} style={{ display: "none" }} />
+            <label className="image-upload-btn">
+              🖼️ Agregar imagen
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                style={{ display: "none" }}
+              />
             </label>
           </div>
 
           {loading ? (
-            <div className="sidebar-section"><div className="loading-state"><p>Cargando artículos...</p></div></div>
+            <div className="sidebar-section">
+              <div className="loading-state">
+                <p>Cargando artículos...</p>
+              </div>
+            </div>
           ) : articulos.length === 0 ? (
-            <div className="sidebar-section"><div className="loading-state"><p>No hay artículos disponibles</p></div></div>
+            <div className="sidebar-section">
+              <div className="loading-state">
+                <p>No hay artículos disponibles</p>
+              </div>
+            </div>
           ) : (
             <>
               <div className="sidebar-section">
@@ -306,8 +473,14 @@ const HerramientaDiseño = () => {
                   {articulos.map((articulo) => {
                     const selected = articuloSeleccionado?.id === articulo.id;
                     return (
-                      <div key={articulo.id} className={`model-card ${selected ? "selected" : ""}`} onClick={() => handleArticuloChange(articulo)} title={articulo.nombre}>
-                        {articulo.nombre.substring(0, 8)}{articulo.nombre.length > 8 ? "..." : ""}
+                      <div
+                        key={articulo.id}
+                        className={`model-card ${selected ? "selected" : ""}`}
+                        onClick={() => handleArticuloChange(articulo)}
+                        title={articulo.nombre}
+                      >
+                        {articulo.nombre.substring(0, 8)}
+                        {articulo.nombre.length > 8 ? "..." : ""}
                       </div>
                     );
                   })}
@@ -318,39 +491,84 @@ const HerramientaDiseño = () => {
                 <div className="sidebar-section">
                   <strong>Producto Seleccionado</strong>
                   <div style={{ fontSize: 13, color: "#475569" }}>
-                    <div style={{ fontWeight: "bold", marginBottom: 4 }}>{articuloSeleccionado.nombre}</div>
-                    <div style={{ color: "#059669", fontWeight: "bold" }}>${Number(articuloSeleccionado.precio).toLocaleString()}</div>
-                    {articuloSeleccionado.descripcion && <div style={{ marginTop: 4, fontSize: 12 }}>{articuloSeleccionado.descripcion}</div>}
+                    <div style={{ fontWeight: "bold", marginBottom: 4 }}>
+                      {articuloSeleccionado.nombre}
+                    </div>
+                    <div style={{ color: "#059669", fontWeight: "bold" }}>
+                      ${Number(articuloSeleccionado.precio).toLocaleString()}
+                    </div>
+                    {articuloSeleccionado.descripcion && (
+                      <div style={{ marginTop: 4, fontSize: 12 }}>
+                        {articuloSeleccionado.descripcion}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
 
-              {Object.entries(variantesPorCategoria).map(([categoria, variantesCategoria]) => (
-                <div key={categoria} className="sidebar-section">
-                  <strong>{categoria.charAt(0).toUpperCase() + categoria.slice(1)}</strong>
-                  <div className={variantesCategoria.some((v) => v.imagen) ? "variant-grid" : "size-list"}>
-                    {variantesCategoria.map((variante) => {
-                      const selected = variantesSeleccionadas[categoria]?.id === variante.id;
-                      if (variante.imagen) {
-                        return (
-                          <div key={variante.id} className={`variant-item ${selected ? "selected" : ""}`} onClick={() => handleVarianteSelect(categoria, variante)} title={`${variante.valor} - ${variante.nombre_categoria}`}>
-                            <img src={variante.imagen} alt={variante.valor} />
-                            <span style={{ fontSize: 11, textAlign: "center" }}>{variante.valor}</span>
-                          </div>
-                        );
+              {Object.entries(variantesPorCategoria).map(
+                ([categoria, variantesCategoria]) => (
+                  <div key={categoria} className="sidebar-section">
+                    <strong>
+                      {categoria.charAt(0).toUpperCase() + categoria.slice(1)}
+                    </strong>
+                    <div
+                      className={
+                        variantesCategoria.some((v) => v.imagen)
+                          ? "variant-grid"
+                          : "size-list"
                       }
-                      return (
-                        <button key={variante.id} className={`size-btn ${selected ? "active" : ""}`} onClick={() => handleVarianteSelect(categoria, variante)} title={`${variante.valor} - ${variante.nombre_categoria}`}>
-                          {variante.valor || variante.nombre}
-                        </button>
-                      );
-                    })}
+                    >
+                      {variantesCategoria.map((variante) => {
+                        const selected =
+                          variantesSeleccionadas[categoria]?.id === variante.id;
+                        if (variante.imagen) {
+                          return (
+                            <div
+                              key={variante.id}
+                              className={`variant-item ${
+                                selected ? "selected" : ""
+                              }`}
+                              onClick={() =>
+                                handleVarianteSelect(categoria, variante)
+                              }
+                              title={`${variante.valor} - ${variante.nombre_categoria}`}
+                            >
+                              <img src={variante.imagen} alt={variante.valor} />
+                              <span
+                                style={{ fontSize: 11, textAlign: "center" }}
+                              >
+                                {variante.valor}
+                              </span>
+                            </div>
+                          );
+                        }
+                        return (
+                          <button
+                            key={variante.id}
+                            className={`size-btn ${selected ? "active" : ""}`}
+                            onClick={() =>
+                              handleVarianteSelect(categoria, variante)
+                            }
+                            title={`${variante.valor} - ${variante.nombre_categoria}`}
+                          >
+                            {variante.valor || variante.nombre}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              ))}
+                )
+              )}
 
               <div className="sidebar-section">
-                <button className="save-btn" onClick={captureAndUploadViews} style={{ width: "100%" }}>💾 Guardar diseño</button>
+                <button
+                  className="save-btn"
+                  onClick={captureAndUploadViews}
+                  style={{ width: "100%" }}
+                >
+                  💾 Guardar diseño
+                </button>
               </div>
             </>
           )}
@@ -362,32 +580,125 @@ const HerramientaDiseño = () => {
         <>
           {!imageEditMode ? (
             <>
-              <div className="centered-panel-overlay" onMouseDown={() => setSelectedId(null)} />
-              <div className="centered-panel" onMouseDown={(e) => e.stopPropagation()} ref={panelRef}>
-                <input ref={inputRef} className="centered-text-input" style={{ width: "100%", fontSize: textStyle.fontSize + "px", color: textStyle.fill }} value={textInputValue} onChange={handleTextInputChange} autoFocus placeholder="Escribe texto..." />
+              <div
+                className="centered-panel-overlay"
+                onMouseDown={() => setSelectedId(null)}
+              />
+              <div
+                className="centered-panel"
+                onMouseDown={(e) => e.stopPropagation()}
+                ref={panelRef}
+              >
+                <input
+                  ref={inputRef}
+                  className="centered-text-input"
+                  style={{
+                    width: "100%",
+                    fontSize: textStyle.fontSize + "px",
+                    color: textStyle.fill,
+                  }}
+                  value={textInputValue}
+                  onChange={handleTextInputChange}
+                  autoFocus
+                  placeholder="Escribe texto..."
+                />
 
-                <div className="text-style-panel-bubble" style={{ marginTop: 12 }}>
-                  <div style={{ display: "flex", gap: "6px", marginBottom: "12px", flexWrap: "wrap" }}>
-                    <button onClick={() => duplicarElemento(selectedId)} className="action-button duplicate" title="Duplicar (Ctrl+D)">📄 Duplicar</button>
-                    <button onClick={() => eliminarElemento(selectedId)} className="action-button delete" title="Eliminar (Delete)">🗑️ Eliminar</button>
+                <div
+                  className="text-style-panel-bubble"
+                  style={{ marginTop: 12 }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: "6px",
+                      marginBottom: "12px",
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <button
+                      onClick={() => duplicarElemento(selectedId)}
+                      className="action-button duplicate"
+                      title="Duplicar (Ctrl+D)"
+                    >
+                      📄 Duplicar
+                    </button>
+                    <button
+                      onClick={() => eliminarElemento(selectedId)}
+                      className="action-button delete"
+                      title="Eliminar (Delete)"
+                    >
+                      🗑️ Eliminar
+                    </button>
                   </div>
 
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "8px" }}>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr",
+                      gap: "8px",
+                      marginBottom: "8px",
+                    }}
+                  >
                     <label style={{ fontSize: 12 }}>
                       Color:
-                      <input type="color" value={textStyle.fill} onChange={(e) => { setTextStyle({ ...textStyle, fill: e.target.value }); actualizarElemento(selectedId, { fill: e.target.value }); }} style={{ width: "100%", height: "24px", border: 0, borderRadius: 4 }} />
+                      <input
+                        type="color"
+                        value={textStyle.fill}
+                        onChange={(e) => {
+                          setTextStyle({ ...textStyle, fill: e.target.value });
+                          actualizarElemento(selectedId, {
+                            fill: e.target.value,
+                          });
+                        }}
+                        style={{
+                          width: "100%",
+                          height: "24px",
+                          border: 0,
+                          borderRadius: 4,
+                        }}
+                      />
                     </label>
 
                     <label style={{ fontSize: 12 }}>
                       Tamaño:
-                      <input type="number" value={textStyle.fontSize} min="8" max="72" onChange={(e) => { const size = parseInt(e.target.value) || 20; setTextStyle({ ...textStyle, fontSize: size }); actualizarElemento(selectedId, { fontSize: size }); }} style={{ width: "100%" }} />
+                      <input
+                        type="number"
+                        value={textStyle.fontSize}
+                        min="8"
+                        max="72"
+                        onChange={(e) => {
+                          const size = parseInt(e.target.value) || 20;
+                          setTextStyle({ ...textStyle, fontSize: size });
+                          actualizarElemento(selectedId, { fontSize: size });
+                        }}
+                        style={{ width: "100%" }}
+                      />
                     </label>
                   </div>
 
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "8px" }}>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr",
+                      gap: "8px",
+                      marginBottom: "8px",
+                    }}
+                  >
                     <label style={{ fontSize: 12 }}>
                       Fuente:
-                      <select value={textStyle.fontFamily} onChange={(e) => { setTextStyle({ ...textStyle, fontFamily: e.target.value }); actualizarElemento(selectedId, { fontFamily: e.target.value }); }} style={{ width: "100%", fontSize: 11 }}>
+                      <select
+                        value={textStyle.fontFamily}
+                        onChange={(e) => {
+                          setTextStyle({
+                            ...textStyle,
+                            fontFamily: e.target.value,
+                          });
+                          actualizarElemento(selectedId, {
+                            fontFamily: e.target.value,
+                          });
+                        }}
+                        style={{ width: "100%", fontSize: 11 }}
+                      >
                         <option value="Arial">Arial</option>
                         <option value="Times New Roman">Times</option>
                         <option value="Courier New">Courier</option>
@@ -399,7 +710,19 @@ const HerramientaDiseño = () => {
 
                     <label style={{ fontSize: 12 }}>
                       Estilo:
-                      <select value={textStyle.fontStyle} onChange={(e) => { setTextStyle({ ...textStyle, fontStyle: e.target.value }); actualizarElemento(selectedId, { fontStyle: e.target.value }); }} style={{ width: "100%", fontSize: 11 }}>
+                      <select
+                        value={textStyle.fontStyle}
+                        onChange={(e) => {
+                          setTextStyle({
+                            ...textStyle,
+                            fontStyle: e.target.value,
+                          });
+                          actualizarElemento(selectedId, {
+                            fontStyle: e.target.value,
+                          });
+                        }}
+                        style={{ width: "100%", fontSize: 11 }}
+                      >
                         <option value="normal">Normal</option>
                         <option value="bold">Negrita</option>
                         <option value="italic">Cursiva</option>
@@ -408,49 +731,210 @@ const HerramientaDiseño = () => {
                     </label>
                   </div>
 
-                  <div style={{ borderTop: "1px solid #e5e7eb", paddingTop: "8px" }}>
-                    <div style={{ fontSize: 11, color: "#6b7280", marginBottom: "6px" }}>Posición y capas:</div>
-                    <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
-                      <button onClick={() => cambiarCapaElemento(selectedId, "arriba")} className="layer-button" title="Traer al frente">↑ Frente</button>
-                      <button onClick={() => cambiarCapaElemento(selectedId, "abajo")} className="layer-button" title="Enviar atrás">↓ Atrás</button>
+                  <div
+                    style={{
+                      borderTop: "1px solid #e5e7eb",
+                      paddingTop: "8px",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 11,
+                        color: "#6b7280",
+                        marginBottom: "6px",
+                      }}
+                    >
+                      Posición y capas:
                     </div>
-                    <div className="keyboard-hint">Rotación deshabilitada para texto</div>
+                    <div
+                      style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}
+                    >
+                      <button
+                        onClick={() =>
+                          cambiarCapaElemento(selectedId, "arriba")
+                        }
+                        className="layer-button"
+                        title="Traer al frente"
+                      >
+                        ↑ Frente
+                      </button>
+                      <button
+                        onClick={() => cambiarCapaElemento(selectedId, "abajo")}
+                        className="layer-button"
+                        title="Enviar atrás"
+                      >
+                        ↓ Atrás
+                      </button>
+                    </div>
+                    <div className="keyboard-hint">
+                      Rotación deshabilitada para texto
+                    </div>
                   </div>
                 </div>
               </div>
             </>
           ) : (
             <>
-              <div className="centered-panel-overlay" onMouseDown={() => setSelectedId(null)} />
-              <div className="centered-panel" onMouseDown={(e) => e.stopPropagation()} ref={panelRef}>
-                <div style={{ fontSize: 13, fontWeight: "bold", marginBottom: "8px", color: "#374151" }}>🖼️ Editar Imagen</div>
-                <div style={{ display: "flex", gap: "6px", marginBottom: "12px", flexWrap: "wrap" }}>
-                  <button onClick={() => duplicarElemento(selectedId)} className="action-button duplicate" title="Duplicar (Ctrl+D)">📄 Duplicar</button>
-                  <button onClick={() => eliminarElemento(selectedId)} className="action-button delete" title="Eliminar (Delete)">🗑️ Eliminar</button>
+              <div
+                className="centered-panel-overlay"
+                onMouseDown={() => setSelectedId(null)}
+              />
+              <div
+                className="centered-panel"
+                onMouseDown={(e) => e.stopPropagation()}
+                ref={panelRef}
+              >
+                <div
+                  style={{
+                    fontSize: 13,
+                    fontWeight: "bold",
+                    marginBottom: "8px",
+                    color: "#374151",
+                  }}
+                >
+                  🖼️ Editar Imagen
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "6px",
+                    marginBottom: "12px",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <button
+                    onClick={() => duplicarElemento(selectedId)}
+                    className="action-button duplicate"
+                    title="Duplicar (Ctrl+D)"
+                  >
+                    📄 Duplicar
+                  </button>
+                  <button
+                    onClick={() => eliminarElemento(selectedId)}
+                    className="action-button delete"
+                    title="Eliminar (Delete)"
+                  >
+                    🗑️ Eliminar
+                  </button>
                 </div>
 
                 <div style={{ marginBottom: "12px" }}>
-                  <div style={{ fontSize: 12, fontWeight: "bold", marginBottom: "6px" }}>Dimensiones:</div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      fontWeight: "bold",
+                      marginBottom: "6px",
+                    }}
+                  >
+                    Dimensiones:
+                  </div>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr",
+                      gap: "8px",
+                    }}
+                  >
                     <label style={{ fontSize: 12 }}>
                       Ancho:
-                      <input type="number" min="20" max="400" value={imageDimensions.width} onChange={(e) => { const width = parseInt(e.target.value) || 20; actualizarDimensionesImagen(selectedId, width, imageDimensions.height); }} style={{ width: "100%" }} />
+                      <input
+                        type="number"
+                        min="20"
+                        max="400"
+                        value={imageDimensions.width}
+                        onChange={(e) => {
+                          const width = parseInt(e.target.value) || 20;
+                          actualizarDimensionesImagen(
+                            selectedId,
+                            width,
+                            imageDimensions.height
+                          );
+                        }}
+                        style={{ width: "100%" }}
+                      />
                     </label>
                     <label style={{ fontSize: 12 }}>
                       Alto:
-                      <input type="number" min="20" max="400" value={imageDimensions.height} onChange={(e) => { const height = parseInt(e.target.value) || 20; actualizarDimensionesImagen(selectedId, imageDimensions.width, height); }} style={{ width: "100%" }} />
+                      <input
+                        type="number"
+                        min="20"
+                        max="400"
+                        value={imageDimensions.height}
+                        onChange={(e) => {
+                          const height = parseInt(e.target.value) || 20;
+                          actualizarDimensionesImagen(
+                            selectedId,
+                            imageDimensions.width,
+                            height
+                          );
+                        }}
+                        style={{ width: "100%" }}
+                      />
                     </label>
                   </div>
-                  <button onClick={() => { const elemento = elementos.find((el) => el.id === selectedId); if (elemento) { const ratio = elemento.width / elemento.height; const newHeight = Math.round(imageDimensions.width / ratio); actualizarDimensionesImagen(selectedId, imageDimensions.width, newHeight); } }} style={{ fontSize: 11, padding: "4px 8px", background: "#f3f4f6", border: "1px solid #d1d5db", borderRadius: 4, marginTop: "4px" }}>🔒 Mantener proporción</button>
+                  <button
+                    onClick={() => {
+                      const elemento = elementos.find(
+                        (el) => el.id === selectedId
+                      );
+                      if (elemento) {
+                        const ratio = elemento.width / elemento.height;
+                        const newHeight = Math.round(
+                          imageDimensions.width / ratio
+                        );
+                        actualizarDimensionesImagen(
+                          selectedId,
+                          imageDimensions.width,
+                          newHeight
+                        );
+                      }
+                    }}
+                    style={{
+                      fontSize: 11,
+                      padding: "4px 8px",
+                      background: "#f3f4f6",
+                      border: "1px solid #d1d5db",
+                      borderRadius: 4,
+                      marginTop: "4px",
+                    }}
+                  >
+                    🔒 Mantener proporción
+                  </button>
                 </div>
 
-                <div style={{ borderTop: "1px solid #e5e7eb", paddingTop: "8px" }}>
-                  <div style={{ fontSize: 11, color: "#6b7280", marginBottom: "6px" }}>Posición y capas:</div>
-                  <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
-                    <button onClick={() => cambiarCapaElemento(selectedId, "arriba")} className="layer-button" title="Traer al frente">↑ Frente</button>
-                    <button onClick={() => cambiarCapaElemento(selectedId, "abajo")} className="layer-button" title="Enviar atrás">↓ Atrás</button>
+                <div
+                  style={{ borderTop: "1px solid #e5e7eb", paddingTop: "8px" }}
+                >
+                  <div
+                    style={{
+                      fontSize: 11,
+                      color: "#6b7280",
+                      marginBottom: "6px",
+                    }}
+                  >
+                    Posición y capas:
                   </div>
-                  <div className="keyboard-hint">Arrastra las esquinas para redimensionar</div>
+                  <div
+                    style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}
+                  >
+                    <button
+                      onClick={() => cambiarCapaElemento(selectedId, "arriba")}
+                      className="layer-button"
+                      title="Traer al frente"
+                    >
+                      ↑ Frente
+                    </button>
+                    <button
+                      onClick={() => cambiarCapaElemento(selectedId, "abajo")}
+                      className="layer-button"
+                      title="Enviar atrás"
+                    >
+                      ↓ Atrás
+                    </button>
+                  </div>
+                  <div className="keyboard-hint">
+                    Arrastra las esquinas para redimensionar
+                  </div>
                 </div>
               </div>
             </>
@@ -462,12 +946,48 @@ const HerramientaDiseño = () => {
       {showConfirmModal && (
         <div className="modal-backdrop">
           <div className="modal-card">
-            <div style={{ fontWeight: "bold", marginBottom: 8 }}>Cambiar artículo</div>
-            <div style={{ color: "#374151", marginBottom: 12 }}>Hay elementos en el diseño. ¿Qué deseas hacer con ellos?</div>
-            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-              <button onClick={() => { setShowConfirmModal(false); setPendingArticulo(null); }} style={{ padding: "6px 10px" }}>Cancelar</button>
-              <button onClick={confirmChangeKeep} style={{ padding: "6px 10px", background: "#2563eb", color: "#fff", border: 0, borderRadius: 6 }}>Mantener</button>
-              <button onClick={confirmChangeAndClear} style={{ padding: "6px 10px", background: "#ef4444", color: "#fff", border: 0, borderRadius: 6 }}>Borrar y cargar</button>
+            <div style={{ fontWeight: "bold", marginBottom: 8 }}>
+              Cambiar artículo
+            </div>
+            <div style={{ color: "#374151", marginBottom: 12 }}>
+              Hay elementos en el diseño. ¿Qué deseas hacer con ellos?
+            </div>
+            <div
+              style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}
+            >
+              <button
+                onClick={() => {
+                  setShowConfirmModal(false);
+                  setPendingArticulo(null);
+                }}
+                style={{ padding: "6px 10px" }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmChangeKeep}
+                style={{
+                  padding: "6px 10px",
+                  background: "#2563eb",
+                  color: "#fff",
+                  border: 0,
+                  borderRadius: 6,
+                }}
+              >
+                Mantener
+              </button>
+              <button
+                onClick={confirmChangeAndClear}
+                style={{
+                  padding: "6px 10px",
+                  background: "#ef4444",
+                  color: "#fff",
+                  border: 0,
+                  borderRadius: 6,
+                }}
+              >
+                Borrar y cargar
+              </button>
             </div>
           </div>
         </div>

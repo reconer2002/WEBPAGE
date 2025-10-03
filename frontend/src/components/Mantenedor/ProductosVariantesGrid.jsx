@@ -158,6 +158,18 @@ const ProductosVariantesGrid = ({ articulo }) => {
             </div>
           </div>
         ))}
+
+        {/* Mostrar botón para añadir primera variante si no hay variantes */}
+        {categorias.length === 0 && (
+          <div className="categoria">
+            <h4>Sin variantes</h4>
+            <div className="grid-variantes">
+              <div className="variante-item add-item" onClick={() => handleClickNuevo("")}>
+                <p>➕ Añadir Primera Variante</p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {(seleccionado || modoNuevo) && (

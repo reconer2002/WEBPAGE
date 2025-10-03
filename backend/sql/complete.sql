@@ -7,11 +7,20 @@ USE mentescreativasstore;
 -- Tabla de usuarios
 CREATE TABLE usuarios (
   id INT AUTO_INCREMENT PRIMARY KEY,
-  nombre VARCHAR(100),
-  email VARCHAR(100) UNIQUE,
-  password VARCHAR(255),
+  nombre VARCHAR(100) NOT NULL,
+  apellido VARCHAR(100),
+  email VARCHAR(100) UNIQUE NOT NULL,
+  password VARCHAR(255) NOT NULL,
+  telefono VARCHAR(30),
+  direccion VARCHAR(255),
+  ciudad VARCHAR(100),
+  region VARCHAR(100),
   rol_id INT,
+  verificado TINYINT(1) DEFAULT 0,
+  verificacion_token VARCHAR(64),
+  verificacion_expira DATETIME,
   creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  actualizado_en TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (rol_id) REFERENCES roles(id)
 );
 
@@ -168,10 +177,10 @@ INSERT INTO rol_permisos (rol_id, permiso_id) VALUES
 (4, 11); -- gestionar_descuentos
 
 -- Usuarios básicos
-INSERT INTO usuarios (nombre, email, password, rol_id) VALUES
-('superadmin', 'superadmin@gmail.com', '$2a$10$ElttXEchpfV8xoMSjkCDoeO1ARp2MLWC2V6/qtnuXegZV2nQgoDX6',2),
-('admin', 'admin@gmail.com', '$2a$10$ElttXEchpfV8xoMSjkCDoeO1ARp2MLWC2V6/qtnuXegZV2nQgoDX6',3),
-('cliente', 'cliente@gmail.com', '$2a$10$ElttXEchpfV8xoMSjkCDoeO1ARp2MLWC2V6/qtnuXegZV2nQgoDX6',1);
+INSERT INTO usuarios (nombre, apellido, email, password, telefono, direccion, ciudad, region, rol_id, verificado) VALUES
+('superadmin', 'Root', 'superadmin@gmail.com', '$2a$10$ElttXEchpfV8xoMSjkCDoeO1ARp2MLWC2V6/qtnuXegZV2nQgoDX6', '+56000000000', NULL, NULL, NULL, 2, 1),
+('admin', 'Principal', 'admin@gmail.com', '$2a$10$ElttXEchpfV8xoMSjkCDoeO1ARp2MLWC2V6/qtnuXegZV2nQgoDX6', '+56000000001', NULL, NULL, NULL, 3, 1),
+('cliente', 'Ejemplo', 'cliente@gmail.com', '$2a$10$ElttXEchpfV8xoMSjkCDoeO1ARp2MLWC2V6/qtnuXegZV2nQgoDX6', '+56000000002', NULL, NULL, NULL, 1, 1);
 
 -- Categorías básicas
 INSERT INTO categorias_mantenedor (nombre, permiso_id) VALUES

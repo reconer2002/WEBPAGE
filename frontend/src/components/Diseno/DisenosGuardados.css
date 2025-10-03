@@ -1,0 +1,127 @@
+.disenos-guardados {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.disenos-guardados h2 {
+  color: var(--color-primario);
+  margin-bottom: 20px;
+}
+
+.disenos-loading,
+.disenos-empty {
+  text-align: center;
+  padding: 40px;
+  background: #f9fafb;
+  border-radius: 8px;
+  margin: 20px 0;
+}
+
+.crear-diseno-btn {
+  background: var(--color-primario);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-top: 15px;
+  font-weight: bold;
+  transition: background 0.2s ease;
+}
+
+.crear-diseno-btn:hover {
+  background: var(--color-secundario);
+}
+
+.disenos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.diseno-card {
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.diseno-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.diseno-card img {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  border-bottom: 1px solid #eee;
+}
+
+.diseno-info {
+  padding: 15px;
+}
+
+.diseno-info h3 {
+  margin: 0;
+  color: var(--color-primario);
+  font-size: 1.1em;
+}
+
+.diseno-info p {
+  margin: 5px 0;
+  color: #666;
+}
+
+.diseno-info .fecha {
+  font-size: 0.9em;
+  color: #888;
+}
+
+.diseno-actions {
+  display: flex;
+  padding: 10px;
+  gap: 10px;
+  border-top: 1px solid #eee;
+}
+
+.diseno-actions button {
+  flex: 1;
+  padding: 8px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background 0.2s ease;
+}
+
+.editar-btn {
+  background: var(--color-secundario);
+  color: white;
+}
+
+.editar-btn:hover {
+  background: var(--color-primario);
+}
+
+.eliminar-btn {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.eliminar-btn:hover {
+  background: #fecaca;
+}
+
+@media (max-width: 768px) {
+  .disenos-grid {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  }
+  
+  .diseno-card img {
+    height: 150px;
+  }
+}

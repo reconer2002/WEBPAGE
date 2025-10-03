@@ -1,0 +1,38 @@
+export const disenoMock = [
+  {
+    id: 1,
+    vista: "front",
+    x: 50,
+    y: 50,
+    width: 100,
+    height: 100,
+    imagen: "https://via.placeholder.com/100",
+  },
+  {
+    id: 2,
+    vista: "back",
+    x: 50,
+    y: 50,
+    width: 100,
+    height: 100,
+    imagen: "https://via.placeholder.com/100/ff0000",
+  },
+  {
+    id: 3,
+    vista: "left",
+    x: 50,
+    y: 50,
+    width: 100,
+    height: 100,
+    imagen: "https://via.placeholder.com/100/00ff00",
+  },
+  {
+    id: 4,
+    vista: "right",
+    x: 50,
+    y: 50,
+    width: 100,
+    height: 100,
+    imagen: "https://via.placeholder.com/100/0000ff",
+  },
+];

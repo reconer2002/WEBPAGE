@@ -7,7 +7,7 @@ import PaginaConfiguracion from "../components/Mantenedor/PaginaConfiguracion";
 import PaginaDesactivar from "../components/Mantenedor/PaginaDesactivar";
 import PaginaColores from "../components/Mantenedor/PaginaColores";
 import Testimonios from "../components/Mantenedor/Testimonios";
-import ProductosArticulos from "../components/Mantenedor/ProductosArticulos"; // <-- nuevo
+import ProductosArticulos from "../components/Mantenedor/ProductosArticulos";
 import "./Mantenedor.css";
 
 const Mantenedor = () => {
@@ -16,6 +16,19 @@ const Mantenedor = () => {
   const [loading, setLoading] = useState(false);
   const [loadingCatId, setLoadingCatId] = useState(null);
   const [subcategoriaActiva, setSubcategoriaActiva] = useState(null);
+
+  // ✅ Estado para entorno
+  const [entorno, setEntorno] = useState(
+    localStorage.getItem("entorno") || "prod"
+  );
+
+  // ✅ Cambiar entorno y guardarlo
+  const toggleEntorno = () => {
+    const nuevo = entorno === "prod" ? "test" : "prod";
+    localStorage.setItem("entorno", nuevo);
+    setEntorno(nuevo);
+    alert(`Entorno cambiado a: ${nuevo}`);
+  };
 
   // Fetch categorías al montar
   useEffect(() => {
@@ -59,9 +72,8 @@ const Mantenedor = () => {
     }
   };
 
-  // Click en subcategoría usando IDs
+  // Click en subcategoría
   const handleSubcategoriaClick = (catId, subId) => {
-    console.log("Subcategoria clickeada:", catId, subId); // debug
     if (catId === 1 && subId === 1) {
       setSubcategoriaActiva("Cuentas");
     } else if (catId === 1 && subId === 2) {
@@ -74,7 +86,7 @@ const Mantenedor = () => {
       setSubcategoriaActiva("PaginaColores");
     } else if (catId === 3 && subId === 6) {
       setSubcategoriaActiva("Testimonios");
-    } else if (catId === 4 && subId === 7) { // <-- nueva categoría PRODUCTOS / Artículos
+    } else if (catId === 4 && subId === 7) {
       setSubcategoriaActiva("Articulos");
     } else {
       setSubcategoriaActiva(null);
@@ -84,6 +96,15 @@ const Mantenedor = () => {
   return (
     <div className="mantenedor-container">
       <h2>Mantenedor</h2>
+
+      {/* ✅ Botón para alternar base de datos */}
+      <button
+        onClick={toggleEntorno}
+        style={{ marginBottom: "1rem", padding: "0.5rem 1rem" }}
+      >
+        Usar entorno: {entorno === "prod" ? "Producción" : "Test"}
+      </button>
+
       {loading && <p>Cargando categorías...</p>}
 
       <div className="categorias-list">
@@ -130,14 +151,14 @@ const Mantenedor = () => {
         })}
       </div>
 
-      {/* Renderizamos subcategorías según la activa */}
+      {/* Renderizar subcategorías */}
       {subcategoriaActiva === "Cuentas" && <UsuariosCuentas />}
       {subcategoriaActiva === "Roles" && <UsuariosRoles />}
       {subcategoriaActiva === "PaginaConfiguracion" && <PaginaConfiguracion />}
       {subcategoriaActiva === "PaginaDesactivar" && <PaginaDesactivar />}
       {subcategoriaActiva === "PaginaColores" && <PaginaColores />}
       {subcategoriaActiva === "Testimonios" && <Testimonios />}
-      {subcategoriaActiva === "Articulos" && <ProductosArticulos />} {/* <-- renderizamos el nuevo componente */}
+      {subcategoriaActiva === "Articulos" && <ProductosArticulos />}
     </div>
   );
 };

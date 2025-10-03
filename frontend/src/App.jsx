@@ -9,6 +9,9 @@ import PaginaDeshabilitada from "./components/Main/PaginaDeshabilitada";
 import HomePage from "./pages/HomePage";
 import authService from "./services/authService";
 import paginaService from "./services/paginaService";
+
+// IMPORTA EL NUEVO EDITOR
+import PoleraEditor from "./components/Diseno/PoleraEditor";
 import HerramientaDiseño from "./components/Diseno/HerramientaDiseño";
 
 function App() {
@@ -103,6 +106,7 @@ function App() {
           element={
             <>
               <Header user={user} onLogin={handleLogin} onLogout={handleLogout} />
+              {/* REEMPLAZA HERRAMIENTADISEÑO POR POLERAEDITOR */}
               <HerramientaDiseño />
               <Footer />
             </>

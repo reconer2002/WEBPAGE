@@ -1,16 +1,21 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const pool = require('../db');
 const router = express.Router();
 require('dotenv').config();
 
+const verifyToken = require('../middleware/auth');
+const dbSelector = require('../middleware/dbSelector');
+
+// --- Middleware para entornos ---
+router.use(dbSelector);
+
 // POST /api/auth/login
 router.post('/login', async (req, res) => {
-  const { identificador, password } = req.body; //identificador puede ser email o nombre
+  const { identificador, password } = req.body;
 
   try {
-    const [rows] = await pool.query(
+    const [rows] = await req.db.query(
       'SELECT * FROM usuarios WHERE email = ? OR nombre = ?',
       [identificador, identificador]
     );
@@ -37,10 +42,9 @@ router.post('/login', async (req, res) => {
 });
 
 // GET /api/auth/me
-const verifyToken = require('../middleware/auth');
 router.get('/me', verifyToken, async (req, res) => {
   try {
-    const [[usuario]] = await pool.query(
+    const [[usuario]] = await req.db.query(
       `SELECT u.id, u.nombre, u.email, u.creado_en, u.rol_id, r.nombre AS rol
        FROM usuarios u
        JOIN roles r ON u.rol_id = r.id
@@ -50,7 +54,7 @@ router.get('/me', verifyToken, async (req, res) => {
 
     if (!usuario) return res.status(404).json({ error: 'Usuario no encontrado' });
 
-    const [permisos] = await pool.query(
+    const [permisos] = await req.db.query(
       `SELECT p.nombre FROM permisos p
        JOIN rol_permisos rp ON p.id = rp.permiso_id
        WHERE rp.rol_id = ?`,
@@ -70,7 +74,6 @@ router.get('/me', verifyToken, async (req, res) => {
     res.status(500).json({ error: 'Error al obtener perfil', detalle: err.message });
   }
 });
-
 
 // POST /api/auth/logout
 router.post('/logout', (req, res) => {

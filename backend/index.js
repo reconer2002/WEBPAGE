@@ -3,9 +3,16 @@ const path = require('path');
 const app = express();
 require('dotenv').config();
 
+// ✅ Middleware para JSON
 app.use(express.json());
 
-// Rutas
+// ✅ IMPORTAR dbSelector
+const dbSelector = require('./middleware/dbSelector');
+
+// ✅ Aplicarlo ANTES de las rutas
+app.use(dbSelector);
+
+// ✅ Rutas
 const authRoutes = require('./routes/auth');
 app.use('/api/auth', authRoutes);
 
@@ -31,9 +38,12 @@ const variantesRouter = require('./routes/variantes');
 app.use('/api/variantes', variantesRouter);
 
 const objetosRouter = require('./routes/objetos');
-app.use('/api/objetos', objetosRouter)
+app.use('/api/objetos', objetosRouter);
 
-// Estáticos
+const diseniosBaseRouter = require('./routes/disenios_base');
+app.use('/api/disenios_base', diseniosBaseRouter);
+
+// ✅ Archivos estáticos
 app.use('/img', express.static(path.join(__dirname, 'img')));
 
 const PORT = process.env.PORT || 3000;

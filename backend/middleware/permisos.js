@@ -5,7 +5,7 @@ module.exports = function (permisoRequerido) {
     const userId = req.user.id;
 
     try {
-      const [rows] = await db.execute(`
+      const [rows] = await req.db.execute(`
         SELECT p.nombre 
         FROM permisos p
         JOIN rol_permisos rp ON rp.permiso_id = p.id

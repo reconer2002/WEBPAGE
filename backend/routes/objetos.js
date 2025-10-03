@@ -1,140 +1,23 @@
+// backend/routes/objetos.js
 const express = require('express');
 const router = express.Router();
-const db = require('../db');
+const dbSelector = require('../middleware/dbSelector');
+const authenticateToken = require('../middleware/auth');
 
-// PUT /objetos/:id - Actualizar objeto (precio, existencias y variantes)
-router.put('/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { existencias, precio, variante_ids } = req.body;
+router.use(authenticateToken, dbSelector);
 
-    // 1) Verificar que el objeto existe
-    const [existingObject] = await db.query('SELECT * FROM objetos WHERE id = ?', [id]);
-    if (existingObject.length === 0) {
-      return res.status(404).json({ error: 'Objeto no encontrado' });
-    }
-
-    // 2) Actualizar precio y existencias si vienen
-    const updates = [];
-    const values = [];
-
-    if (existencias !== undefined) {
-      updates.push('existencias = ?');
-      values.push(existencias);
-    }
-    if (precio !== undefined) {
-      updates.push('precio = ?');
-      values.push(precio);
-    }
-
-    if (updates.length > 0) {
-      values.push(id);
-      await db.query(
-        `UPDATE objetos SET ${updates.join(', ')} WHERE id = ?`,
-        values
-      );
-    }
-
-    // 3) Actualizar variantes (si se enviaron)
-    if (Array.isArray(variante_ids)) {
-      // Eliminar relaciones anteriores
-      await db.query('DELETE FROM objeto_variante WHERE objeto_id = ?', [id]);
-
-      // Insertar las nuevas
-      for (const varianteId of variante_ids) {
-        await db.query(
-          'INSERT INTO objeto_variante (objeto_id, variante_id) VALUES (?, ?)',
-          [id, varianteId]
-        );
-      }
-    }
-
-    // 4) Devolver objeto actualizado con sus variantes
-    const [updatedObject] = await db.query(
-      `
-      SELECT 
-        o.id, 
-        o.articulo_id, 
-        o.existencias, 
-        o.precio,
-        JSON_ARRAYAGG(
-          CASE 
-            WHEN v.id IS NOT NULL THEN
-              JSON_OBJECT(
-                'id', v.id,
-                'categoria', v.nombre_categoria,
-                'nombre', v.valor,
-                'imagen', v.imagen
-              )
-            ELSE NULL
-          END
-        ) as variantes
-      FROM objetos o
-      LEFT JOIN objeto_variante ov ON o.id = ov.objeto_id
-      LEFT JOIN variantes v ON ov.variante_id = v.id
-      WHERE o.id = ?
-      GROUP BY o.id
-      `,
-      [id]
-    );
-
-    // Normalizar para no incluir NULL
-    const obj = updatedObject[0];
-    obj.variantes = obj.variantes.filter(v => v !== null);
-
-    res.json(obj);
-  } catch (error) {
-    console.error('Error al actualizar objeto:', error);
-    res.status(500).json({ error: 'Error al actualizar objeto' });
-  }
-});
-
-// DELETE /objetos/:id - Eliminar un SKU y sus variantes asociadas
-router.delete('/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    // Verificar que el objeto existe
-    const [existingObject] = await db.query('SELECT * FROM objetos WHERE id = ?', [id]);
-    if (existingObject.length === 0) {
-      return res.status(404).json({ error: 'Objeto no encontrado' });
-    }
-
-    // 1) Eliminar relaciones en objeto_variante
-    await db.query('DELETE FROM objeto_variante WHERE objeto_id = ?', [id]);
-
-    // 2) Eliminar el objeto
-    await db.query('DELETE FROM objetos WHERE id = ?', [id]);
-
-    res.json({ message: 'Objeto y sus variantes asociadas eliminados exitosamente' });
-  } catch (error) {
-    console.error('Error al eliminar objeto:', error);
-    res.status(500).json({ error: 'Error al eliminar objeto' });
-  }
-});
-
-// GET /objetos/:id - Obtener detalle de un objeto
+// --- GET /objetos/:id ---
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    
-    const [rows] = await db.query(`
+
+    const [rows] = await req.db.query(`
       SELECT 
-        o.id, 
-        o.articulo_id, 
-        o.existencias, 
-        o.precio,
+        o.id, o.articulo_id, o.existencias, o.precio, o.disenio_base_id,
         JSON_ARRAYAGG(
-          CASE 
-            WHEN v.id IS NOT NULL THEN
-              JSON_OBJECT(
-                'id', v.id,
-                'nombre_categoria', v.nombre_categoria,
-                'valor', v.valor,
-                'imagen', v.imagen
-              )
-            ELSE NULL
-          END
+          CASE WHEN v.id IS NOT NULL THEN
+            JSON_OBJECT('id', v.id, 'nombre_categoria', v.nombre_categoria, 'valor', v.valor, 'imagen', v.imagen)
+          ELSE NULL END
         ) as variantes
       FROM objetos o
       LEFT JOIN objeto_variante ov ON o.id = ov.objeto_id
@@ -142,110 +25,77 @@ router.get('/:id', async (req, res) => {
       WHERE o.id = ?
       GROUP BY o.id
     `, [id]);
-    
-    if (rows.length === 0) {
-      return res.status(404).json({ error: 'Objeto no encontrado' });
-    }
-    
-    res.json(rows[0]);
-  } catch (error) {
-    console.error('Error al obtener objeto:', error);
+
+    if (!rows.length) return res.status(404).json({ error: 'Objeto no encontrado' });
+
+    const obj = rows[0];
+    obj.variantes = obj.variantes.filter(v => v !== null);
+    res.json(obj);
+  } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Error al obtener objeto' });
   }
 });
 
-// POST /objetos/:id/variantes - Asociar variantes a un SKU
-router.post('/:id/variantes', async (req, res) => {
+// --- POST /objetos ---
+router.post('/', async (req, res) => {
   try {
-    const { id } = req.params;
-    const { variante_ids } = req.body;
-    
-    if (!variante_ids || !Array.isArray(variante_ids) || variante_ids.length === 0) {
-      return res.status(400).json({ error: 'Se requiere un array de variante_ids' });
-    }
-    
-    // Verificar que el objeto existe
-    const [existingObject] = await db.query('SELECT * FROM objetos WHERE id = ?', [id]);
-    if (existingObject.length === 0) {
-      return res.status(404).json({ error: 'Objeto no encontrado' });
-    }
-    
-    // Verificar que todas las variantes existen
-    const [existingVariants] = await db.query(
-      `SELECT id FROM variantes WHERE id IN (${variante_ids.map(() => '?').join(',')})`,
-      variante_ids
+    const { articulo_id, existencias, precio, variante_ids, disenio_base_id } = req.body;
+
+    const [result] = await req.db.query(
+      'INSERT INTO objetos (articulo_id, existencias, precio, disenio_base_id) VALUES (?, ?, ?, ?)',
+      [articulo_id, existencias || 0, precio || null, disenio_base_id || null]
     );
-    
-    if (existingVariants.length !== variante_ids.length) {
-      return res.status(400).json({ error: 'Una o más variantes no existen' });
+
+    const objetoId = result.insertId;
+
+    if (Array.isArray(variante_ids)) {
+      for (const varianteId of variante_ids) {
+        await req.db.query('INSERT INTO objeto_variante (objeto_id, variante_id) VALUES (?, ?)', [objetoId, varianteId]);
+      }
     }
-    
-    // Asociar variantes (eliminar asociaciones existentes primero)
-    await db.query('DELETE FROM objeto_variante WHERE objeto_id = ?', [id]);
-    
-    for (const varianteId of variante_ids) {
-      await db.query(
-        'INSERT INTO objeto_variante (objeto_id, variante_id) VALUES (?, ?)',
-        [id, varianteId]
-      );
-    }
-    
-    // Retornar el objeto actualizado con sus variantes
-    const [updatedObject] = await db.query(`
-      SELECT 
-        o.id, 
-        o.articulo_id, 
-        o.existencias, 
-        o.precio,
-        JSON_ARRAYAGG(
-          JSON_OBJECT(
-            'id', v.id,
-            'nombre_categoria', v.nombre_categoria,
-            'valor', v.valor,
-            'imagen', v.imagen
-          )
-        ) as variantes
-      FROM objetos o
-      LEFT JOIN objeto_variante ov ON o.id = ov.objeto_id
-      LEFT JOIN variantes v ON ov.variante_id = v.id
-      WHERE o.id = ?
-      GROUP BY o.id
-    `, [id]);
-    
-    res.json({
-      message: 'Variantes asociadas exitosamente',
-      objeto: updatedObject[0]
-    });
-  } catch (error) {
-    console.error('Error al asociar variantes:', error);
-    res.status(500).json({ error: 'Error al asociar variantes' });
+
+    const [newObj] = await req.db.query('SELECT * FROM objetos WHERE id = ?', [objetoId]);
+    res.status(201).json(newObj[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al crear objeto' });
   }
 });
 
-// DELETE /objetos/:id/variantes/:variante_id - Eliminar relación específica
-router.delete('/:id/variantes/:variante_id', async (req, res) => {
+// --- PUT /objetos/:id ---
+router.put('/:id', async (req, res) => {
   try {
-    const { id, variante_id } = req.params;
-    
-    // Verificar que la relación existe
-    const [existingRelation] = await db.query(
-      'SELECT * FROM objeto_variante WHERE objeto_id = ? AND variante_id = ?',
-      [id, variante_id]
-    );
-    
-    if (existingRelation.length === 0) {
-      return res.status(404).json({ error: 'Relación objeto-variante no encontrada' });
+    const { id } = req.params;
+    const { existencias, precio, variante_ids, disenio_base_id } = req.body;
+
+    const [existing] = await req.db.query('SELECT * FROM objetos WHERE id = ?', [id]);
+    if (!existing.length) return res.status(404).json({ error: 'Objeto no encontrado' });
+
+    const updates = [];
+    const values = [];
+
+    if (existencias !== undefined) { updates.push('existencias = ?'); values.push(existencias); }
+    if (precio !== undefined) { updates.push('precio = ?'); values.push(precio); }
+    if (disenio_base_id !== undefined) { updates.push('disenio_base_id = ?'); values.push(disenio_base_id); }
+
+    if (updates.length) {
+      values.push(id);
+      await req.db.query(`UPDATE objetos SET ${updates.join(', ')} WHERE id = ?`, values);
     }
-    
-    await db.query(
-      'DELETE FROM objeto_variante WHERE objeto_id = ? AND variante_id = ?',
-      [id, variante_id]
-    );
-    
-    res.json({ message: 'Relación objeto-variante eliminada exitosamente' });
-  } catch (error) {
-    console.error('Error al eliminar relación objeto-variante:', error);
-    res.status(500).json({ error: 'Error al eliminar relación objeto-variante' });
+
+    if (Array.isArray(variante_ids)) {
+      await req.db.query('DELETE FROM objeto_variante WHERE objeto_id = ?', [id]);
+      for (const vid of variante_ids) {
+        await req.db.query('INSERT INTO objeto_variante (objeto_id, variante_id) VALUES (?, ?)', [id, vid]);
+      }
+    }
+
+    const [updatedObj] = await req.db.query('SELECT * FROM objetos WHERE id = ?', [id]);
+    res.json(updatedObj[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al actualizar objeto' });
   }
 });
 

@@ -1,15 +1,18 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../db');
 const authenticateToken = require('../middleware/auth');
+const dbSelector = require('../middleware/dbSelector');
 
-//Obtener categorías visibles según permisos
+// Middleware para seleccionar entorno
+router.use(dbSelector);
+
+// Obtener categorías visibles según permisos
 router.get('/categorias', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
 
     // Obtener permisos del usuario
-    const [permisos] = await db.query(`
+    const [permisos] = await req.db.query(`
       SELECT p.id AS permiso_id
       FROM permisos p
       INNER JOIN rol_permisos rp ON p.id = rp.permiso_id
@@ -24,7 +27,7 @@ router.get('/categorias', authenticateToken, async (req, res) => {
     }
 
     // Obtener categorías que puede ver
-    const [categorias] = await db.query(`
+    const [categorias] = await req.db.query(`
       SELECT id, nombre
       FROM categorias_mantenedor
       WHERE permiso_id IN (?)
@@ -37,14 +40,14 @@ router.get('/categorias', authenticateToken, async (req, res) => {
   }
 });
 
-//Obtener subcategorías visibles según permisos
+// Obtener subcategorías visibles según permisos
 router.get('/categorias/:id/subcategorias', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
     const categoriaId = req.params.id;
 
     // Obtener permisos del usuario
-    const [permisos] = await db.query(`
+    const [permisos] = await req.db.query(`
       SELECT p.id AS permiso_id
       FROM permisos p
       INNER JOIN rol_permisos rp ON p.id = rp.permiso_id
@@ -59,7 +62,7 @@ router.get('/categorias/:id/subcategorias', authenticateToken, async (req, res) 
     }
 
     // Obtener subcategorías que puede ver
-    const [subcategorias] = await db.query(`
+    const [subcategorias] = await req.db.query(`
       SELECT id, nombre
       FROM subcategorias_mantenedor
       WHERE categoria_id = ?
@@ -74,4 +77,3 @@ router.get('/categorias/:id/subcategorias', authenticateToken, async (req, res) 
 });
 
 module.exports = router;
-

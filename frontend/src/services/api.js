@@ -4,12 +4,16 @@ const api = axios.create({
   baseURL: '/api',
 });
 
-// Intercepta todas las solicitudes para incluir el token
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+
+  // ✅ Enviar entorno dinámico
+  const entorno = localStorage.getItem('entorno') || 'prod';
+  config.headers['x-entorno'] = entorno;
+
   return config;
 });
 

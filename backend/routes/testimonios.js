@@ -1,16 +1,19 @@
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
-const db = require('../db');
 const authMiddleware = require('../middleware/auth');
 const verifyPermiso = require('../middleware/permisos');
+const dbSelector = require('../middleware/dbSelector');
 
 const router = express.Router();
+
+// Middleware para seleccionar entorno
+router.use(dbSelector);
 
 // --- Configuración multer para subir fotos de testimonios ---
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, path.join(__dirname, '../img/testimonios')); // guarda en /backend/img/testimonios
+    cb(null, path.join(__dirname, '../img/testimonios'));
   },
   filename: (req, file, cb) => {
     cb(null, 'testimonio-' + Date.now() + path.extname(file.originalname));
@@ -23,7 +26,7 @@ const upload = multer({ storage });
  */
 router.get('/ultimos', async (req, res) => {
   try {
-    const [rows] = await db.execute(
+    const [rows] = await req.db.execute(
       'SELECT * FROM testimonios ORDER BY id DESC LIMIT 3'
     );
     res.json(rows);
@@ -37,7 +40,7 @@ router.get('/ultimos', async (req, res) => {
  */
 router.get('/', authMiddleware, verifyPermiso('editar_testimonios'), async (req, res) => {
   try {
-    const [rows] = await db.execute('SELECT * FROM testimonios ORDER BY id DESC');
+    const [rows] = await req.db.execute('SELECT * FROM testimonios ORDER BY id DESC');
     res.json(rows);
   } catch (err) {
     res.status(500).json({ message: 'Error al obtener testimonios', error: err.message });
@@ -52,7 +55,7 @@ router.post('/', authMiddleware, verifyPermiso('editar_testimonios'), upload.sin
     const { nombre, descripcion, calificacion } = req.body;
     const fotoUrl = req.file ? `/img/testimonios/${req.file.filename}` : null;
 
-    await db.execute(
+    await req.db.execute(
       'INSERT INTO testimonios (nombre, descripcion, calificacion, foto_url) VALUES (?, ?, ?, ?)',
       [nombre, descripcion, calificacion, fotoUrl]
     );
@@ -96,7 +99,7 @@ router.patch('/:id', authMiddleware, verifyPermiso('editar_testimonios'), upload
 
     values.push(id);
     const sql = `UPDATE testimonios SET ${updates.join(', ')} WHERE id = ?`;
-    await db.execute(sql, values);
+    await req.db.execute(sql, values);
 
     res.json({ message: 'Testimonio actualizado correctamente' });
   } catch (err) {
@@ -110,7 +113,7 @@ router.patch('/:id', authMiddleware, verifyPermiso('editar_testimonios'), upload
 router.delete('/:id', authMiddleware, verifyPermiso('editar_testimonios'), async (req, res) => {
   try {
     const { id } = req.params;
-    await db.execute('DELETE FROM testimonios WHERE id = ?', [id]);
+    await req.db.execute('DELETE FROM testimonios WHERE id = ?', [id]);
     res.json({ message: 'Testimonio eliminado correctamente' });
   } catch (err) {
     res.status(500).json({ message: 'Error al eliminar testimonio', error: err.message });

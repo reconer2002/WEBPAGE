@@ -1,7 +1,8 @@
-// ProductosObjetosGrid.jsx
+// frontend/src/components/ProductosObjetosGrid.jsx
 import React, { useEffect, useState } from "react";
 import objetosService from "../../services/objetosService";
 import variantesService from "../../services/variantesService";
+import diseniosBaseService from "../../services/diseniosBaseService";
 import "./ProductosObjetosGrid.css";
 
 const ProductosObjetosGrid = ({ articulo }) => {
@@ -9,15 +10,25 @@ const ProductosObjetosGrid = ({ articulo }) => {
   const [variantesArticulo, setVariantesArticulo] = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [filtros, setFiltros] = useState({});
-  const [formData, setFormData] = useState({ precio: "", existencias: 0, variantes: {} });
+  const [formData, setFormData] = useState({
+    precio: "",
+    existencias: 0,
+    variantes: {},
+    disenio_base_id: ""
+  });
   const [seleccionado, setSeleccionado] = useState(null);
   const [modoNuevo, setModoNuevo] = useState(false);
-  const [opcionesFiltros, setOpcionesFiltros] = useState({}); // Valores únicos para filtros
+  const [opcionesFiltros, setOpcionesFiltros] = useState({});
+  const [diseniosBase, setDiseniosBase] = useState([]);
 
   useEffect(() => {
-    if (articulo?.id) cargarDatos();
+    if (articulo?.id) {
+      cargarDatos();
+      cargarDiseniosBase();
+    }
   }, [articulo]);
 
+  // Cargar objetos y variantes
   const cargarDatos = async () => {
     const objs = await objetosService.getObjetos(articulo.id);
     const vars = await variantesService.getVariantes(articulo.id);
@@ -25,27 +36,29 @@ const ProductosObjetosGrid = ({ articulo }) => {
     setObjetos(objs || []);
     setVariantesArticulo(vars || []);
 
-    // Categorías
-    const cats = [...new Set(vars.map(v => v.categoria))];
+    const cats = [...new Set(vars.map(v => v.nombre_categoria))];
     setCategorias(cats);
 
-    // Inicializar filtros
     const filtrosInicial = {};
     const opcionesInicial = {};
     cats.forEach(cat => {
       filtrosInicial[cat] = "";
-      // Valores únicos para filtros
-      opcionesInicial[cat] = [...new Set(vars.filter(v => v.categoria === cat).map(v => v.nombre))];
+      opcionesInicial[cat] = [...new Set(vars.filter(v => v.nombre_categoria === cat).map(v => v.valor))];
     });
     setFiltros(filtrosInicial);
     setOpcionesFiltros(opcionesInicial);
   };
 
-  // Mapear objeto a { categoria: {id, nombre} }
+  // Cargar diseños base
+  const cargarDiseniosBase = async () => {
+    const res = await diseniosBaseService.getAll(); // ⚡ corregido
+    setDiseniosBase(res || []);
+  };
+
   const mapVariantesObjeto = (obj) => {
     const m = {};
     (obj.variantes || []).forEach(v => {
-      m[v.categoria] = { id: v.id, nombre: v.valor || v.nombre };
+      m[v.categoria] = { id: v.id, nombre: v.nombre || v.valor };
     });
     return m;
   };
@@ -65,11 +78,14 @@ const ProductosObjetosGrid = ({ articulo }) => {
 
     const variantesMap = mapVariantesObjeto(obj);
     const formVars = {};
-    categorias.forEach(cat => {
-      formVars[cat] = variantesMap[cat]?.id || "";
-    });
+    categorias.forEach(cat => formVars[cat] = variantesMap[cat]?.id || "");
 
-    setFormData({ precio: obj.precio, existencias: obj.existencias, variantes: formVars });
+    setFormData({
+      precio: obj.precio,
+      existencias: obj.existencias,
+      variantes: formVars,
+      disenio_base_id: obj.disenio_base_id || ""
+    });
   };
 
   const handleClickNuevo = () => {
@@ -78,7 +94,7 @@ const ProductosObjetosGrid = ({ articulo }) => {
 
     const formVars = {};
     categorias.forEach(cat => formVars[cat] = "");
-    setFormData({ precio: "", existencias: 0, variantes: formVars });
+    setFormData({ precio: "", existencias: 0, variantes: formVars, disenio_base_id: "" });
   };
 
   const handleCerrar = () => {
@@ -88,6 +104,10 @@ const ProductosObjetosGrid = ({ articulo }) => {
 
   const handleVarianteChange = (cat, value) => {
     setFormData(prev => ({ ...prev, variantes: { ...prev.variantes, [cat]: value } }));
+  };
+
+  const handleDisenioChange = (value) => {
+    setFormData(prev => ({ ...prev, disenio_base_id: value }));
   };
 
   const handleChange = (e) => {
@@ -100,7 +120,8 @@ const ProductosObjetosGrid = ({ articulo }) => {
     await objetosService.createObjeto(articulo.id, {
       precio: parseFloat(formData.precio),
       existencias: parseInt(formData.existencias),
-      variantes: varianteIds
+      variantes: varianteIds,
+      disenio_base_id: formData.disenio_base_id
     });
     cargarDatos();
     handleCerrar();
@@ -111,7 +132,8 @@ const ProductosObjetosGrid = ({ articulo }) => {
     await objetosService.updateObjeto(seleccionado.id, {
       precio: parseFloat(formData.precio),
       existencias: parseInt(formData.existencias),
-      variantes: varianteIds
+      variantes: varianteIds,
+      disenio_base_id: formData.disenio_base_id
     });
     cargarDatos();
     handleCerrar();
@@ -152,6 +174,7 @@ const ProductosObjetosGrid = ({ articulo }) => {
                 <p className="nombre">{nombreGrid}</p>
                 <p>Precio: ${obj.precio}</p>
                 <p>Stock: {obj.existencias}</p>
+                <p>Diseño: {diseniosBase.find(d => d.id === obj.disenio_base_id)?.nombre || "-"}</p>
               </div>
             );
           })}
@@ -172,8 +195,14 @@ const ProductosObjetosGrid = ({ articulo }) => {
               <p>Existencias:</p>
               <input type="number" name="existencias" value={formData.existencias} onChange={handleChange} />
 
+              <p>Diseño Base:</p>
+              <select value={formData.disenio_base_id || ""} onChange={e => handleDisenioChange(parseInt(e.target.value))}>
+                <option value="">--</option>
+                {diseniosBase.map(d => <option key={d.id} value={d.id}>{d.nombre}</option>)}
+              </select>
+
               {categorias.map(cat => {
-                const opciones = variantesArticulo.filter(v => v.categoria === cat);
+                const opciones = variantesArticulo.filter(v => v.nombre_categoria === cat);
                 return (
                   <div key={cat}>
                     <p>{cat}:</p>
@@ -182,7 +211,7 @@ const ProductosObjetosGrid = ({ articulo }) => {
                       onChange={e => handleVarianteChange(cat, parseInt(e.target.value))}
                     >
                       <option value="">--</option>
-                      {opciones.map(opt => <option key={opt.id} value={opt.id}>{opt.nombre}</option>)}
+                      {opciones.map(opt => <option key={opt.id} value={opt.id}>{opt.valor || opt.nombre}</option>)}
                     </select>
                   </div>
                 );

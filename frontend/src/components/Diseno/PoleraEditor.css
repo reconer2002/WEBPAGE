@@ -1,0 +1,48 @@
+.editor-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.vista-buttons {
+  margin-bottom: 10px;
+}
+
+.vista-buttons button {
+  margin: 0 5px;
+  padding: 5px 10px;
+}
+
+.vista-buttons .active {
+  font-weight: bold;
+  background-color: #ddd;
+}
+
+.canvas-wrapper {
+  position: relative;
+  width: 400px;
+  height: 500px;
+  border: 1px solid #ccc;
+  background-color: #fff;
+}
+
+.elemento {
+  position: absolute;
+  background-size: cover;
+  cursor: move;
+}
+
+.resize-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: #000;
+  right: 0;
+  bottom: 0;
+  cursor: se-resize;
+}
+
+.capture-btn {
+  margin-top: 15px;
+  padding: 8px 16px;
+}

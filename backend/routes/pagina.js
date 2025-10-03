@@ -1,11 +1,14 @@
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
-const db = require('../db');
 const authMiddleware = require('../middleware/auth');
 const verifyPermiso = require('../middleware/permisos');
+const dbSelector = require('../middleware/dbSelector');
 
 const router = express.Router();
+
+// Middleware para seleccionar entorno
+router.use(dbSelector);
 
 // --- Configuración de multer para subir logo ---
 const storage = multer.diskStorage({
@@ -21,7 +24,7 @@ const upload = multer({ storage });
 // --- GET configuración página ---
 router.get('/', async (req, res) => {
   try {
-    const [rows] = await db.execute('SELECT * FROM configuracion_pagina WHERE id = 1');
+    const [rows] = await req.db.execute('SELECT * FROM configuracion_pagina WHERE id = 1');
     res.json(rows[0] || {});
   } catch (err) {
     res.status(500).json({ message: 'Error al obtener configuración', error: err.message });
@@ -34,8 +37,7 @@ router.patch('/logo', authMiddleware, verifyPermiso('configurar_pagina'), upload
     if (!req.file) return res.status(400).json({ message: 'No se envió ningún archivo' });
 
     const logoUrl = `/img/${req.file.filename}`;
-
-    await db.execute('UPDATE configuracion_pagina SET logo_url = ? WHERE id = 1', [logoUrl]);
+    await req.db.execute('UPDATE configuracion_pagina SET logo_url = ? WHERE id = 1', [logoUrl]);
 
     res.json({ message: 'Logo actualizado', logo: logoUrl });
   } catch (err) {
@@ -62,7 +64,7 @@ router.patch('/', authMiddleware, verifyPermiso('configurar_pagina'), async (req
     }
 
     const sql = `UPDATE configuracion_pagina SET ${updates.join(', ')} WHERE id = 1`;
-    await db.execute(sql, values);
+    await req.db.execute(sql, values);
 
     res.json({ message: 'Configuración actualizada' });
   } catch (err) {
@@ -75,7 +77,7 @@ router.patch('/', authMiddleware, verifyPermiso('configurar_pagina'), async (req
 router.patch('/estado', authMiddleware, verifyPermiso('configurar_pagina'), async (req, res) => {
   const { estado } = req.body;
   try {
-    await db.execute('UPDATE configuracion_pagina SET estado = ? WHERE id = 1', [estado ? 1 : 0]);
+    await req.db.execute('UPDATE configuracion_pagina SET estado = ? WHERE id = 1', [estado ? 1 : 0]);
     res.json({ message: 'Estado actualizado', estado });
   } catch (err) {
     res.status(500).json({ message: 'Error al cambiar estado', error: err.message });

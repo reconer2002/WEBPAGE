@@ -3,7 +3,8 @@ import { Stage, Layer, Text, Image as KonvaImage, Transformer } from "react-konv
 import useImage from "use-image";
 import "./HerramientaDiseño.css";
 import articulosService from "../../services/articulosService";
-import variantesService from "../../services/variantesService";
+import objetosService from "../../services/objetosService";
+import diseniosBaseService from "../../services/diseniosBaseService";
 import ImagenElemento from "./ImagenElemento";
 
 const HerramientaDiseño = () => {
@@ -12,9 +13,9 @@ const HerramientaDiseño = () => {
   const [elementos, setElementos] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [articulos, setArticulos] = useState([]);
-  const [articuloSeleccionado, setArticuloSeleccionado] = useState(null);
-  const [variantes, setVariantes] = useState([]);
-  const [variantesSeleccionadas, setVariantesSeleccionadas] = useState({});
+  const [todosLosObjetos, setTodosLosObjetos] = useState([]);
+  const [objetoSeleccionado, setObjetoSeleccionado] = useState(null);
+  const [diseniosBase, setDiseniosBase] = useState([]);
   const [vistaActual, setVistaActual] = useState('frente'); // 'frente', 'izquierda', 'derecha', 'detras'
   const [imagenesVistas, setImagenesVistas] = useState({
     frente: null,
@@ -30,29 +31,46 @@ const HerramientaDiseño = () => {
   const [textInputValue, setTextInputValue] = useState("");
   const [textStyle, setTextStyle] = useState({ fontSize: 20, fill: "#000000", fontFamily: "Arial", fontStyle: "normal" });
   const [imageEditMode, setImageEditMode] = useState(false);
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [pendingArticulo, setPendingArticulo] = useState(null);
   const [imageDimensions, setImageDimensions] = useState({ width: 100, height: 100 });
   const [currentImageRotation, setCurrentImageRotation] = useState(0);
 
-
-  const [baseImage] = useImage(imagenesVistas[vistaActual] || articuloSeleccionado?.foto || "");
+  const [baseImage, imageStatus] = useImage(imagenesVistas[vistaActual] || "", 'anonymous');
 
   useEffect(() => {
-    const fetchArticulos = async () => {
+    const fetchInitialData = async () => {
       try {
         setLoading(true);
-        const articulosData = await articulosService.getArticulos();
+        const [articulosData, diseniosData] = await Promise.all([
+          articulosService.getArticulos(),
+          diseniosBaseService.getAll()
+        ]);
         setArticulos(articulosData);
-        // NO seleccionar automáticamente ningún artículo
-        // El usuario debe seleccionar manualmente
+        setDiseniosBase(diseniosData);
+        
+        // Cargar todos los objetos de todos los artículos
+        const todosObjetos = [];
+        for (const articulo of articulosData) {
+          try {
+            const objetosArticulo = await objetosService.getObjetos(articulo.id);
+            // Agregar información del artículo a cada objeto
+            const objetosConArticulo = objetosArticulo.map(objeto => ({
+              ...objeto,
+              articulo_nombre: articulo.nombre,
+              articulo_descripcion: articulo.descripcion
+            }));
+            todosObjetos.push(...objetosConArticulo);
+          } catch (error) {
+            console.error(`Error al cargar objetos del artículo ${articulo.id}:`, error);
+          }
+        }
+        setTodosLosObjetos(todosObjetos);
       } catch (error) {
-        console.error("Error al cargar artículos:", error);
+        console.error("Error al cargar datos iniciales:", error);
       } finally {
         setLoading(false);
       }
     };
-    fetchArticulos();
+    fetchInitialData();
   }, []);
 
   useEffect(() => {
@@ -191,128 +209,63 @@ const HerramientaDiseño = () => {
     e.target.value = "";
   };
 
-  const handleArticuloChange = async (articulo) => {
-    try {
-      if (articuloSeleccionado?.id === articulo.id) {
-        // Si es el mismo artículo, refrescar los datos para obtener cambios del mantenedor
-        const articuloActualizado = await articulosService.getArticuloById(articulo.id);
-        setArticuloSeleccionado(articuloActualizado);
-        setVariantesSeleccionadas({});
-        setVistaActual('frente');
-        // Actualizar imágenes de vistas con los datos más recientes
-        setImagenesVistas({
-          frente: articuloActualizado.foto_frente || articuloActualizado.foto,
-          izquierda: articuloActualizado.foto_izquierda || articuloActualizado.foto,
-          derecha: articuloActualizado.foto_derecha || articuloActualizado.foto,
-          detras: articuloActualizado.foto_detras || articuloActualizado.foto
-        });
-        const variantesData = await variantesService.getVariantes(articuloActualizado.id);
-        setVariantes(variantesData);
-        return;
-      }
-      
-      if (elementos.length > 0) {
-        setPendingArticulo(articulo);
-        setShowConfirmModal(true);
-        return;
-      }
-      
-      // Obtener datos frescos del artículo
-      const articuloActualizado = await articulosService.getArticuloById(articulo.id);
-      setArticuloSeleccionado(articuloActualizado);
-      setVariantesSeleccionadas({});
-      setVistaActual('frente');
-      // Inicializar imágenes de vistas con datos actualizados
-      setImagenesVistas({
-        frente: articuloActualizado.foto_frente || articuloActualizado.foto,
-        izquierda: articuloActualizado.foto_izquierda || articuloActualizado.foto,
-        derecha: articuloActualizado.foto_derecha || articuloActualizado.foto,
-        detras: articuloActualizado.foto_detras || articuloActualizado.foto
-      });
-      const variantesData = await variantesService.getVariantes(articuloActualizado.id);
-      setVariantes(variantesData);
-    } catch (error) {
-      console.error("Error al cargar artículo:", error);
-    }
-  };
 
-  const confirmChangeAndClear = async () => {
-    if (!pendingArticulo) return;
-    try {
-      setElementos([]);
-      setSelectedId(null);
-      
-      // Obtener datos frescos del artículo
-      const articuloActualizado = await articulosService.getArticuloById(pendingArticulo.id);
-      setArticuloSeleccionado(articuloActualizado);
-      setVariantesSeleccionadas({});
-      setVistaActual('frente');
-      // Inicializar imágenes de vistas con datos actualizados
-      setImagenesVistas({
-        frente: articuloActualizado.foto_frente || articuloActualizado.foto,
-        izquierda: articuloActualizado.foto_izquierda || articuloActualizado.foto,
-        derecha: articuloActualizado.foto_derecha || articuloActualizado.foto,
-        detras: articuloActualizado.foto_detras || articuloActualizado.foto
-      });
-      const variantesData = await variantesService.getVariantes(articuloActualizado.id);
-      setVariantes(variantesData);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setShowConfirmModal(false);
-      setPendingArticulo(null);
-    }
-  };
 
-  const confirmChangeKeep = async () => {
-    if (!pendingArticulo) return;
-    try {
-      // Obtener datos frescos del artículo
-      const articuloActualizado = await articulosService.getArticuloById(pendingArticulo.id);
-      setArticuloSeleccionado(articuloActualizado);
-      setVariantesSeleccionadas({});
-      setVistaActual('frente');
-      // Inicializar imágenes de vistas con datos actualizados
-      setImagenesVistas({
-        frente: articuloActualizado.foto_frente || articuloActualizado.foto,
-        izquierda: articuloActualizado.foto_izquierda || articuloActualizado.foto,
-        derecha: articuloActualizado.foto_derecha || articuloActualizado.foto,
-        detras: articuloActualizado.foto_detras || articuloActualizado.foto
-      });
-      const variantesData = await variantesService.getVariantes(articuloActualizado.id);
-      setVariantes(variantesData);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setShowConfirmModal(false);
-      setPendingArticulo(null);
-    }
-  };
-
-  const handleVarianteSelect = (categoria, variante) => {
-    setVariantesSeleccionadas((prev) => ({ ...prev, [categoria]: variante }));
+  const handleObjetoSelect = (objeto) => {
+    setObjetoSeleccionado(objeto);
     
-    // Si la variante tiene imágenes, actualizar las imágenes de las vistas
-    if (variante.imagen || variante.imagen_frente || variante.imagen_izquierda || variante.imagen_derecha || variante.imagen_detras) {
-      setImagenesVistas({
-        frente: variante.imagen_frente || variante.imagen || articuloSeleccionado?.foto_frente || articuloSeleccionado?.foto,
-        izquierda: variante.imagen_izquierda || variante.imagen || articuloSeleccionado?.foto_izquierda || articuloSeleccionado?.foto,
-        derecha: variante.imagen_derecha || variante.imagen || articuloSeleccionado?.foto_derecha || articuloSeleccionado?.foto,
-        detras: variante.imagen_detras || variante.imagen || articuloSeleccionado?.foto_detras || articuloSeleccionado?.foto
-      });
+    // Obtener el diseño base del objeto
+    const disenioBase = diseniosBase.find(d => d.id === objeto.disenio_base_id);
+    
+    // Función helper para construir URLs de imágenes
+    const buildImageUrl = (imagePath) => {
+      if (!imagePath) return null;
+      // Si ya es una URL completa, devolverla tal como está
+      if (imagePath.startsWith('http')) return imagePath;
+      // Si empieza con /, usar tal como está (el proxy de Vite lo manejará)
+      if (imagePath.startsWith('/')) {
+        return imagePath;
+      }
+      // Si no tiene /, asumir que es una ruta relativa y agregarle /img/
+      return `/img/${imagePath}`;
+    };
+    
+    if (disenioBase) {
+      // Usar las imágenes del diseño base para las diferentes vistas
+      const imagenesVistas = {
+        frente: buildImageUrl(disenioBase.frente),
+        izquierda: buildImageUrl(disenioBase.izquierda),
+        derecha: buildImageUrl(disenioBase.derecha),
+        detras: buildImageUrl(disenioBase.espalda)
+      };
+      
+      setImagenesVistas(imagenesVistas);
+    } else {
+      // Fallback a las imágenes del artículo si no hay diseño base
+      const articulo = articulos.find(a => a.id === objeto.articulo_id);
+      
+      if (articulo && (articulo.foto_frente || articulo.foto)) {
+        setImagenesVistas({
+          frente: buildImageUrl(articulo.foto_frente || articulo.foto),
+          izquierda: buildImageUrl(articulo.foto_izquierda || articulo.foto),
+          derecha: buildImageUrl(articulo.foto_derecha || articulo.foto),
+          detras: buildImageUrl(articulo.foto_detras || articulo.foto)
+        });
+      } else {
+        // Usar imágenes predeterminadas como último recurso
+        setImagenesVistas({
+          frente: buildImageUrl('/img/disenios_base/PoleraAmarillaFront.png'),
+          izquierda: buildImageUrl('/img/disenios_base/PoleraAmarillaLeft.png'),
+          derecha: buildImageUrl('/img/disenios_base/PoleraAmarillaRight.png'),
+          detras: buildImageUrl('/img/disenios_base/PoleraAmarillaBack.png')
+        });
+      }
     }
   };
 
   const cambiarVista = (vista) => {
     setVistaActual(vista);
   };
-
-  const variantesPorCategoria = variantes.reduce((acc, variante) => {
-    const categoria = variante.categoria || variante.nombre_categoria;
-    if (!acc[categoria]) acc[categoria] = [];
-    acc[categoria].push(variante);
-    return acc;
-  }, {});
 
   const posicionarElemento = (posicion) => {
     if (!selectedId) return;
@@ -372,7 +325,7 @@ const HerramientaDiseño = () => {
   };
 
   const captureAndUploadViews = () => {
-    console.log("Guardando diseño...", { articulo: articuloSeleccionado, variantes: variantesSeleccionadas, elementos });
+    console.log("Guardando diseño...", { objeto: objetoSeleccionado, elementos });
     alert("Diseño guardado (funcionalidad en desarrollo)");
   };
 
@@ -651,145 +604,171 @@ const HerramientaDiseño = () => {
       <div className="options-column">
         <div className="herramienta-diseño-sidebar">
           <div className="top-actions">
-            <button onClick={agregarTexto}>Agregar texto</button>
-            <label className="image-upload-btn">🖼️ Agregar imagen
-              <input type="file" accept="image/*" onChange={handleImageUpload} style={{ display: "none" }} />
+            <button 
+              onClick={agregarTexto} 
+              disabled={!objetoSeleccionado}
+              style={{ opacity: objetoSeleccionado ? 1 : 0.5 }}
+            >
+              Agregar texto
+            </button>
+            <label className={`image-upload-btn ${!objetoSeleccionado ? 'disabled' : ''}`}>
+              🖼️ Agregar imagen
+              <input 
+                type="file" 
+                accept="image/*" 
+                onChange={handleImageUpload} 
+                style={{ display: "none" }}
+                disabled={!objetoSeleccionado}
+              />
             </label>
           </div>
 
           {loading ? (
-            <div className="sidebar-section"><div className="loading-state"><p>Cargando artículos...</p></div></div>
-          ) : articulos.length === 0 ? (
-            <div className="sidebar-section"><div className="loading-state"><p>No hay artículos disponibles</p></div></div>
+            <div className="sidebar-section"><div className="loading-state"><p>Cargando objetos...</p></div></div>
+          ) : todosLosObjetos.length === 0 ? (
+            <div className="sidebar-section"><div className="loading-state"><p>No hay objetos disponibles</p></div></div>
           ) : (
             <>
+              {/* Mensaje de ayuda */}
+              {!objetoSeleccionado && (
+                <div style={{ 
+                  fontSize: 12, 
+                  color: "#6b7280", 
+                  marginTop: "8px", 
+                  fontStyle: "italic", 
+                  textAlign: "center",
+                  padding: "8px",
+                  background: "#f8fafc",
+                  borderRadius: "6px",
+                  border: "1px solid #e2e8f0"
+                }}>
+                  👆 Selecciona un objeto para comenzar a diseñar
+                </div>
+              )}
+              
+              {/* Información del objeto seleccionado */}
+              {objetoSeleccionado && (
+                <div className="sidebar-section">
+                  <strong>Objeto Seleccionado</strong>
+                  <div style={{ fontSize: 13, color: "#475569" }}>
+                    <div style={{ fontWeight: "bold", marginBottom: 4 }}>{objetoSeleccionado.articulo_nombre}</div>
+                    <div style={{ color: "#059669", fontWeight: "bold" }}>${Number(objetoSeleccionado.precio).toLocaleString()}</div>
+                    <div style={{ fontSize: 11, color: "#6b7280", marginTop: 2 }}>
+                      {objetoSeleccionado.variantes?.length > 0 
+                        ? objetoSeleccionado.variantes.map(v => v.valor).join(', ')
+                        : 'Sin variantes específicas'
+                      }
+                    </div>
+                    {objetoSeleccionado.articulo_descripcion && (
+                      <div style={{ marginTop: 4, fontSize: 12 }}>{objetoSeleccionado.articulo_descripcion}</div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Control de vistas */}
+              {objetoSeleccionado && (
+                <div className="sidebar-section">
+                  <strong>Vista del Objeto</strong>
+                  <div className="size-list" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                    <button 
+                      className={`size-btn ${vistaActual === 'frente' ? 'active' : ''}`} 
+                      onClick={() => cambiarVista('frente')}
+                      title="Vista frontal"
+                    >
+                      👤 Frente
+                    </button>
+                    <button 
+                      className={`size-btn ${vistaActual === 'detras' ? 'active' : ''}`} 
+                      onClick={() => cambiarVista('detras')}
+                      title="Vista trasera"
+                    >
+                      🔄 Detrás
+                    </button>
+                    <button 
+                      className={`size-btn ${vistaActual === 'izquierda' ? 'active' : ''}`} 
+                      onClick={() => cambiarVista('izquierda')}
+                      title="Vista lateral izquierda"
+                    >
+                      ⬅️ Izquierda
+                    </button>
+                    <button 
+                      className={`size-btn ${vistaActual === 'derecha' ? 'active' : ''}`} 
+                      onClick={() => cambiarVista('derecha')}
+                      title="Vista lateral derecha"
+                    >
+                      ➡️ Derecha
+                    </button>
+                  </div>
+                  <div style={{ fontSize: 11, color: "#6b7280", marginTop: "4px", fontStyle: "italic" }}>
+                    Vista actual: {vistaActual === 'frente' ? 'Frontal' : vistaActual === 'detras' ? 'Trasera' : vistaActual === 'izquierda' ? 'Lateral Izquierda' : 'Lateral Derecha'}
+                  </div>
+                </div>
+              )}
+
+              {/* Lista de todos los objetos disponibles */}
               <div className="sidebar-section">
-                <strong>Artículos</strong>
-                <div className="models-list">
-                  {articulos.map((articulo) => {
-                    const selected = articuloSeleccionado?.id === articulo.id;
+                <strong>Objetos Disponibles</strong>
+                <div className="objects-grid">
+                  {todosLosObjetos.map((objeto) => {
+                    const selected = objetoSeleccionado?.id === objeto.id;
+                    const disenioBase = diseniosBase.find(d => d.id === objeto.disenio_base_id);
+                    
+                    // Crear un nombre descriptivo del objeto basado en sus variantes
+                    const nombreObjeto = objeto.variantes?.length > 0 
+                      ? objeto.variantes.map(v => v.valor).join(' - ')
+                      : `${objeto.articulo_nombre} (Básico)`;
+                    
                     return (
-                      <div key={articulo.id} className={`model-card ${selected ? "selected" : ""}`} onClick={() => handleArticuloChange(articulo)} title={articulo.nombre}>
-                        {articulo.nombre.substring(0, 8)}{articulo.nombre.length > 8 ? "..." : ""}
+                      <div 
+                        key={objeto.id} 
+                        className={`object-item ${selected ? "selected" : ""}`} 
+                        onClick={() => handleObjetoSelect(objeto)}
+                        title={`${nombreObjeto} - $${objeto.precio}`}
+                      >
+                        {disenioBase?.imagen && (
+                          <img src={disenioBase.imagen} alt={nombreObjeto} />
+                        )}
+                        <div className="object-info">
+                          <div style={{ fontSize: 11, fontWeight: "bold" }}>{objeto.articulo_nombre}</div>
+                          <div style={{ fontSize: 10, color: "#6b7280" }}>
+                            {objeto.variantes?.length > 0 
+                              ? objeto.variantes.map(v => v.valor).join(', ')
+                              : 'Básico'
+                            }
+                          </div>
+                          <div style={{ fontSize: 10, color: "#059669", fontWeight: "bold" }}>
+                            ${objeto.precio}
+                          </div>
+                          {disenioBase && (
+                            <div style={{ fontSize: 9, color: "#9ca3af" }}>
+                              {disenioBase.nombre}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     );
                   })}
                 </div>
-                {!articuloSeleccionado && (
-                  <div style={{ 
-                    fontSize: 12, 
-                    color: "#6b7280", 
-                    marginTop: "8px", 
-                    fontStyle: "italic", 
-                    textAlign: "center",
-                    padding: "8px",
-                    background: "#f8fafc",
-                    borderRadius: "6px",
-                    border: "1px solid #e2e8f0"
-                  }}>
-                    👆 Selecciona un artículo para comenzar a diseñar
-                  </div>
-                )}
               </div>
 
-              {articuloSeleccionado && (
-                <>
-                  <div className="sidebar-section">
-                    <strong>Producto Seleccionado</strong>
-                    <div style={{ fontSize: 13, color: "#475569" }}>
-                      <div style={{ fontWeight: "bold", marginBottom: 4 }}>{articuloSeleccionado.nombre}</div>
-                      <div style={{ color: "#059669", fontWeight: "bold" }}>${Number(articuloSeleccionado.precio).toLocaleString()}</div>
-                      {articuloSeleccionado.descripcion && <div style={{ marginTop: 4, fontSize: 12 }}>{articuloSeleccionado.descripcion}</div>}
-                    </div>
-                  </div>
-
-                  <div className="sidebar-section">
-                    <strong>Vista del Artículo</strong>
-                    <div className="size-list" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
-                      <button 
-                        className={`size-btn ${vistaActual === 'frente' ? 'active' : ''}`} 
-                        onClick={() => cambiarVista('frente')}
-                        title="Vista frontal"
-                      >
-                        👤 Frente
-                      </button>
-                      <button 
-                        className={`size-btn ${vistaActual === 'detras' ? 'active' : ''}`} 
-                        onClick={() => cambiarVista('detras')}
-                        title="Vista trasera"
-                      >
-                        🔄 Detrás
-                      </button>
-                      <button 
-                        className={`size-btn ${vistaActual === 'izquierda' ? 'active' : ''}`} 
-                        onClick={() => cambiarVista('izquierda')}
-                        title="Vista lateral izquierda"
-                      >
-                        ⬅️ Izquierda
-                      </button>
-                      <button 
-                        className={`size-btn ${vistaActual === 'derecha' ? 'active' : ''}`} 
-                        onClick={() => cambiarVista('derecha')}
-                        title="Vista lateral derecha"
-                      >
-                        ➡️ Derecha
-                      </button>
-                    </div>
-                    <div style={{ fontSize: 11, color: "#6b7280", marginTop: "4px", fontStyle: "italic" }}>
-                      Vista actual: {vistaActual === 'frente' ? 'Frontal' : vistaActual === 'detras' ? 'Trasera' : vistaActual === 'izquierda' ? 'Lateral Izquierda' : 'Lateral Derecha'}
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {Object.entries(variantesPorCategoria).map(([categoria, variantesCategoria]) => (
-                <div key={categoria} className="sidebar-section">
-                  <strong>{categoria.charAt(0).toUpperCase() + categoria.slice(1)}</strong>
-                  <div className={variantesCategoria.some((v) => v.imagen) ? "variant-grid" : "size-list"}>
-                    {variantesCategoria.map((variante) => {
-                      const selected = variantesSeleccionadas[categoria]?.id === variante.id;
-                      if (variante.imagen) {
-                        return (
-                          <div key={variante.id} className={`variant-item ${selected ? "selected" : ""}`} onClick={() => handleVarianteSelect(categoria, variante)} title={`${variante.valor} - ${variante.nombre_categoria}`}>
-                            <img src={variante.imagen} alt={variante.valor} />
-                            <span style={{ fontSize: 11, textAlign: "center" }}>{variante.valor}</span>
-                          </div>
-                        );
-                      }
-                      return (
-                        <button key={variante.id} className={`size-btn ${selected ? "active" : ""}`} onClick={() => handleVarianteSelect(categoria, variante)} title={`${variante.valor} - ${variante.nombre_categoria}`}>
-                          {variante.valor || variante.nombre}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-
               <div className="sidebar-section">
-                <button className="save-btn" onClick={captureAndUploadViews} style={{ width: "100%" }}>💾 Guardar diseño</button>
+                <button 
+                  className="save-btn" 
+                  onClick={captureAndUploadViews} 
+                  style={{ 
+                    width: "100%", 
+                    opacity: objetoSeleccionado ? 1 : 0.5 
+                  }}
+                  disabled={!objetoSeleccionado}
+                >
+                  💾 Guardar diseño
+                </button>
               </div>
             </>
           )}
         </div>
       </div>
-
-
-
-      {/* Modal */}
-      {showConfirmModal && (
-        <div className="modal-backdrop">
-          <div className="modal-card">
-            <div style={{ fontWeight: "bold", marginBottom: 8 }}>Cambiar artículo</div>
-            <div style={{ color: "#374151", marginBottom: 12 }}>Hay elementos en el diseño. ¿Qué deseas hacer con ellos?</div>
-            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-              <button onClick={() => { setShowConfirmModal(false); setPendingArticulo(null); }} style={{ padding: "6px 10px" }}>Cancelar</button>
-              <button onClick={confirmChangeKeep} style={{ padding: "6px 10px", background: "#2563eb", color: "#fff", border: 0, borderRadius: 6 }}>Mantener</button>
-              <button onClick={confirmChangeAndClear} style={{ padding: "6px 10px", background: "#ef4444", color: "#fff", border: 0, borderRadius: 6 }}>Borrar y cargar</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

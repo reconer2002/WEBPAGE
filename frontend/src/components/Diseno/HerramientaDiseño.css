@@ -469,3 +469,59 @@
   font-style: italic;
   text-align: center;
 }
+
+/* Estilos para la sección de objetos */
+.objects-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.object-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: pointer;
+  background: #fff;
+  transition: all 0.2s ease;
+}
+
+.object-item:hover {
+  border-color: #d1d5db;
+  background: #f9fafb;
+}
+
+.object-item.selected {
+  border-color: #3b82f6;
+  background: #eff6ff;
+  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.1);
+}
+
+.object-item img {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 4px;
+  background: #f3f4f6;
+}
+
+.object-info {
+  flex: 1;
+  text-align: left;
+}
+
+.object-info > div {
+  line-height: 1.3;
+}
+
+/* Estilo para elementos deshabilitados */
+.image-upload-btn.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}

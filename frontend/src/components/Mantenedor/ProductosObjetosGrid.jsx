@@ -116,27 +116,37 @@ const ProductosObjetosGrid = ({ articulo }) => {
   };
 
   const handleCrear = async () => {
-    const varianteIds = Object.values(formData.variantes).filter(Boolean);
-    await objetosService.createObjeto(articulo.id, {
-      precio: parseFloat(formData.precio),
-      existencias: parseInt(formData.existencias),
-      variantes: varianteIds,
-      disenio_base_id: formData.disenio_base_id
-    });
-    cargarDatos();
-    handleCerrar();
+    try {
+      const varianteIds = Object.values(formData.variantes).filter(Boolean);
+      await objetosService.createObjeto(articulo.id, {
+        precio: parseFloat(formData.precio),
+        existencias: parseInt(formData.existencias),
+        variantes: varianteIds,
+        disenio_base_id: formData.disenio_base_id || null
+      });
+      cargarDatos();
+      handleCerrar();
+    } catch (error) {
+      console.error('Error al crear objeto:', error);
+      alert('Error al crear objeto: ' + (error.response?.data?.error || error.message));
+    }
   };
 
   const handleActualizar = async () => {
-    const varianteIds = Object.values(formData.variantes).filter(Boolean);
-    await objetosService.updateObjeto(seleccionado.id, {
-      precio: parseFloat(formData.precio),
-      existencias: parseInt(formData.existencias),
-      variantes: varianteIds,
-      disenio_base_id: formData.disenio_base_id
-    });
-    cargarDatos();
-    handleCerrar();
+    try {
+      const varianteIds = Object.values(formData.variantes).filter(Boolean);
+      await objetosService.updateObjeto(seleccionado.id, {
+        precio: parseFloat(formData.precio),
+        existencias: parseInt(formData.existencias),
+        variantes: varianteIds,
+        disenio_base_id: formData.disenio_base_id || null
+      });
+      cargarDatos();
+      handleCerrar();
+    } catch (error) {
+      console.error('Error al actualizar objeto:', error);
+      alert('Error al actualizar objeto: ' + (error.response?.data?.error || error.message));
+    }
   };
 
   const handleEliminar = async () => {

@@ -225,6 +225,53 @@ router.get('/:id/objetos', async (req, res) => {
   }
 });
 
+// --- Crear objeto individual ---
+router.post('/:id/objetos', async (req, res) => {
+  try {
+    const { id } = req.params; // articulo_id
+    const { precio, existencias, variante_ids, disenio_base_id } = req.body;
+
+    // Crear el objeto
+    const [result] = await req.db.query(
+      'INSERT INTO objetos (articulo_id, existencias, precio, disenio_base_id) VALUES (?, ?, ?, ?)',
+      [id, existencias || 0, precio || null, disenio_base_id || null]
+    );
+
+    const objetoId = result.insertId;
+
+    // Asociar variantes si se proporcionaron
+    if (Array.isArray(variante_ids)) {
+      for (const varianteId of variante_ids) {
+        await req.db.query('INSERT INTO objeto_variante (objeto_id, variante_id) VALUES (?, ?)', [objetoId, varianteId]);
+      }
+    }
+
+    // Obtener el objeto creado con sus variantes
+    const [objetos] = await req.db.query(`
+      SELECT 
+        o.id, o.articulo_id, o.existencias, o.precio, o.disenio_base_id,
+        JSON_ARRAYAGG(
+          CASE WHEN v.id IS NOT NULL THEN
+            JSON_OBJECT('id', v.id, 'nombre_categoria', v.nombre_categoria, 'valor', v.valor, 'imagen', v.imagen)
+          ELSE NULL END
+        ) as variantes
+      FROM objetos o
+      LEFT JOIN objeto_variante ov ON o.id = ov.objeto_id
+      LEFT JOIN variantes v ON ov.variante_id = v.id
+      WHERE o.id = ?
+      GROUP BY o.id
+    `, [objetoId]);
+
+    const objetoCreado = objetos[0];
+    objetoCreado.variantes = objetoCreado.variantes.filter(v => v !== null);
+    
+    res.status(201).json(objetoCreado);
+  } catch (error) {
+    console.error('Error al crear objeto:', error);
+    res.status(500).json({ error: 'Error al crear objeto' });
+  }
+});
+
 // --- Generar objetos ---
 router.post('/:id/objetos/generar', async (req, res) => {
   try {

@@ -5,12 +5,9 @@ import "./Header.css";
 import LoginForm from "../LoginForm/LoginForm";
 import authService from "../../services/authService";
 import paginaService from "../../services/paginaService";
-import cartService from "../../services/cartService";
-import { ShoppingCart } from "lucide-react";
 
 const Header = ({ user, onLogin, onLogout }) => {
   const [logoUrl, setLogoUrl] = useState("");
-  const [cartCount, setCartCount] = useState(0);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -18,22 +15,8 @@ const Header = ({ user, onLogin, onLogout }) => {
       const data = await paginaService.getFooterData();
       setLogoUrl(data.logo);
     };
-    const fetchCartCount = async () => {
-      if (user) {
-        const count = await cartService.getCount();
-        setCartCount(count);
-      }
-    };
     fetchLogo();
-    fetchCartCount();
-
-    // Escuchar eventos de actualización del carrito
-    const handleCartUpdate = (e) => {
-      setCartCount(e.detail.count);
-    };
-    window.addEventListener("cart:updated", handleCartUpdate);
-    return () => window.removeEventListener("cart:updated", handleCartUpdate);
-  }, [user]);
+  }, []);
 
   const handleLogout = () => {
     authService.logout();
@@ -78,9 +61,12 @@ const Header = ({ user, onLogin, onLogout }) => {
           <Link to="/perfil">Perfil</Link>
           <Link to="/disenos">Tus diseños</Link>
           <Link to="/cart" className="nav-cart">
-            <ShoppingCart size={20} />
-            <span>Carrito</span>
-            {cartCount > 0 && <span className="cart-count">{cartCount}</span>}
+            <img
+              src="/src/assets/cart.png"
+              alt="Carrito"
+              className="cart-icon-inline"
+            />
+            Carrito
           </Link>
         </nav>
       </div>

@@ -4,7 +4,6 @@
   padding: 2rem 1rem;
   font-family: Arial, sans-serif;
   overflow: hidden; /* para contener el pseudo */
-  margin-top: auto; /* Empuja el footer al final cuando está dentro de un contenedor flex */
 }
 
 .footer::before {

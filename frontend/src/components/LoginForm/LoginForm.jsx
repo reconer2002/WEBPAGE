@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
 import authService from "../../services/authService";
 
 const LoginForm = ({ user, onLogin, onLogout }) => {
@@ -56,9 +55,9 @@ const LoginForm = ({ user, onLogin, onLogout }) => {
       <button type="submit" className="btn">
         Login
       </button>
-      <Link to="/register" className="btn">
+      <a href="/register" className="btn">
         Registrarse
-      </Link>
+      </a>
     </form>
   );
 };

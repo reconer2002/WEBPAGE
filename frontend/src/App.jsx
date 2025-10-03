@@ -11,11 +11,8 @@ import authService from "./services/authService";
 import paginaService from "./services/paginaService";
 
 // IMPORTA EL NUEVO EDITOR
+import PoleraEditor from "./components/Diseno/PoleraEditor";
 import HerramientaDiseño from "./components/Diseno/HerramientaDiseño";
-import Cart from "./pages/Cart";
-import Register from "./components/LoginForm/Register";
-import Profile from "./pages/Profile";
-import VerifyAccount from "./pages/VerifyAccount";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -99,68 +96,6 @@ function App() {
               >
                 <MantenedorPage colores={colores} onActualizarColores={handleActualizarColores} />
               </ProtectedRoute>
-              <Footer />
-            </>
-          }
-        />
-
-        <Route
-          path="/perfil"
-          element={
-            <>
-              <Header
-                user={user}
-                onLogin={handleLogin}
-                onLogout={handleLogout}
-              />
-              <ProtectedRoute user={user} loading={loadingUser}>
-                <Profile user={user} onUserUpdate={setUser} />
-              </ProtectedRoute>
-              <Footer />
-            </>
-          }
-        />
-
-        <Route
-          path="/verificar-cuenta"
-          element={
-            <>
-              <Header
-                user={user}
-                onLogin={handleLogin}
-                onLogout={handleLogout}
-              />
-              <VerifyAccount onVerified={setUser} />
-              <Footer />
-            </>
-          }
-        />
-
-        <Route
-          path="/cart"
-          element={
-            <>
-              <Header
-                user={user}
-                onLogin={handleLogin}
-                onLogout={handleLogout}
-              />
-              <Cart user={user} />
-              <Footer />
-            </>
-          }
-        />
-
-        <Route
-          path="/register"
-          element={
-            <>
-              <Header
-                user={user}
-                onLogin={handleLogin}
-                onLogout={handleLogout}
-              />
-              <Register onRegister={handleLogin} />
               <Footer />
             </>
           }

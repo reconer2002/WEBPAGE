@@ -80,25 +80,11 @@
   filter: brightness(0.8);
 }
 
-/* Icono y contador del carrito */
-.nav-cart {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.cart-count {
-  position: absolute;
-  top: -8px;
-  right: -12px;
-  background: var(--color-primario);
-  color: white;
-  font-size: 12px;
-  padding: 2px 6px;
-  border-radius: 10px;
-  min-width: 16px;
-  text-align: center;
+/* Icono carrito inline */
+.cart-icon-inline {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
 }
 
 /* Estilo del mensaje de bienvenida */

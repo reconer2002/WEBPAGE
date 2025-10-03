@@ -10,8 +10,16 @@ const ProductosVariantesGrid = ({ articulo }) => {
   const [formData, setFormData] = useState({
     nombre: "",
     categoria: "",
-    imagen: null,
-    imagenFile: null,
+    // Imágenes para cada vista
+    imagenFrenteFile: null,
+    imagenIzquierdaFile: null,
+    imagenDerechaFile: null,
+    imagenDetrasFile: null,
+    // Previews
+    imagenFrentePreview: null,
+    imagenIzquierdaPreview: null,
+    imagenDerechaPreview: null,
+    imagenDetrasPreview: null,
   });
 
   useEffect(() => {
@@ -39,8 +47,16 @@ const ProductosVariantesGrid = ({ articulo }) => {
     setFormData({
       nombre: v.nombre,
       categoria: v.categoria,
-      imagen: v.imagen,
-      imagenFile: null,
+      // No cambiamos las imágenes hasta que el usuario suba nuevas
+      imagenFrenteFile: null,
+      imagenIzquierdaFile: null,
+      imagenDerechaFile: null,
+      imagenDetrasFile: null,
+      // Mostramos las actuales
+      imagenFrentePreview: v.imagen_frente || v.imagen || null,
+      imagenIzquierdaPreview: v.imagen_izquierda || v.imagen || null,
+      imagenDerechaPreview: v.imagen_derecha || v.imagen || null,
+      imagenDetrasPreview: v.imagen_detras || v.imagen || null,
     });
   };
 
@@ -50,8 +66,14 @@ const ProductosVariantesGrid = ({ articulo }) => {
     setFormData({
       nombre: "",
       categoria: categoria || "",
-      imagen: null,
-      imagenFile: null,
+      imagenFrenteFile: null,
+      imagenIzquierdaFile: null,
+      imagenDerechaFile: null,
+      imagenDetrasFile: null,
+      imagenFrentePreview: null,
+      imagenIzquierdaPreview: null,
+      imagenDerechaPreview: null,
+      imagenDetrasPreview: null,
     });
   };
 
@@ -63,15 +85,28 @@ const ProductosVariantesGrid = ({ articulo }) => {
   const handleChange = (e) => {
     const { name, value, files } = e.target;
 
-    if (name === "imagen") {
+    // Mapear los nombres de los inputs a las propiedades correspondientes
+    const viewMapping = {
+      'imagenFrente': { fileKey: 'imagenFrenteFile', previewKey: 'imagenFrentePreview' },
+      'imagenIzquierda': { fileKey: 'imagenIzquierdaFile', previewKey: 'imagenIzquierdaPreview' },
+      'imagenDerecha': { fileKey: 'imagenDerechaFile', previewKey: 'imagenDerechaPreview' },
+      'imagenDetras': { fileKey: 'imagenDetrasFile', previewKey: 'imagenDetrasPreview' }
+    };
+
+    const mapping = viewMapping[name];
+    if (mapping) {
       if (files && files.length > 0) {
         setFormData((prev) => ({
           ...prev,
-          imagen: URL.createObjectURL(files[0]),
-          imagenFile: files[0],
+          [mapping.fileKey]: files[0],
+          [mapping.previewKey]: URL.createObjectURL(files[0]),
         }));
       } else {
-        setFormData((prev) => ({ ...prev, imagen: null, imagenFile: null }));
+        setFormData((prev) => ({ 
+          ...prev, 
+          [mapping.fileKey]: null, 
+          [mapping.previewKey]: null 
+        }));
       }
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }));
@@ -83,7 +118,10 @@ const ProductosVariantesGrid = ({ articulo }) => {
       await variantesService.createVariante(articulo.id, {
         nombre: formData.nombre,
         categoria: formData.categoria,
-        imagen: formData.imagenFile,
+        imagenFrenteFile: formData.imagenFrenteFile,
+        imagenIzquierdaFile: formData.imagenIzquierdaFile,
+        imagenDerechaFile: formData.imagenDerechaFile,
+        imagenDetrasFile: formData.imagenDetrasFile,
       });
       cargarVariantes();
       setSeleccionado(null);
@@ -99,7 +137,10 @@ const ProductosVariantesGrid = ({ articulo }) => {
       await variantesService.updateVariante(seleccionado.id, {
         nombre: formData.nombre,
         categoria: formData.categoria,
-        imagen: formData.imagenFile,
+        imagenFrenteFile: formData.imagenFrenteFile,
+        imagenIzquierdaFile: formData.imagenIzquierdaFile,
+        imagenDerechaFile: formData.imagenDerechaFile,
+        imagenDetrasFile: formData.imagenDetrasFile,
       });
       cargarVariantes();
       setSeleccionado(null);
@@ -179,12 +220,17 @@ const ProductosVariantesGrid = ({ articulo }) => {
           </div>
           <h4>{modoNuevo ? "Nueva Variante" : "Editar Variante"}</h4>
           <div className="info">
-            {formData.imagen && (
+            {/* Mostrar preview de la imagen frontal como principal */}
+            {formData.imagenFrentePreview && (
               <div className="imagen-contenedor">
-                <img src={formData.imagen} alt={formData.nombre} />
+                <img src={formData.imagenFrentePreview} alt={formData.nombre} />
                 <span
                   className="icono-eliminar-imagen"
-                  onClick={() => setFormData((prev) => ({ ...prev, imagen: null, imagenFile: null }))}
+                  onClick={() => setFormData((prev) => ({ 
+                    ...prev, 
+                    imagenFrenteFile: null, 
+                    imagenFrentePreview: null 
+                  }))}
                 >
                   ✕
                 </span>
@@ -195,8 +241,49 @@ const ProductosVariantesGrid = ({ articulo }) => {
             <input type="text" name="nombre" value={formData.nombre} onChange={handleChange} />
             <p>Categoría:</p>
             <input type="text" name="categoria" value={formData.categoria} onChange={handleChange} />
-            <p>Imagen:</p>
-            <input type="file" name="imagen" onChange={handleChange} />
+            
+            {/* Sección de imágenes por vistas */}
+            <div style={{ marginTop: '16px', borderTop: '1px solid #e5e7eb', paddingTop: '16px' }}>
+              <h4 style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: 'bold' }}>Imágenes por Vista</h4>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <p style={{ fontSize: '12px', fontWeight: '500' }}>👤 Vista Frontal:</p>
+                  <input type="file" name="imagenFrente" accept="image/*" onChange={handleChange} />
+                  {formData.imagenFrentePreview && (
+                    <img src={formData.imagenFrentePreview} alt="Frente" style={{ width: '60px', height: '60px', objectFit: 'cover', marginTop: '4px', borderRadius: '4px' }} />
+                  )}
+                </div>
+                
+                <div>
+                  <p style={{ fontSize: '12px', fontWeight: '500' }}>🔄 Vista Trasera:</p>
+                  <input type="file" name="imagenDetras" accept="image/*" onChange={handleChange} />
+                  {formData.imagenDetrasPreview && (
+                    <img src={formData.imagenDetrasPreview} alt="Detrás" style={{ width: '60px', height: '60px', objectFit: 'cover', marginTop: '4px', borderRadius: '4px' }} />
+                  )}
+                </div>
+                
+                <div>
+                  <p style={{ fontSize: '12px', fontWeight: '500' }}>⬅️ Vista Izquierda:</p>
+                  <input type="file" name="imagenIzquierda" accept="image/*" onChange={handleChange} />
+                  {formData.imagenIzquierdaPreview && (
+                    <img src={formData.imagenIzquierdaPreview} alt="Izquierda" style={{ width: '60px', height: '60px', objectFit: 'cover', marginTop: '4px', borderRadius: '4px' }} />
+                  )}
+                </div>
+                
+                <div>
+                  <p style={{ fontSize: '12px', fontWeight: '500' }}>➡️ Vista Derecha:</p>
+                  <input type="file" name="imagenDerecha" accept="image/*" onChange={handleChange} />
+                  {formData.imagenDerechaPreview && (
+                    <img src={formData.imagenDerechaPreview} alt="Derecha" style={{ width: '60px', height: '60px', objectFit: 'cover', marginTop: '4px', borderRadius: '4px' }} />
+                  )}
+                </div>
+              </div>
+              
+              <p style={{ fontSize: '11px', color: '#6b7280', marginTop: '8px', fontStyle: 'italic' }}>
+                Nota: Si no subes todas las vistas, se heredarán del artículo base
+              </p>
+            </div>
           </div>
 
           <div className="botonera-panel">

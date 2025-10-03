@@ -15,6 +15,14 @@ const HerramientaDiseño = () => {
   const [articuloSeleccionado, setArticuloSeleccionado] = useState(null);
   const [variantes, setVariantes] = useState([]);
   const [variantesSeleccionadas, setVariantesSeleccionadas] = useState({});
+  const [imagenVarianteActual, setImagenVarianteActual] = useState(null);
+  const [vistaActual, setVistaActual] = useState('frente'); // 'frente', 'izquierda', 'derecha', 'detras'
+  const [imagenesVistas, setImagenesVistas] = useState({
+    frente: null,
+    izquierda: null,
+    derecha: null,
+    detras: null
+  });
   const [loading, setLoading] = useState(true);
 
   const stageRef = useRef(null);
@@ -30,7 +38,7 @@ const HerramientaDiseño = () => {
   const [currentImageRotation, setCurrentImageRotation] = useState(0);
 
 
-  const [baseImage] = useImage(articuloSeleccionado?.foto || "");
+  const [baseImage] = useImage(imagenesVistas[vistaActual] || articuloSeleccionado?.foto || "");
 
   useEffect(() => {
     const fetchArticulos = async () => {
@@ -38,12 +46,8 @@ const HerramientaDiseño = () => {
         setLoading(true);
         const articulosData = await articulosService.getArticulos();
         setArticulos(articulosData);
-        if (articulosData.length > 0) {
-          const primerArticulo = articulosData[0];
-          setArticuloSeleccionado(primerArticulo);
-          const variantesData = await variantesService.getVariantes(primerArticulo.id);
-          setVariantes(variantesData);
-        }
+        // NO seleccionar automáticamente ningún artículo
+        // El usuario debe seleccionar manualmente
       } catch (error) {
         console.error("Error al cargar artículos:", error);
       } finally {
@@ -95,13 +99,79 @@ const HerramientaDiseño = () => {
 
 
   const agregarTexto = () => {
-    const nuevoTexto = { id: Date.now(), type: "text", x: 50, y: 50, text: "Texto", fontSize: 20, fill: "#000000", fontFamily: "Arial", fontStyle: "normal", rotation: 0, scale: 1 };
+    const marginY = 120; // Mismo margen que en posicionarElemento
+    const fontSize = 20;
+    const text = "Texto";
+    const estimatedWidth = text.length * fontSize * 0.6;
+    const x = (canvasWidth - estimatedWidth) / 2; // Centrado horizontalmente
+    const y = marginY; // Posición superior
+    
+    const nuevoTexto = { 
+      id: Date.now(), 
+      type: "text", 
+      x, 
+      y, 
+      text, 
+      fontSize, 
+      fill: "#000000", 
+      fontFamily: "Arial", 
+      fontStyle: "normal", 
+      rotation: 0, 
+      scale: 1 
+    };
     setElementos((prev) => [...prev, nuevoTexto]);
+    
+    // Seleccionar el nuevo elemento automáticamente
+    setSelectedId(nuevoTexto.id);
+    setImageEditMode(false);
+    setTextInputValue(text);
+    setTextStyle({ fontSize, fill: "#000000", fontFamily: "Arial", fontStyle: "normal", rotation: 0, scale: 1 });
+    
+    // Enfocar el input de texto después de un breve delay
+    setTimeout(() => inputRef.current?.focus(), 10);
   };
 
-  const agregarImagen = (url) => {
-    const nuevaImagen = { id: Date.now(), type: "image", x: 50, y: 50, url, width: 100, height: 100, rotation: 0, draggable: true };
+  const agregarImagen = (url, originalWidth = 100, originalHeight = 100) => {
+    const marginY = 120; // Mismo margen que en posicionarElemento
+    
+    // Escalar la imagen si es muy grande, manteniendo la proporción
+    const maxWidth = 200;
+    const maxHeight = 200;
+    let width = originalWidth;
+    let height = originalHeight;
+    
+    if (width > maxWidth || height > maxHeight) {
+      const aspectRatio = width / height;
+      if (width > height) {
+        width = maxWidth;
+        height = width / aspectRatio;
+      } else {
+        height = maxHeight;
+        width = height * aspectRatio;
+      }
+    }
+    
+    const x = (canvasWidth - width) / 2; // Centrado horizontalmente
+    const y = marginY; // Posición superior
+    
+    const nuevaImagen = { 
+      id: Date.now(), 
+      type: "image", 
+      x, 
+      y, 
+      url, 
+      width: Math.round(width), 
+      height: Math.round(height), 
+      rotation: 0, 
+      draggable: true 
+    };
     setElementos((prev) => [...prev, nuevaImagen]);
+    
+    // Seleccionar la nueva imagen automáticamente
+    setSelectedId(nuevaImagen.id);
+    setImageEditMode(true);
+    setImageDimensions({ width: Math.round(width), height: Math.round(height) });
+    setCurrentImageRotation(0);
   };
 
   const handleImageUpload = (e) => {
@@ -112,24 +182,61 @@ const HerramientaDiseño = () => {
       return;
     }
     const url = URL.createObjectURL(file);
-    agregarImagen(url);
+    
+    // Crear una imagen temporal para obtener las dimensiones originales
+    const img = new Image();
+    img.onload = () => {
+      agregarImagen(url, img.width, img.height);
+    };
+    img.src = url;
+    
     e.target.value = "";
   };
 
   const handleArticuloChange = async (articulo) => {
     try {
-      if (articuloSeleccionado?.id === articulo.id) return;
+      if (articuloSeleccionado?.id === articulo.id) {
+        // Si es el mismo artículo, refrescar los datos para obtener cambios del mantenedor
+        const articuloActualizado = await articulosService.getArticuloById(articulo.id);
+        setArticuloSeleccionado(articuloActualizado);
+        setVariantesSeleccionadas({});
+        setImagenVarianteActual(null);
+        setVistaActual('frente');
+        // Actualizar imágenes de vistas con los datos más recientes
+        setImagenesVistas({
+          frente: articuloActualizado.foto_frente || articuloActualizado.foto,
+          izquierda: articuloActualizado.foto_izquierda || articuloActualizado.foto,
+          derecha: articuloActualizado.foto_derecha || articuloActualizado.foto,
+          detras: articuloActualizado.foto_detras || articuloActualizado.foto
+        });
+        const variantesData = await variantesService.getVariantes(articuloActualizado.id);
+        setVariantes(variantesData);
+        return;
+      }
+      
       if (elementos.length > 0) {
         setPendingArticulo(articulo);
         setShowConfirmModal(true);
         return;
       }
-      setArticuloSeleccionado(articulo);
+      
+      // Obtener datos frescos del artículo
+      const articuloActualizado = await articulosService.getArticuloById(articulo.id);
+      setArticuloSeleccionado(articuloActualizado);
       setVariantesSeleccionadas({});
-      const variantesData = await variantesService.getVariantes(articulo.id);
+      setImagenVarianteActual(null);
+      setVistaActual('frente');
+      // Inicializar imágenes de vistas con datos actualizados
+      setImagenesVistas({
+        frente: articuloActualizado.foto_frente || articuloActualizado.foto,
+        izquierda: articuloActualizado.foto_izquierda || articuloActualizado.foto,
+        derecha: articuloActualizado.foto_derecha || articuloActualizado.foto,
+        detras: articuloActualizado.foto_detras || articuloActualizado.foto
+      });
+      const variantesData = await variantesService.getVariantes(articuloActualizado.id);
       setVariantes(variantesData);
     } catch (error) {
-      console.error("Error al cargar variantes:", error);
+      console.error("Error al cargar artículo:", error);
     }
   };
 
@@ -138,9 +245,21 @@ const HerramientaDiseño = () => {
     try {
       setElementos([]);
       setSelectedId(null);
-      setArticuloSeleccionado(pendingArticulo);
+      
+      // Obtener datos frescos del artículo
+      const articuloActualizado = await articulosService.getArticuloById(pendingArticulo.id);
+      setArticuloSeleccionado(articuloActualizado);
       setVariantesSeleccionadas({});
-      const variantesData = await variantesService.getVariantes(pendingArticulo.id);
+      setImagenVarianteActual(null);
+      setVistaActual('frente');
+      // Inicializar imágenes de vistas con datos actualizados
+      setImagenesVistas({
+        frente: articuloActualizado.foto_frente || articuloActualizado.foto,
+        izquierda: articuloActualizado.foto_izquierda || articuloActualizado.foto,
+        derecha: articuloActualizado.foto_derecha || articuloActualizado.foto,
+        detras: articuloActualizado.foto_detras || articuloActualizado.foto
+      });
+      const variantesData = await variantesService.getVariantes(articuloActualizado.id);
       setVariantes(variantesData);
     } catch (error) {
       console.error(error);
@@ -153,9 +272,20 @@ const HerramientaDiseño = () => {
   const confirmChangeKeep = async () => {
     if (!pendingArticulo) return;
     try {
-      setArticuloSeleccionado(pendingArticulo);
+      // Obtener datos frescos del artículo
+      const articuloActualizado = await articulosService.getArticuloById(pendingArticulo.id);
+      setArticuloSeleccionado(articuloActualizado);
       setVariantesSeleccionadas({});
-      const variantesData = await variantesService.getVariantes(pendingArticulo.id);
+      setImagenVarianteActual(null);
+      setVistaActual('frente');
+      // Inicializar imágenes de vistas con datos actualizados
+      setImagenesVistas({
+        frente: articuloActualizado.foto_frente || articuloActualizado.foto,
+        izquierda: articuloActualizado.foto_izquierda || articuloActualizado.foto,
+        derecha: articuloActualizado.foto_derecha || articuloActualizado.foto,
+        detras: articuloActualizado.foto_detras || articuloActualizado.foto
+      });
+      const variantesData = await variantesService.getVariantes(articuloActualizado.id);
       setVariantes(variantesData);
     } catch (error) {
       console.error(error);
@@ -167,6 +297,20 @@ const HerramientaDiseño = () => {
 
   const handleVarianteSelect = (categoria, variante) => {
     setVariantesSeleccionadas((prev) => ({ ...prev, [categoria]: variante }));
+    
+    // Si la variante tiene imágenes, actualizar las imágenes de las vistas
+    if (variante.imagen || variante.imagen_frente || variante.imagen_izquierda || variante.imagen_derecha || variante.imagen_detras) {
+      setImagenesVistas({
+        frente: variante.imagen_frente || variante.imagen || articuloSeleccionado?.foto_frente || articuloSeleccionado?.foto,
+        izquierda: variante.imagen_izquierda || variante.imagen || articuloSeleccionado?.foto_izquierda || articuloSeleccionado?.foto,
+        derecha: variante.imagen_derecha || variante.imagen || articuloSeleccionado?.foto_derecha || articuloSeleccionado?.foto,
+        detras: variante.imagen_detras || variante.imagen || articuloSeleccionado?.foto_detras || articuloSeleccionado?.foto
+      });
+    }
+  };
+
+  const cambiarVista = (vista) => {
+    setVistaActual(vista);
   };
 
   const variantesPorCategoria = variantes.reduce((acc, variante) => {
@@ -175,6 +319,63 @@ const HerramientaDiseño = () => {
     acc[categoria].push(variante);
     return acc;
   }, {});
+
+  const posicionarElemento = (posicion) => {
+    if (!selectedId) return;
+    
+    const elemento = elementos.find(el => el.id === selectedId);
+    if (!elemento) return;
+
+    let newX, newY;
+    // Márgenes optimizados para diseño de polera - zona central concentrada
+    const marginX = 100; // Margen horizontal más amplio - lados más al centro
+    const marginY = 120; // Margen vertical más amplio - superior/inferior más al centro
+    const elementWidth = elemento.width || (elemento.text ? elemento.text.length * (elemento.fontSize || 16) * 0.6 : 100);
+    const elementHeight = elemento.height || (elemento.fontSize || 16);
+
+    switch (posicion) {
+      case 'top-left':
+        newX = marginX;
+        newY = marginY;
+        break;
+      case 'top-center':
+        newX = (canvasWidth - elementWidth) / 2;
+        newY = marginY;
+        break;
+      case 'top-right':
+        newX = canvasWidth - elementWidth - marginX;
+        newY = marginY;
+        break;
+      case 'middle-left':
+        newX = marginX;
+        newY = (canvasHeight - elementHeight) / 2;
+        break;
+      case 'middle-center':
+        newX = (canvasWidth - elementWidth) / 2;
+        newY = (canvasHeight - elementHeight) / 2;
+        break;
+      case 'middle-right':
+        newX = canvasWidth - elementWidth - marginX;
+        newY = (canvasHeight - elementHeight) / 2;
+        break;
+      case 'bottom-left':
+        newX = marginX;
+        newY = canvasHeight - elementHeight - marginY;
+        break;
+      case 'bottom-center':
+        newX = (canvasWidth - elementWidth) / 2;
+        newY = canvasHeight - elementHeight - marginY;
+        break;
+      case 'bottom-right':
+        newX = canvasWidth - elementWidth - marginX;
+        newY = canvasHeight - elementHeight - marginY;
+        break;
+      default:
+        return;
+    }
+
+    actualizarElemento(selectedId, { x: Math.max(0, newX), y: Math.max(0, newY) });
+  };
 
   const captureAndUploadViews = () => {
     console.log("Guardando diseño...", { articulo: articuloSeleccionado, variantes: variantesSeleccionadas, elementos });
@@ -303,7 +504,19 @@ const HerramientaDiseño = () => {
                   </div>
 
                   <div style={{ borderTop: "1px solid #e5e7eb", paddingTop: "8px" }}>
-                    <div style={{ fontSize: 11, color: "#6b7280", marginBottom: "6px" }}>Posición y capas:</div>
+                    <div style={{ fontSize: 11, color: "#6b7280", marginBottom: "6px" }}>Posición rápida:</div>
+                    <div className="position-grid">
+                      <button onClick={() => posicionarElemento('top-left')} className="position-button" title="Superior izquierda">↖️</button>
+                      <button onClick={() => posicionarElemento('top-center')} className="position-button" title="Superior centro">⬆️</button>
+                      <button onClick={() => posicionarElemento('top-right')} className="position-button" title="Superior derecha">↗️</button>
+                      <button onClick={() => posicionarElemento('middle-left')} className="position-button" title="Centro izquierda">⬅️</button>
+                      <button onClick={() => posicionarElemento('middle-center')} className="position-button" title="Centro">⭕</button>
+                      <button onClick={() => posicionarElemento('middle-right')} className="position-button" title="Centro derecha">➡️</button>
+                      <button onClick={() => posicionarElemento('bottom-left')} className="position-button" title="Inferior izquierda">↙️</button>
+                      <button onClick={() => posicionarElemento('bottom-center')} className="position-button" title="Inferior centro">⬇️</button>
+                      <button onClick={() => posicionarElemento('bottom-right')} className="position-button" title="Inferior derecha">↘️</button>
+                    </div>
+                    <div style={{ fontSize: 11, color: "#6b7280", marginBottom: "6px", marginTop: "8px" }}>Capas:</div>
                     <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
                       <button onClick={() => cambiarCapaElemento(selectedId, "arriba")} className="layer-button" title="Traer al frente">↑ Frente</button>
                       <button onClick={() => cambiarCapaElemento(selectedId, "abajo")} className="layer-button" title="Enviar atrás">↓ Atrás</button>
@@ -342,7 +555,19 @@ const HerramientaDiseño = () => {
                 </div>
 
                 <div style={{ borderTop: "1px solid #e5e7eb", paddingTop: "8px" }}>
-                  <div style={{ fontSize: 11, color: "#6b7280", marginBottom: "6px" }}>Posición y capas:</div>
+                  <div style={{ fontSize: 11, color: "#6b7280", marginBottom: "6px" }}>Posición rápida:</div>
+                  <div className="position-grid">
+                    <button onClick={() => posicionarElemento('top-left')} className="position-button" title="Superior izquierda">↖️</button>
+                    <button onClick={() => posicionarElemento('top-center')} className="position-button" title="Superior centro">⬆️</button>
+                    <button onClick={() => posicionarElemento('top-right')} className="position-button" title="Superior derecha">↗️</button>
+                    <button onClick={() => posicionarElemento('middle-left')} className="position-button" title="Centro izquierda">⬅️</button>
+                    <button onClick={() => posicionarElemento('middle-center')} className="position-button" title="Centro">⭕</button>
+                    <button onClick={() => posicionarElemento('middle-right')} className="position-button" title="Centro derecha">➡️</button>
+                    <button onClick={() => posicionarElemento('bottom-left')} className="position-button" title="Inferior izquierda">↙️</button>
+                    <button onClick={() => posicionarElemento('bottom-center')} className="position-button" title="Inferior centro">⬇️</button>
+                    <button onClick={() => posicionarElemento('bottom-right')} className="position-button" title="Inferior derecha">↘️</button>
+                  </div>
+                  <div style={{ fontSize: 11, color: "#6b7280", marginBottom: "6px", marginTop: "8px" }}>Capas:</div>
                   <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
                     <button onClick={() => cambiarCapaElemento(selectedId, "arriba")} className="layer-button" title="Traer al frente">↑ Frente</button>
                     <button onClick={() => cambiarCapaElemento(selectedId, "abajo")} className="layer-button" title="Enviar atrás">↓ Atrás</button>
@@ -456,17 +681,71 @@ const HerramientaDiseño = () => {
                     );
                   })}
                 </div>
+                {!articuloSeleccionado && (
+                  <div style={{ 
+                    fontSize: 12, 
+                    color: "#6b7280", 
+                    marginTop: "8px", 
+                    fontStyle: "italic", 
+                    textAlign: "center",
+                    padding: "8px",
+                    background: "#f8fafc",
+                    borderRadius: "6px",
+                    border: "1px solid #e2e8f0"
+                  }}>
+                    👆 Selecciona un artículo para comenzar a diseñar
+                  </div>
+                )}
               </div>
 
               {articuloSeleccionado && (
-                <div className="sidebar-section">
-                  <strong>Producto Seleccionado</strong>
-                  <div style={{ fontSize: 13, color: "#475569" }}>
-                    <div style={{ fontWeight: "bold", marginBottom: 4 }}>{articuloSeleccionado.nombre}</div>
-                    <div style={{ color: "#059669", fontWeight: "bold" }}>${Number(articuloSeleccionado.precio).toLocaleString()}</div>
-                    {articuloSeleccionado.descripcion && <div style={{ marginTop: 4, fontSize: 12 }}>{articuloSeleccionado.descripcion}</div>}
+                <>
+                  <div className="sidebar-section">
+                    <strong>Producto Seleccionado</strong>
+                    <div style={{ fontSize: 13, color: "#475569" }}>
+                      <div style={{ fontWeight: "bold", marginBottom: 4 }}>{articuloSeleccionado.nombre}</div>
+                      <div style={{ color: "#059669", fontWeight: "bold" }}>${Number(articuloSeleccionado.precio).toLocaleString()}</div>
+                      {articuloSeleccionado.descripcion && <div style={{ marginTop: 4, fontSize: 12 }}>{articuloSeleccionado.descripcion}</div>}
+                    </div>
                   </div>
-                </div>
+
+                  <div className="sidebar-section">
+                    <strong>Vista del Artículo</strong>
+                    <div className="size-list" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                      <button 
+                        className={`size-btn ${vistaActual === 'frente' ? 'active' : ''}`} 
+                        onClick={() => cambiarVista('frente')}
+                        title="Vista frontal"
+                      >
+                        👤 Frente
+                      </button>
+                      <button 
+                        className={`size-btn ${vistaActual === 'detras' ? 'active' : ''}`} 
+                        onClick={() => cambiarVista('detras')}
+                        title="Vista trasera"
+                      >
+                        🔄 Detrás
+                      </button>
+                      <button 
+                        className={`size-btn ${vistaActual === 'izquierda' ? 'active' : ''}`} 
+                        onClick={() => cambiarVista('izquierda')}
+                        title="Vista lateral izquierda"
+                      >
+                        ⬅️ Izquierda
+                      </button>
+                      <button 
+                        className={`size-btn ${vistaActual === 'derecha' ? 'active' : ''}`} 
+                        onClick={() => cambiarVista('derecha')}
+                        title="Vista lateral derecha"
+                      >
+                        ➡️ Derecha
+                      </button>
+                    </div>
+                    <div style={{ fontSize: 11, color: "#6b7280", marginTop: "4px", fontStyle: "italic" }}>
+                      Vista actual: {vistaActual === 'frente' ? 'Frontal' : vistaActual === 'detras' ? 'Trasera' : vistaActual === 'izquierda' ? 'Lateral Izquierda' : 'Lateral Derecha'}
+                    </div>
+                  </div>
+                </>
               )}
 
               {Object.entries(variantesPorCategoria).map(([categoria, variantesCategoria]) => (

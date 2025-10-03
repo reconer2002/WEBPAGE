@@ -2,7 +2,7 @@ import React, { useRef, useEffect } from "react";
 import { Image as KonvaImage, Transformer } from "react-konva";
 import useImage from "use-image";
 
-const ImagenElemento = ({ el, onUpdate, isSelected, onSelect }) => {
+const ImagenElemento = ({ el, onUpdate, isSelected, onSelect, onTransform }) => {
   const [img] = useImage(el.url);
   const shapeRef = useRef();
   const trRef = useRef();
@@ -30,6 +30,19 @@ const ImagenElemento = ({ el, onUpdate, isSelected, onSelect }) => {
         onTap={() => onSelect && onSelect()}
         onDragEnd={(e) => {
           onUpdate(el.id, { x: e.target.x(), y: e.target.y() });
+        }}
+        onTransform={(e) => {
+          const node = shapeRef.current;
+          if (node && onTransform) {
+            const scaleX = node.scaleX();
+            const scaleY = node.scaleY();
+            const newWidth = Math.max(20, Math.round(node.width() * scaleX));
+            const newHeight = Math.max(20, Math.round(node.height() * scaleY));
+            const newRotation = node.rotation();
+            
+            // Call onTransform for real-time updates to left panel
+            onTransform(newRotation, newWidth, newHeight);
+          }
         }}
         onTransformEnd={(e) => {
           const node = shapeRef.current;

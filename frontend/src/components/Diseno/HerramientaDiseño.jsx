@@ -27,6 +27,8 @@ const HerramientaDiseño = () => {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [pendingArticulo, setPendingArticulo] = useState(null);
   const [imageDimensions, setImageDimensions] = useState({ width: 100, height: 100 });
+  const [currentImageRotation, setCurrentImageRotation] = useState(0);
+
 
   const [baseImage] = useImage(articuloSeleccionado?.foto || "");
 
@@ -60,7 +62,6 @@ const HerramientaDiseño = () => {
 
       switch (e.key) {
         case "Delete":
-        case "Backspace":
           e.preventDefault();
           eliminarElemento(selectedId);
           break;
@@ -78,6 +79,20 @@ const HerramientaDiseño = () => {
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [selectedId, elementos]);
+
+  // Close panels on Escape key (works even if panel is open)
+  useEffect(() => {
+    const onEsc = (e) => {
+      if (e.key === "Escape") {
+        setSelectedId(null);
+        setImageEditMode(false);
+      }
+    };
+    document.addEventListener("keydown", onEsc);
+    return () => document.removeEventListener("keydown", onEsc);
+  }, []);
+
+
 
   const agregarTexto = () => {
     const nuevoTexto = { id: Date.now(), type: "text", x: 50, y: 50, text: "Texto", fontSize: 20, fill: "#000000", fontFamily: "Arial", fontStyle: "normal", rotation: 0, scale: 1 };
@@ -218,6 +233,7 @@ const HerramientaDiseño = () => {
     } else if (el.type === "image") {
       setImageEditMode(true);
       setImageDimensions({ width: el.width, height: el.height });
+      setCurrentImageRotation(el.rotation || 0);
     }
   };
 
@@ -228,6 +244,117 @@ const HerramientaDiseño = () => {
 
   return (
     <div className="herramienta-diseño-container centered-layout">
+      {/* Panel de edición a la izquierda */}
+      <div className="edit-panel-column">
+        {selectedId && (
+          <div className="edit-panel-sidebar">
+            {!imageEditMode ? (
+              <>
+                <div style={{ fontSize: 14, fontWeight: "bold", marginBottom: 8, color: "#374151" }}>✏️ Editar Texto</div>
+                <input ref={inputRef} className="edit-panel-text-input" style={{ fontSize: textStyle.fontSize + "px", color: textStyle.fill }} value={textInputValue} onChange={handleTextInputChange} autoFocus placeholder="Escribe texto..." />
+
+                <div className="text-style-panel-bubble">
+                  <div style={{ display: "flex", gap: "6px", marginBottom: "12px", flexWrap: "wrap" }}>
+                    <button onClick={() => duplicarElemento(selectedId)} className="action-button duplicate" title="Duplicar (Ctrl+D)">📄 Duplicar</button>
+                    <button onClick={() => eliminarElemento(selectedId)} className="action-button delete" title="Eliminar (Delete)">🗑️ Eliminar</button>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "8px" }}>
+                    <label style={{ fontSize: 12 }}>
+                      Color:
+                      <input type="color" value={textStyle.fill} onChange={(e) => { setTextStyle({ ...textStyle, fill: e.target.value }); actualizarElemento(selectedId, { fill: e.target.value }); }} style={{ width: "100%", height: "24px", border: 0, borderRadius: 4 }} />
+                    </label>
+
+                    <label style={{ fontSize: 12 }}>
+                      Tamaño:
+                      <input type="number" value={textStyle.fontSize} min="8" max="72" onChange={(e) => { const size = parseInt(e.target.value) || 20; setTextStyle({ ...textStyle, fontSize: size }); actualizarElemento(selectedId, { fontSize: size }); }} style={{ width: "100%" }} />
+                    </label>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "8px" }}>
+                    <label style={{ fontSize: 12 }}>
+                      Fuente:
+                      <select value={textStyle.fontFamily} onChange={(e) => { setTextStyle({ ...textStyle, fontFamily: e.target.value }); actualizarElemento(selectedId, { fontFamily: e.target.value }); }} style={{ width: "100%", fontSize: 11 }}>
+                        <option value="Arial">Arial</option>
+                        <option value="Times New Roman">Times</option>
+                        <option value="Courier New">Courier</option>
+                        <option value="Verdana">Verdana</option>
+                        <option value="Georgia">Georgia</option>
+                        <option value="Impact">Impact</option>
+                      </select>
+                    </label>
+
+                    <label style={{ fontSize: 12 }}>
+                      Estilo:
+                      <select value={textStyle.fontStyle} onChange={(e) => { setTextStyle({ ...textStyle, fontStyle: e.target.value }); actualizarElemento(selectedId, { fontStyle: e.target.value }); }} style={{ width: "100%", fontSize: 11 }}>
+                        <option value="normal">Normal</option>
+                        <option value="bold">Negrita</option>
+                        <option value="italic">Cursiva</option>
+                        <option value="bold italic">Negrita Cursiva</option>
+                      </select>
+                    </label>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "8px", marginBottom: "8px" }}>
+                    <label style={{ fontSize: 12 }}>
+                      Ángulo (grados):
+                      <input type="number" value={Math.round(textStyle.rotation || 0)} min="-360" max="360" onChange={(e) => { const rotation = parseInt(e.target.value) || 0; setTextStyle({ ...textStyle, rotation }); actualizarElemento(selectedId, { rotation }); }} style={{ width: "100%" }} />
+                    </label>
+                  </div>
+
+                  <div style={{ borderTop: "1px solid #e5e7eb", paddingTop: "8px" }}>
+                    <div style={{ fontSize: 11, color: "#6b7280", marginBottom: "6px" }}>Posición y capas:</div>
+                    <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
+                      <button onClick={() => cambiarCapaElemento(selectedId, "arriba")} className="layer-button" title="Traer al frente">↑ Frente</button>
+                      <button onClick={() => cambiarCapaElemento(selectedId, "abajo")} className="layer-button" title="Enviar atrás">↓ Atrás</button>
+                    </div>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize: 14, fontWeight: "bold", marginBottom: 8, color: "#374151" }}>🖼️ Editar Imagen</div>
+                <div style={{ display: "flex", gap: "6px", marginBottom: "12px", flexWrap: "wrap" }}>
+                  <button onClick={() => duplicarElemento(selectedId)} className="action-button duplicate" title="Duplicar (Ctrl+D)">📄 Duplicar</button>
+                  <button onClick={() => eliminarElemento(selectedId)} className="action-button delete" title="Eliminar (Delete)">🗑️ Eliminar</button>
+                </div>
+
+                <div style={{ marginBottom: "12px" }}>
+                  <div style={{ fontSize: 12, fontWeight: "bold", marginBottom: "6px" }}>Dimensiones:</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                    <label style={{ fontSize: 12 }}>
+                      Ancho:
+                      <input type="number" min="20" max="400" value={imageDimensions.width} onChange={(e) => { const width = parseInt(e.target.value) || 20; actualizarDimensionesImagen(selectedId, width, imageDimensions.height); }} style={{ width: "100%" }} />
+                    </label>
+                    <label style={{ fontSize: 12 }}>
+                      Alto:
+                      <input type="number" min="20" max="400" value={imageDimensions.height} onChange={(e) => { const height = parseInt(e.target.value) || 20; actualizarDimensionesImagen(selectedId, imageDimensions.width, height); }} style={{ width: "100%" }} />
+                    </label>
+                  </div>
+                  <button onClick={() => { const elemento = elementos.find((el) => el.id === selectedId); if (elemento) { const ratio = elemento.width / elemento.height; const newHeight = Math.round(imageDimensions.width / ratio); actualizarDimensionesImagen(selectedId, imageDimensions.width, newHeight); } }} style={{ fontSize: 11, padding: "4px 8px", background: "#f3f4f6", border: "1px solid #d1d5db", borderRadius: 4, marginTop: "4px" }}>🔒 Mantener proporción</button>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "8px", marginBottom: "8px" }}>
+                  <label style={{ fontSize: 12 }}>
+                    Ángulo (grados):
+                    <input type="number" value={currentImageRotation} min="-360" max="360" onChange={(e) => { const rotation = parseInt(e.target.value) || 0; setCurrentImageRotation(rotation); actualizarElemento(selectedId, { rotation }); }} style={{ width: "100%" }} />
+                  </label>
+                </div>
+
+                <div style={{ borderTop: "1px solid #e5e7eb", paddingTop: "8px" }}>
+                  <div style={{ fontSize: 11, color: "#6b7280", marginBottom: "6px" }}>Posición y capas:</div>
+                  <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
+                    <button onClick={() => cambiarCapaElemento(selectedId, "arriba")} className="layer-button" title="Traer al frente">↑ Frente</button>
+                    <button onClick={() => cambiarCapaElemento(selectedId, "abajo")} className="layer-button" title="Enviar atrás">↓ Atrás</button>
+                  </div>
+                  <div className="keyboard-hint">Arrastra las esquinas para redimensionar</div>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* Preview al centro */}
       <div className="preview-column">
         <div className="canvas-inner">
@@ -253,6 +380,17 @@ const HerramientaDiseño = () => {
                           scale={{ x: el.scale || 1, y: el.scale || 1 }}
                           draggable
                           onDragEnd={(e) => actualizarElemento(el.id, { x: e.target.x(), y: e.target.y() })}
+                          onTransform={(e) => {
+                            const node = e.target;
+                            const newRotation = node.rotation();
+                            const scaleX = node.scaleX();
+                            const scaleY = node.scaleY();
+                            const newFontSize = Math.max(8, Math.round(el.fontSize * Math.max(scaleX, scaleY)));
+                            // Update left panel in real-time during transform
+                            if (isSelected) {
+                              setTextStyle((prev) => ({ ...prev, fontSize: newFontSize, rotation: Math.round(newRotation) }));
+                            }
+                          }}
                           onTransformEnd={(e) => {
                             const node = e.target;
                             const scaleX = node.scaleX();
@@ -262,19 +400,25 @@ const HerramientaDiseño = () => {
                             const newFontSize = Math.max(8, Math.round(el.fontSize * Math.max(scaleX, scaleY)));
                             const newRotation = node.rotation();
                             actualizarElemento(el.id, { x: node.x(), y: node.y(), rotation: newRotation, fontSize: newFontSize, scale: 1 });
-                            if (isSelected) setTextStyle((prev) => ({ ...prev, fontSize: newFontSize }));
+                            if (isSelected) setTextStyle((prev) => ({ ...prev, fontSize: newFontSize, rotation: newRotation }));
                           }}
                           onDblClick={() => handleSelectElement(el)}
                           onClick={() => handleSelectElement(el)}
                         />
                         {isSelected && (
-                          <Transformer rotateEnabled={false} enabledAnchors={["top-left", "top-right", "bottom-left", "bottom-right"]} boundBoxFunc={(oldBox, newBox) => (newBox.width < 20 || newBox.height < 20 ? oldBox : newBox)} />
+                          <Transformer rotateEnabled={true} enabledAnchors={["top-left", "top-right", "bottom-left", "bottom-right"]} boundBoxFunc={(oldBox, newBox) => (newBox.width < 20 || newBox.height < 20 ? oldBox : newBox)} />
                         )}
                       </React.Fragment>
                     );
                   }
                   if (el.type === "image") {
-                    return <ImagenElemento key={el.id} el={el} onUpdate={actualizarElemento} isSelected={selectedId === el.id} onSelect={() => handleSelectElement(el)} />;
+                    return <ImagenElemento key={el.id} el={el} onUpdate={actualizarElemento} isSelected={selectedId === el.id} onSelect={() => handleSelectElement(el)} onTransform={(rotation, width, height) => {
+                      // Update left panel in real-time during image transform
+                      if (selectedId === el.id) {
+                        setImageDimensions({ width: Math.round(width), height: Math.round(height) });
+                        setCurrentImageRotation(Math.round(rotation));
+                      }
+                    }} />;
                   }
                   return null;
                 })}
@@ -357,106 +501,7 @@ const HerramientaDiseño = () => {
         </div>
       </div>
 
-      {/* Paneles centrados */}
-      {selectedId && (
-        <>
-          {!imageEditMode ? (
-            <>
-              <div className="centered-panel-overlay" onMouseDown={() => setSelectedId(null)} />
-              <div className="centered-panel" onMouseDown={(e) => e.stopPropagation()} ref={panelRef}>
-                <input ref={inputRef} className="centered-text-input" style={{ width: "100%", fontSize: textStyle.fontSize + "px", color: textStyle.fill }} value={textInputValue} onChange={handleTextInputChange} autoFocus placeholder="Escribe texto..." />
 
-                <div className="text-style-panel-bubble" style={{ marginTop: 12 }}>
-                  <div style={{ display: "flex", gap: "6px", marginBottom: "12px", flexWrap: "wrap" }}>
-                    <button onClick={() => duplicarElemento(selectedId)} className="action-button duplicate" title="Duplicar (Ctrl+D)">📄 Duplicar</button>
-                    <button onClick={() => eliminarElemento(selectedId)} className="action-button delete" title="Eliminar (Delete)">🗑️ Eliminar</button>
-                  </div>
-
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "8px" }}>
-                    <label style={{ fontSize: 12 }}>
-                      Color:
-                      <input type="color" value={textStyle.fill} onChange={(e) => { setTextStyle({ ...textStyle, fill: e.target.value }); actualizarElemento(selectedId, { fill: e.target.value }); }} style={{ width: "100%", height: "24px", border: 0, borderRadius: 4 }} />
-                    </label>
-
-                    <label style={{ fontSize: 12 }}>
-                      Tamaño:
-                      <input type="number" value={textStyle.fontSize} min="8" max="72" onChange={(e) => { const size = parseInt(e.target.value) || 20; setTextStyle({ ...textStyle, fontSize: size }); actualizarElemento(selectedId, { fontSize: size }); }} style={{ width: "100%" }} />
-                    </label>
-                  </div>
-
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "8px" }}>
-                    <label style={{ fontSize: 12 }}>
-                      Fuente:
-                      <select value={textStyle.fontFamily} onChange={(e) => { setTextStyle({ ...textStyle, fontFamily: e.target.value }); actualizarElemento(selectedId, { fontFamily: e.target.value }); }} style={{ width: "100%", fontSize: 11 }}>
-                        <option value="Arial">Arial</option>
-                        <option value="Times New Roman">Times</option>
-                        <option value="Courier New">Courier</option>
-                        <option value="Verdana">Verdana</option>
-                        <option value="Georgia">Georgia</option>
-                        <option value="Impact">Impact</option>
-                      </select>
-                    </label>
-
-                    <label style={{ fontSize: 12 }}>
-                      Estilo:
-                      <select value={textStyle.fontStyle} onChange={(e) => { setTextStyle({ ...textStyle, fontStyle: e.target.value }); actualizarElemento(selectedId, { fontStyle: e.target.value }); }} style={{ width: "100%", fontSize: 11 }}>
-                        <option value="normal">Normal</option>
-                        <option value="bold">Negrita</option>
-                        <option value="italic">Cursiva</option>
-                        <option value="bold italic">Negrita Cursiva</option>
-                      </select>
-                    </label>
-                  </div>
-
-                  <div style={{ borderTop: "1px solid #e5e7eb", paddingTop: "8px" }}>
-                    <div style={{ fontSize: 11, color: "#6b7280", marginBottom: "6px" }}>Posición y capas:</div>
-                    <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
-                      <button onClick={() => cambiarCapaElemento(selectedId, "arriba")} className="layer-button" title="Traer al frente">↑ Frente</button>
-                      <button onClick={() => cambiarCapaElemento(selectedId, "abajo")} className="layer-button" title="Enviar atrás">↓ Atrás</button>
-                    </div>
-                    <div className="keyboard-hint">Rotación deshabilitada para texto</div>
-                  </div>
-                </div>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="centered-panel-overlay" onMouseDown={() => setSelectedId(null)} />
-              <div className="centered-panel" onMouseDown={(e) => e.stopPropagation()} ref={panelRef}>
-                <div style={{ fontSize: 13, fontWeight: "bold", marginBottom: "8px", color: "#374151" }}>🖼️ Editar Imagen</div>
-                <div style={{ display: "flex", gap: "6px", marginBottom: "12px", flexWrap: "wrap" }}>
-                  <button onClick={() => duplicarElemento(selectedId)} className="action-button duplicate" title="Duplicar (Ctrl+D)">📄 Duplicar</button>
-                  <button onClick={() => eliminarElemento(selectedId)} className="action-button delete" title="Eliminar (Delete)">🗑️ Eliminar</button>
-                </div>
-
-                <div style={{ marginBottom: "12px" }}>
-                  <div style={{ fontSize: 12, fontWeight: "bold", marginBottom: "6px" }}>Dimensiones:</div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
-                    <label style={{ fontSize: 12 }}>
-                      Ancho:
-                      <input type="number" min="20" max="400" value={imageDimensions.width} onChange={(e) => { const width = parseInt(e.target.value) || 20; actualizarDimensionesImagen(selectedId, width, imageDimensions.height); }} style={{ width: "100%" }} />
-                    </label>
-                    <label style={{ fontSize: 12 }}>
-                      Alto:
-                      <input type="number" min="20" max="400" value={imageDimensions.height} onChange={(e) => { const height = parseInt(e.target.value) || 20; actualizarDimensionesImagen(selectedId, imageDimensions.width, height); }} style={{ width: "100%" }} />
-                    </label>
-                  </div>
-                  <button onClick={() => { const elemento = elementos.find((el) => el.id === selectedId); if (elemento) { const ratio = elemento.width / elemento.height; const newHeight = Math.round(imageDimensions.width / ratio); actualizarDimensionesImagen(selectedId, imageDimensions.width, newHeight); } }} style={{ fontSize: 11, padding: "4px 8px", background: "#f3f4f6", border: "1px solid #d1d5db", borderRadius: 4, marginTop: "4px" }}>🔒 Mantener proporción</button>
-                </div>
-
-                <div style={{ borderTop: "1px solid #e5e7eb", paddingTop: "8px" }}>
-                  <div style={{ fontSize: 11, color: "#6b7280", marginBottom: "6px" }}>Posición y capas:</div>
-                  <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
-                    <button onClick={() => cambiarCapaElemento(selectedId, "arriba")} className="layer-button" title="Traer al frente">↑ Frente</button>
-                    <button onClick={() => cambiarCapaElemento(selectedId, "abajo")} className="layer-button" title="Enviar atrás">↓ Atrás</button>
-                  </div>
-                  <div className="keyboard-hint">Arrastra las esquinas para redimensionar</div>
-                </div>
-              </div>
-            </>
-          )}
-        </>
-      )}
 
       {/* Modal */}
       {showConfirmModal && (

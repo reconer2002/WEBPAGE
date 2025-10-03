@@ -181,6 +181,24 @@
   box-shadow: 0 10px 30px rgba(2,6,23,0.12);
 }
 
+/* Make the overlay and panel visually present but let pointer events pass through
+   to the Stage, while keeping interactive controls inside the panel clickable. */
+.centered-panel-overlay {
+  pointer-events: none; /* allow clicks to go to the stage */
+  background: transparent; /* don't darken the screen */
+}
+.centered-panel {
+  pointer-events: none; /* let clicks pass through the panel's empty areas */
+}
+.centered-panel * {
+  pointer-events: auto; /* allow inputs/buttons inside the panel to receive events */
+}
+
+.centered-panel {
+  /* allow overriding position via inline style (absolute) */
+  box-sizing: border-box;
+}
+
 .centered-text-input {
   border: 1px solid #d1d5db;
   border-radius: 6px;
@@ -206,7 +224,7 @@
   box-shadow: 0 12px 40px rgba(2,6,23,0.12);
 }
 
-/* Layout centrado: preview al centro y opciones a la derecha */
+/* Layout centrado: edit panel izquierda, preview al centro y opciones a la derecha */
 .centered-layout {
   display: flex;
   justify-content: center; /* centra todo horizontalmente */
@@ -215,6 +233,23 @@
   padding: 28px;
   min-height: 100vh;
   box-sizing: border-box;
+}
+
+.edit-panel-column {
+  display: flex;
+  align-items: flex-start;
+  width: 300px;
+}
+
+.edit-panel-sidebar {
+  width: 100%;
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 6px 18px rgba(36,59,85,0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .preview-column {

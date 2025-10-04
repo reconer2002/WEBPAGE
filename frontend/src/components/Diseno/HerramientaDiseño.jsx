@@ -5,12 +5,19 @@ import "./HerramientaDiseño.css";
 import articulosService from "../../services/articulosService";
 import objetosService from "../../services/objetosService";
 import diseniosBaseService from "../../services/diseniosBaseService";
+import disenosMockService from "../../services/disenosMockService";
 import ImagenElemento from "./ImagenElemento";
 
-const HerramientaDiseño = () => {
+const HerramientaDiseño = ({ onDisenoGuardado }) => {
   const [canvasWidth] = useState(400);
   const [canvasHeight] = useState(500);
-  const [elementos, setElementos] = useState([]);
+  // Cambiar elementos para mantener estado independiente por vista
+  const [elementosPorVista, setElementosPorVista] = useState({
+    frente: [],
+    izquierda: [],
+    derecha: [],
+    detras: []
+  });
   const [selectedId, setSelectedId] = useState(null);
   const [articulos, setArticulos] = useState([]);
   const [todosLosObjetos, setTodosLosObjetos] = useState([]);
@@ -24,9 +31,21 @@ const HerramientaDiseño = () => {
     detras: null
   });
   const [loading, setLoading] = useState(true);
+  const [guardandoDiseno, setGuardandoDiseno] = useState(false);
 
   const stageRef = useRef(null);
   const inputRef = useRef(null);
+
+  // Función auxiliar para obtener elementos de la vista actual
+  const elementos = elementosPorVista[vistaActual] || [];
+  
+  // Función auxiliar para actualizar elementos de la vista actual
+  const setElementos = (callback) => {
+    setElementosPorVista(prev => ({
+      ...prev,
+      [vistaActual]: typeof callback === 'function' ? callback(prev[vistaActual] || []) : callback
+    }));
+  };
 
   const [textInputValue, setTextInputValue] = useState("");
   const [textStyle, setTextStyle] = useState({ fontSize: 20, fill: "#000000", fontFamily: "Arial", fontStyle: "normal" });
@@ -73,6 +92,31 @@ const HerramientaDiseño = () => {
     fetchInitialData();
   }, []);
 
+  // Función helper para mapear variantes como en el mantenedor
+  const mapVariantesObjeto = (objeto) => {
+    const m = {};
+    (objeto.variantes || []).forEach(v => {
+      m[v.categoria] = { id: v.id, nombre: v.nombre || v.valor };
+    });
+    return m;
+  };
+
+  // Función helper para generar nombre del objeto como en el mantenedor
+  const generarNombreObjeto = (objeto) => {
+    if (!objeto.variantes || objeto.variantes.length === 0) {
+      return `${objeto.articulo_nombre} (Básico)`;
+    }
+    
+    const variantesMap = mapVariantesObjeto(objeto);
+    const categorias = [...new Set(objeto.variantes.map(v => v.categoria))];
+    const nombreGenerado = categorias.map(cat => variantesMap[cat]?.nombre || "-").join(" - ");
+    
+    // Debug: uncomment next line to see generated names
+    // console.log('Objeto:', objeto.id, 'Categorías:', categorias, 'Variantes Map:', variantesMap, 'Nombre:', nombreGenerado);
+    
+    return nombreGenerado;
+  };
+
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (!selectedId) return;
@@ -98,7 +142,7 @@ const HerramientaDiseño = () => {
     };
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [selectedId, elementos]);
+  }, [selectedId, elementos, vistaActual]); // Agregar vistaActual como dependencia
 
   // Close panels on Escape key (works even if panel is open)
   useEffect(() => {
@@ -265,6 +309,9 @@ const HerramientaDiseño = () => {
 
   const cambiarVista = (vista) => {
     setVistaActual(vista);
+    // Limpiar selección al cambiar de vista
+    setSelectedId(null);
+    setImageEditMode(false);
   };
 
   const posicionarElemento = (posicion) => {
@@ -324,9 +371,78 @@ const HerramientaDiseño = () => {
     actualizarElemento(selectedId, { x: Math.max(0, newX), y: Math.max(0, newY) });
   };
 
-  const captureAndUploadViews = () => {
-    console.log("Guardando diseño...", { objeto: objetoSeleccionado, elementos });
-    alert("Diseño guardado (funcionalidad en desarrollo)");
+  const captureAndUploadViews = async () => {
+    if (!objetoSeleccionado) {
+      alert("Primero selecciona un objeto para personalizar");
+      return;
+    }
+
+    try {
+      setGuardandoDiseno(true);
+      
+      // Guardar el ID del elemento seleccionado actual
+      const elementoSeleccionadoAntes = selectedId;
+      
+      // Deseleccionar temporalmente para que no aparezcan los controles
+      setSelectedId(null);
+      setImageEditMode(false);
+      
+      // Esperar un frame para que se actualice la UI
+      await new Promise(resolve => requestAnimationFrame(resolve));
+      
+      // Capturar imagen de la vista actual del canvas
+      const stage = stageRef.current;
+      const dataURL = stage.toDataURL({ mimeType: 'image/png', quality: 1 });
+      
+      // Restaurar la selección después de la captura
+      setSelectedId(elementoSeleccionadoAntes);
+      if (elementoSeleccionadoAntes) {
+        const elemento = elementos.find(el => el.id === elementoSeleccionadoAntes);
+        if (elemento?.type === "image") {
+          setImageEditMode(true);
+        }
+      }
+      
+      // Crear el nombre del diseño
+      const nombreDiseno = prompt("Ingresa un nombre para tu diseño:", 
+        `Diseño ${objetoSeleccionado.articulo_nombre} ${new Date().toLocaleDateString()}`);
+      
+      if (!nombreDiseno) {
+        setGuardandoDiseno(false);
+        return;
+      }
+
+      // Preparar datos del diseño
+      const disenoData = {
+        nombre: nombreDiseno,
+        objeto_id: objetoSeleccionado.id,
+        articulo_nombre: objetoSeleccionado.articulo_nombre,
+        articulo_id: objetoSeleccionado.articulo_id,
+        precio: objetoSeleccionado.precio,
+        imagen: dataURL, // Imagen principal (vista actual)
+        vista_principal: vistaActual,
+        elementos_por_vista: elementosPorVista, // Guardar todos los elementos
+        imagenes_base: imagenesVistas, // Guardar las imágenes base de todas las vistas
+        variantes: objetoSeleccionado.variantes || []
+      };
+
+      // Guardar usando el servicio mock
+      const disenoGuardado = await disenosMockService.guardarDiseno(disenoData);
+      
+      alert(`¡Diseño "${nombreDiseno}" guardado exitosamente!`);
+      console.log("Diseño guardado:", disenoGuardado);
+
+      // Notificar al componente padre que se guardó un diseño
+      if (onDisenoGuardado) {
+        onDisenoGuardado();
+      }
+
+    } catch (error) {
+      console.error("Error al guardar el diseño:", error);
+      alert("Error al guardar el diseño. Inténtalo de nuevo.");
+    } finally {
+      setGuardandoDiseno(false);
+    }
   };
 
   const actualizarElemento = (id, cambios) => setElementos((prev) => prev.map((el) => (el.id === id ? { ...el, ...cambios } : el)));
@@ -651,13 +767,12 @@ const HerramientaDiseño = () => {
                 <div className="sidebar-section">
                   <strong>Objeto Seleccionado</strong>
                   <div style={{ fontSize: 13, color: "#475569" }}>
-                    <div style={{ fontWeight: "bold", marginBottom: 4 }}>{objetoSeleccionado.articulo_nombre}</div>
+                    <div style={{ fontWeight: "bold", marginBottom: 4 }}>
+                      {generarNombreObjeto(objetoSeleccionado)}
+                    </div>
                     <div style={{ color: "#059669", fontWeight: "bold" }}>${Number(objetoSeleccionado.precio).toLocaleString()}</div>
                     <div style={{ fontSize: 11, color: "#6b7280", marginTop: 2 }}>
-                      {objetoSeleccionado.variantes?.length > 0 
-                        ? objetoSeleccionado.variantes.map(v => v.valor).join(', ')
-                        : 'Sin variantes específicas'
-                      }
+                      Artículo: {objetoSeleccionado.articulo_nombre}
                     </div>
                     {objetoSeleccionado.articulo_descripcion && (
                       <div style={{ marginTop: 4, fontSize: 12 }}>{objetoSeleccionado.articulo_descripcion}</div>
@@ -714,10 +829,8 @@ const HerramientaDiseño = () => {
                     const selected = objetoSeleccionado?.id === objeto.id;
                     const disenioBase = diseniosBase.find(d => d.id === objeto.disenio_base_id);
                     
-                    // Crear un nombre descriptivo del objeto basado en sus variantes
-                    const nombreObjeto = objeto.variantes?.length > 0 
-                      ? objeto.variantes.map(v => v.valor).join(' - ')
-                      : `${objeto.articulo_nombre} (Básico)`;
+                    // Usar la misma lógica que el mantenedor para generar el nombre
+                    const nombreObjeto = generarNombreObjeto(objeto);
                     
                     return (
                       <div 
@@ -730,13 +843,7 @@ const HerramientaDiseño = () => {
                           <img src={disenioBase.imagen} alt={nombreObjeto} />
                         )}
                         <div className="object-info">
-                          <div style={{ fontSize: 11, fontWeight: "bold" }}>{objeto.articulo_nombre}</div>
-                          <div style={{ fontSize: 10, color: "#6b7280" }}>
-                            {objeto.variantes?.length > 0 
-                              ? objeto.variantes.map(v => v.valor).join(', ')
-                              : 'Básico'
-                            }
-                          </div>
+                          <div style={{ fontSize: 11, fontWeight: "bold" }}>{nombreObjeto}</div>
                           <div style={{ fontSize: 10, color: "#059669", fontWeight: "bold" }}>
                             ${objeto.precio}
                           </div>
@@ -758,11 +865,11 @@ const HerramientaDiseño = () => {
                   onClick={captureAndUploadViews} 
                   style={{ 
                     width: "100%", 
-                    opacity: objetoSeleccionado ? 1 : 0.5 
+                    opacity: (objetoSeleccionado && !guardandoDiseno) ? 1 : 0.5 
                   }}
-                  disabled={!objetoSeleccionado}
+                  disabled={!objetoSeleccionado || guardandoDiseno}
                 >
-                  💾 Guardar diseño
+                  {guardandoDiseno ? "� Guardando..." : "�💾 Guardar diseño"}
                 </button>
               </div>
             </>

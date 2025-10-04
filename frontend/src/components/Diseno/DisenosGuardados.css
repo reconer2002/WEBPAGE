@@ -1,0 +1,149 @@
+.disenos-guardados {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.disenos-guardados h2 {
+  color: var(--color-primario);
+  margin-bottom: 20px;
+}
+
+.disenos-loading,
+.disenos-empty {
+  text-align: center;
+  padding: 40px;
+  background: #f9fafb;
+  border-radius: 8px;
+  margin: 20px 0;
+}
+
+.crear-diseno-btn {
+  background: var(--color-primario);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-top: 15px;
+  font-weight: bold;
+  transition: background 0.2s ease;
+}
+
+.crear-diseno-btn:hover {
+  background: var(--color-secundario);
+}
+
+.disenos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.diseno-card {
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border: 1px solid #e5e7eb;
+}
+
+.diseno-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.diseno-card img {
+  width: 100%;
+  height: 150px;
+  object-fit: contain;
+  object-position: center;
+  border-bottom: 1px solid #eee;
+  background: #f8f9fa;
+}
+
+.diseno-info {
+  padding: 12px;
+}
+
+.diseno-info h3 {
+  margin: 0;
+  color: var(--color-primario);
+  font-size: 1em;
+  line-height: 1.2;
+}
+
+.diseno-info p {
+  margin: 4px 0;
+  color: #666;
+  font-size: 0.9em;
+  line-height: 1.3;
+}
+
+.diseno-info .precio {
+  font-weight: bold;
+  color: var(--color-primario);
+}
+
+.diseno-info .vista {
+  font-size: 0.9em;
+  color: #888;
+  font-style: italic;
+}
+
+.diseno-info .fecha {
+  font-size: 0.9em;
+  color: #888;
+}
+
+.diseno-actions {
+  display: flex;
+  padding: 10px;
+  gap: 10px;
+  border-top: 1px solid #eee;
+}
+
+.diseno-actions button {
+  flex: 1;
+  padding: 8px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background 0.2s ease;
+}
+
+.editar-btn {
+  background: var(--color-secundario);
+  color: white;
+}
+
+.editar-btn:hover {
+  background: var(--color-primario);
+}
+
+.eliminar-btn {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.eliminar-btn:hover {
+  background: #fecaca;
+}
+
+@media (max-width: 768px) {
+  .disenos-grid {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 10px;
+  }
+  
+  .diseno-card img {
+    height: 120px;
+  }
+  
+  .diseno-info {
+    padding: 10px;
+  }
+}

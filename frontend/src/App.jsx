@@ -10,9 +10,8 @@ import HomePage from "./pages/HomePage";
 import authService from "./services/authService";
 import paginaService from "./services/paginaService";
 
-// IMPORTA EL NUEVO EDITOR
-import PoleraEditor from "./components/Diseno/PoleraEditor";
-import HerramientaDiseño from "./components/Diseno/HerramientaDiseño";
+// IMPORTA LOS COMPONENTES DE DISEÑO
+import DisenosPage from "./components/Diseno/DisenosPage";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -106,8 +105,7 @@ function App() {
           element={
             <>
               <Header user={user} onLogin={handleLogin} onLogout={handleLogout} />
-              {/* REEMPLAZA HERRAMIENTADISEÑO POR POLERAEDITOR */}
-              <HerramientaDiseño />
+              <DisenosPage user={user} loading={loadingUser} />
               <Footer />
             </>
           }

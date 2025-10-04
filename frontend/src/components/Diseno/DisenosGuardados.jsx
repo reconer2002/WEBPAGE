@@ -2,11 +2,13 @@ import React, { useState, useEffect, useImperativeHandle, forwardRef } from "rea
 import { useNavigate } from "react-router-dom";
 import "./DisenosGuardados.css";
 import disenosMockService from "../../services/disenosMockService";
+import { useCart } from "../../context/CartContext";
 
 const DisenosGuardados = forwardRef((props, ref) => {
   const [disenos, setDisenos] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const { addToCart } = useCart();
 
   const cargarDisenos = async () => {
     try {
@@ -85,6 +87,15 @@ const DisenosGuardados = forwardRef((props, ref) => {
                 </p>
               </div>
               <div className="diseno-actions">
+                <button
+                  className="cart-btn"
+                  onClick={() => {
+                    addToCart(diseno);
+                  }}
+                  title="Agregar al carrito"
+                >
+                  🛒 Carrito
+                </button>
                 <button
                   className="editar-btn"
                   onClick={() => {

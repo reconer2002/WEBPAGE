@@ -5,10 +5,12 @@ import "./Header.css";
 import LoginForm from "../LoginForm/LoginForm";
 import authService from "../../services/authService";
 import paginaService from "../../services/paginaService";
+import { useCart } from "../../context/CartContext";
 
 const Header = ({ user, onLogin, onLogout }) => {
   const [logoUrl, setLogoUrl] = useState("");
   const navigate = useNavigate();
+  const { getCartCount } = useCart();
 
   useEffect(() => {
     const fetchLogo = async () => {
@@ -61,11 +63,16 @@ const Header = ({ user, onLogin, onLogout }) => {
           <Link to="/perfil">Perfil</Link>
           <Link to="/disenos">Tus diseños</Link>
           <Link to="/cart" className="nav-cart">
-            <img
-              src="/src/assets/cart.png"
-              alt="Carrito"
-              className="cart-icon-inline"
-            />
+            <div className="cart-container">
+              <img
+                src="/src/assets/Cart.png"
+                alt="Carrito"
+                className="cart-icon-inline"
+              />
+              {getCartCount() > 0 && (
+                <span className="cart-badge">{getCartCount()}</span>
+              )}
+            </div>
             Carrito
           </Link>
         </nav>

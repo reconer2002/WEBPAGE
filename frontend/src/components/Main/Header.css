@@ -87,6 +87,32 @@
   object-fit: contain;
 }
 
+/* Contenedor del carrito con badge */
+.cart-container {
+  position: relative;
+  display: inline-block;
+}
+
+/* Badge del contador de carrito */
+.cart-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background-color: #ef4444;
+  color: white;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+  line-height: 1;
+  min-width: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
 /* Estilo del mensaje de bienvenida */
 .welcome-msg {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;

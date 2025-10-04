@@ -9,6 +9,7 @@ import PaginaDeshabilitada from "./components/Main/PaginaDeshabilitada";
 import HomePage from "./pages/HomePage";
 import authService from "./services/authService";
 import paginaService from "./services/paginaService";
+import { CartProvider } from "./context/CartContext";
 
 // IMPORTA LOS COMPONENTES DE DISEÑO
 import DisenosPage from "./components/Diseno/DisenosPage";
@@ -81,11 +82,12 @@ function App() {
   }
 
   return (
-    <Router>
-      <Routes>
-        <Route
-          path="/mantenedor"
-          element={
+    <CartProvider>
+      <Router>
+        <Routes>
+          <Route
+            path="/mantenedor"
+            element={
             <>
               <Header user={user} onLogin={handleLogin} onLogout={handleLogout} />
               <ProtectedRoute
@@ -128,6 +130,7 @@ function App() {
         />
       </Routes>
     </Router>
+    </CartProvider>
   );
 }
 

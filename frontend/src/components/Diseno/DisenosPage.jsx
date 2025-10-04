@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react";
-import HerramientaDiseño from "./HerramientaDiseño";
+import HerramientaDiseño from "./HerramientaDiseñoNew";
 import DisenosGuardados from "./DisenosGuardados";
 import ProtectedRoute from "../ProtectedRoute";
 import "./DisenosPage.css";

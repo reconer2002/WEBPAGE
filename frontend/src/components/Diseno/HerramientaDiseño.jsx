@@ -869,7 +869,7 @@ const HerramientaDiseño = ({ onDisenoGuardado }) => {
                   }}
                   disabled={!objetoSeleccionado || guardandoDiseno}
                 >
-                  {guardandoDiseno ? "� Guardando..." : "�💾 Guardar diseño"}
+                  {guardandoDiseno ? "Guardando..." : "💾 Guardar diseño"}
                 </button>
               </div>
             </>

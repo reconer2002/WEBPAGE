@@ -1,0 +1,445 @@
+import { useState, useEffect, useRef } from "react";
+import articulosService from "../../../services/articulosService";
+import objetosService from "../../../services/objetosService";
+import diseniosBaseService from "../../../services/diseniosBaseService";
+import disenosMockService from "../../../services/disenosMockService";
+import { configurarImagenesVistas, calcularPosicionElemento } from "../utils/disenoHelpers";
+
+export const useHerramientaDiseño = (onDisenoGuardado) => {
+  // Estados principales
+  const [elementosPorVista, setElementosPorVista] = useState({
+    frente: [],
+    izquierda: [],
+    derecha: [],
+    detras: []
+  });
+  const [selectedId, setSelectedId] = useState(null);
+  const [articulos, setArticulos] = useState([]);
+  const [todosLosObjetos, setTodosLosObjetos] = useState([]);
+  const [objetoSeleccionado, setObjetoSeleccionado] = useState(null);
+  const [diseniosBase, setDiseniosBase] = useState([]);
+  const [vistaActual, setVistaActual] = useState('frente');
+  const [imagenesVistas, setImagenesVistas] = useState({
+    frente: null,
+    izquierda: null,
+    derecha: null,
+    detras: null
+  });
+  const [loading, setLoading] = useState(true);
+  const [guardandoDiseno, setGuardandoDiseno] = useState(false);
+
+  // Estados para edición
+  const [textInputValue, setTextInputValue] = useState("");
+  const [textStyle, setTextStyle] = useState({ 
+    fontSize: 20, 
+    fill: "#000000", 
+    fontFamily: "Arial", 
+    fontStyle: "normal" 
+  });
+  const [imageEditMode, setImageEditMode] = useState(false);
+  const [imageDimensions, setImageDimensions] = useState({ width: 100, height: 100 });
+  const [currentImageRotation, setCurrentImageRotation] = useState(0);
+
+  // Referencias
+  const stageRef = useRef(null);
+  const inputRef = useRef(null);
+
+  // Constantes
+  const canvasWidth = 400;
+  const canvasHeight = 500;
+
+  // Función auxiliar para obtener elementos de la vista actual
+  const elementos = elementosPorVista[vistaActual] || [];
+  
+  // Función auxiliar para actualizar elementos de la vista actual
+  const setElementos = (callback) => {
+    setElementosPorVista(prev => ({
+      ...prev,
+      [vistaActual]: typeof callback === 'function' ? callback(prev[vistaActual] || []) : callback
+    }));
+  };
+
+  // Cargar datos iniciales
+  useEffect(() => {
+    const fetchInitialData = async () => {
+      try {
+        setLoading(true);
+        const [articulosData, diseniosData] = await Promise.all([
+          articulosService.getArticulos(),
+          diseniosBaseService.getAll()
+        ]);
+        setArticulos(articulosData);
+        setDiseniosBase(diseniosData);
+        
+        // Cargar todos los objetos de todos los artículos
+        const todosObjetos = [];
+        for (const articulo of articulosData) {
+          try {
+            const objetosArticulo = await objetosService.getObjetos(articulo.id);
+            // Agregar información del artículo a cada objeto
+            const objetosConArticulo = objetosArticulo.map(objeto => ({
+              ...objeto,
+              articulo_nombre: articulo.nombre,
+              articulo_descripcion: articulo.descripcion
+            }));
+            todosObjetos.push(...objetosConArticulo);
+          } catch (error) {
+            console.error(`Error al cargar objetos del artículo ${articulo.id}:`, error);
+          }
+        }
+        setTodosLosObjetos(todosObjetos);
+      } catch (error) {
+        console.error("Error al cargar datos iniciales:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchInitialData();
+  }, []);
+
+  // Manejo de teclas
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (!selectedId) return;
+      const selectedElement = elementos.find((el) => el.id === selectedId);
+      if (!selectedElement) return;
+      if (selectedElement.type === "text" && document.activeElement === inputRef.current) return;
+
+      switch (e.key) {
+        case "Delete":
+          e.preventDefault();
+          eliminarElemento(selectedId);
+          break;
+        case "d":
+        case "D":
+          if (e.ctrlKey || e.metaKey) {
+            e.preventDefault();
+            duplicarElemento(selectedId);
+          }
+          break;
+        default:
+          break;
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [selectedId, elementos, vistaActual]);
+
+  // Escape key handler
+  useEffect(() => {
+    const onEsc = (e) => {
+      if (e.key === "Escape") {
+        setSelectedId(null);
+        setImageEditMode(false);
+      }
+    };
+    document.addEventListener("keydown", onEsc);
+    return () => document.removeEventListener("keydown", onEsc);
+  }, []);
+
+  // Funciones de manipulación de elementos
+  const agregarTexto = () => {
+    const marginY = 120;
+    const fontSize = 20;
+    const text = "Texto";
+    const estimatedWidth = text.length * fontSize * 0.6;
+    const x = (canvasWidth - estimatedWidth) / 2;
+    const y = marginY;
+    
+    const nuevoTexto = { 
+      id: Date.now(), 
+      type: "text", 
+      x, 
+      y, 
+      text, 
+      fontSize, 
+      fill: "#000000", 
+      fontFamily: "Arial", 
+      fontStyle: "normal", 
+      rotation: 0, 
+      scale: 1 
+    };
+    setElementos((prev) => [...prev, nuevoTexto]);
+    
+    setSelectedId(nuevoTexto.id);
+    setImageEditMode(false);
+    setTextInputValue(text);
+    setTextStyle({ fontSize, fill: "#000000", fontFamily: "Arial", fontStyle: "normal", rotation: 0, scale: 1 });
+    
+    setTimeout(() => inputRef.current?.focus(), 10);
+  };
+
+  const agregarImagen = (url, originalWidth = 100, originalHeight = 100) => {
+    const marginY = 120;
+    
+    // Escalar la imagen si es muy grande, manteniendo la proporción
+    const maxWidth = 200;
+    const maxHeight = 200;
+    let width = originalWidth;
+    let height = originalHeight;
+    
+    if (width > maxWidth || height > maxHeight) {
+      const aspectRatio = width / height;
+      if (width > height) {
+        width = maxWidth;
+        height = width / aspectRatio;
+      } else {
+        height = maxHeight;
+        width = height * aspectRatio;
+      }
+    }
+    
+    const x = (canvasWidth - width) / 2;
+    const y = marginY;
+    
+    const nuevaImagen = { 
+      id: Date.now(), 
+      type: "image", 
+      x, 
+      y, 
+      url, 
+      width: Math.round(width), 
+      height: Math.round(height), 
+      rotation: 0, 
+      draggable: true 
+    };
+    setElementos((prev) => [...prev, nuevaImagen]);
+    
+    setSelectedId(nuevaImagen.id);
+    setImageEditMode(true);
+    setImageDimensions({ width: Math.round(width), height: Math.round(height) });
+    setCurrentImageRotation(0);
+  };
+
+  const handleImageUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      alert("Por favor selecciona un archivo de imagen válido");
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    
+    // Crear una imagen temporal para obtener las dimensiones originales
+    const img = new Image();
+    img.onload = () => {
+      agregarImagen(url, img.width, img.height);
+    };
+    img.src = url;
+    
+    e.target.value = "";
+  };
+
+  const handleObjetoSelect = (objeto) => {
+    setObjetoSeleccionado(objeto);
+    const imagenesConfiguradas = configurarImagenesVistas(objeto, diseniosBase, articulos);
+    setImagenesVistas(imagenesConfiguradas);
+  };
+
+  const cambiarVista = (vista) => {
+    setVistaActual(vista);
+    // Limpiar selección al cambiar de vista
+    setSelectedId(null);
+    setImageEditMode(false);
+  };
+
+  const posicionarElemento = (posicion) => {
+    if (!selectedId) return;
+    
+    const elemento = elementos.find(el => el.id === selectedId);
+    if (!elemento) return;
+
+    const elementWidth = elemento.width || (elemento.text ? elemento.text.length * (elemento.fontSize || 16) * 0.6 : 100);
+    const elementHeight = elemento.height || (elemento.fontSize || 16);
+
+    const { x, y } = calcularPosicionElemento(posicion, canvasWidth, canvasHeight, elementWidth, elementHeight);
+    actualizarElemento(selectedId, { x, y });
+  };
+
+  const captureAndUploadViews = async () => {
+    if (!objetoSeleccionado) {
+      alert("Primero selecciona un objeto para personalizar");
+      return;
+    }
+
+    try {
+      setGuardandoDiseno(true);
+      
+      // Guardar el ID del elemento seleccionado actual
+      const elementoSeleccionadoAntes = selectedId;
+      
+      // Deseleccionar temporalmente para que no aparezcan los controles
+      setSelectedId(null);
+      setImageEditMode(false);
+      
+      // Esperar un frame para que se actualice la UI
+      await new Promise(resolve => requestAnimationFrame(resolve));
+      
+      // Capturar imagen de la vista actual del canvas
+      const stage = stageRef.current;
+      const dataURL = stage.toDataURL({ mimeType: 'image/png', quality: 1 });
+      
+      // Restaurar la selección después de la captura
+      setSelectedId(elementoSeleccionadoAntes);
+      if (elementoSeleccionadoAntes) {
+        const elemento = elementos.find(el => el.id === elementoSeleccionadoAntes);
+        if (elemento?.type === "image") {
+          setImageEditMode(true);
+        }
+      }
+      
+      // Crear el nombre del diseño
+      const nombreDiseno = prompt("Ingresa un nombre para tu diseño:", 
+        `Diseño ${objetoSeleccionado.articulo_nombre} ${new Date().toLocaleDateString()}`);
+      
+      if (!nombreDiseno) {
+        setGuardandoDiseno(false);
+        return;
+      }
+
+      // Preparar datos del diseño
+      const disenoData = {
+        nombre: nombreDiseno,
+        objeto_id: objetoSeleccionado.id,
+        articulo_nombre: objetoSeleccionado.articulo_nombre,
+        articulo_id: objetoSeleccionado.articulo_id,
+        precio: objetoSeleccionado.precio,
+        imagen: dataURL,
+        vista_principal: vistaActual,
+        elementos_por_vista: elementosPorVista,
+        imagenes_base: imagenesVistas,
+        variantes: objetoSeleccionado.variantes || []
+      };
+
+      // Guardar usando el servicio mock
+      const disenoGuardado = await disenosMockService.guardarDiseno(disenoData);
+      
+      alert(`¡Diseño "${nombreDiseno}" guardado exitosamente!`);
+      console.log("Diseño guardado:", disenoGuardado);
+
+      // Notificar al componente padre que se guardó un diseño
+      if (onDisenoGuardado) {
+        onDisenoGuardado();
+      }
+
+    } catch (error) {
+      console.error("Error al guardar el diseño:", error);
+      alert("Error al guardar el diseño. Inténtalo de nuevo.");
+    } finally {
+      setGuardandoDiseno(false);
+    }
+  };
+
+  const actualizarElemento = (id, cambios) => setElementos((prev) => prev.map((el) => (el.id === id ? { ...el, ...cambios } : el)));
+
+  const eliminarElemento = (id) => {
+    setElementos((prev) => prev.filter((el) => el.id !== id));
+    if (selectedId === id) {
+      setSelectedId(null);
+      setImageEditMode(false);
+    }
+  };
+
+  const duplicarElemento = (id) => {
+    const elemento = elementos.find((el) => el.id === id);
+    if (!elemento) return;
+    const nuevoElemento = { ...elemento, id: Date.now(), x: elemento.x + 20, y: elemento.y + 20 };
+    setElementos((prev) => [...prev, nuevoElemento]);
+    setSelectedId(nuevoElemento.id);
+    if (elemento.type === "image") {
+      setImageEditMode(true);
+      setImageDimensions({ width: elemento.width, height: elemento.height });
+    }
+  };
+
+  const cambiarCapaElemento = (id, direccion) => {
+    const index = elementos.findIndex((el) => el.id === id);
+    if (index === -1) return;
+    const nuevosElementos = [...elementos];
+    const elemento = nuevosElementos[index];
+    if (direccion === "arriba" && index < elementos.length - 1) {
+      nuevosElementos[index] = nuevosElementos[index + 1];
+      nuevosElementos[index + 1] = elemento;
+    } else if (direccion === "abajo" && index > 0) {
+      nuevosElementos[index] = nuevosElementos[index - 1];
+      nuevosElementos[index - 1] = elemento;
+    }
+    setElementos(nuevosElementos);
+  };
+
+  const actualizarDimensionesImagen = (id, width, height) => {
+    actualizarElemento(id, { width: Math.max(20, width), height: Math.max(20, height) });
+    setImageDimensions({ width: Math.max(20, width), height: Math.max(20, height) });
+  };
+
+  const handleSelectElement = (el) => {
+    setSelectedId(el.id);
+    if (el.type === "text") {
+      setImageEditMode(false);
+      setTextInputValue(el.text);
+      setTextStyle({ 
+        fontSize: el.fontSize, 
+        fill: el.fill, 
+        fontFamily: el.fontFamily || "Arial", 
+        fontStyle: el.fontStyle || "normal", 
+        rotation: el.rotation || 0, 
+        scale: el.scale || 1 
+      });
+      setTimeout(() => inputRef.current?.focus(), 10);
+    } else if (el.type === "image") {
+      setImageEditMode(true);
+      setImageDimensions({ width: el.width, height: el.height });
+      setCurrentImageRotation(el.rotation || 0);
+    }
+  };
+
+  const handleTextInputChange = (e) => {
+    setTextInputValue(e.target.value);
+    actualizarElemento(selectedId, { text: e.target.value });
+  };
+
+  return {
+    // Estados
+    elementos,
+    selectedId,
+    setSelectedId,
+    articulos,
+    todosLosObjetos,
+    objetoSeleccionado,
+    diseniosBase,
+    vistaActual,
+    imagenesVistas,
+    loading,
+    guardandoDiseno,
+    textInputValue,
+    textStyle,
+    setTextStyle,
+    imageEditMode,
+    setImageEditMode,
+    imageDimensions,
+    currentImageRotation,
+    setCurrentImageRotation,
+    canvasWidth,
+    canvasHeight,
+    
+    // Referencias
+    stageRef,
+    inputRef,
+    
+    // Funciones
+    agregarTexto,
+    agregarImagen,
+    handleImageUpload,
+    handleObjetoSelect,
+    cambiarVista,
+    posicionarElemento,
+    captureAndUploadViews,
+    actualizarElemento,
+    eliminarElemento,
+    duplicarElemento,
+    cambiarCapaElemento,
+    actualizarDimensionesImagen,
+    handleSelectElement,
+    handleTextInputChange
+  };
+};

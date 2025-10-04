@@ -46,6 +46,9 @@ const HerramientaDiseño = ({ onDisenoGuardado }) => {
     duplicarElemento,
     cambiarCapaElemento,
     actualizarDimensionesImagen,
+    actualizarRotacionImagen,
+    sincronizarEstadoTexto,
+    sincronizarEstadoImagen,
     handleSelectElement,
     handleTextInputChange
   } = useHerramientaDiseño(onDisenoGuardado);
@@ -176,13 +179,16 @@ const HerramientaDiseño = ({ onDisenoGuardado }) => {
                     <div style={{ fontSize: 11, color: "#6b7280", marginBottom: "4px" }}>Rotación (°):</div>
                     <input
                       type="number"
-                      value={currentImageRotation}
-                      min="-360"
+                      value={Math.round(currentImageRotation)}
+                      min="0"
                       max="360"
+                      step="1"
                       onChange={(e) => {
-                        const rotation = parseInt(e.target.value) || 0;
-                        setCurrentImageRotation(rotation);
-                        actualizarElemento(selectedId, { rotation });
+                        let rotation = parseInt(e.target.value) || 0;
+                        // Normalizar a rango 0-360
+                        if (rotation < 0) rotation = 0;
+                        if (rotation > 360) rotation = 360;
+                        actualizarRotacionImagen(selectedId, rotation);
                       }}
                       style={{ width: "100%" }}
                     />
@@ -226,6 +232,8 @@ const HerramientaDiseño = ({ onDisenoGuardado }) => {
         onSelectElement={handleSelectElement}
         onUpdateElement={actualizarElemento}
         onDeselect={() => setSelectedId(null)}
+        onSyncTextState={sincronizarEstadoTexto}
+        onSyncImageState={sincronizarEstadoImagen}
       />
 
       <SidebarDiseño

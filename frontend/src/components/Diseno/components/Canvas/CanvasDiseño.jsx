@@ -13,7 +13,9 @@ const CanvasDiseño = ({
   stageRef,
   onSelectElement,
   onUpdateElement,
-  onDeselect
+  onDeselect,
+  onSyncTextState,
+  onSyncImageState
 }) => {
   const [baseImage] = useImage(imagenesVistas[vistaActual] || "", 'anonymous');
 
@@ -55,9 +57,10 @@ const CanvasDiseño = ({
                           const scaleX = node.scaleX();
                           const scaleY = node.scaleY();
                           const newFontSize = Math.max(8, Math.round(el.fontSize * Math.max(scaleX, scaleY)));
-                          // Update left panel in real-time during transform
-                          if (isSelected) {
-                            // Esta función debería ser pasada como prop si necesitas actualizar el panel en tiempo real
+                          
+                          // Sincronizar estado en tiempo real
+                          if (isSelected && onSyncTextState) {
+                            onSyncTextState(el.id, newFontSize, newRotation);
                           }
                         }}
                         onTransformEnd={(e) => {
@@ -98,7 +101,9 @@ const CanvasDiseño = ({
                       isSelected={selectedId === el.id} 
                       onSelect={() => onSelectElement(el)} 
                       onTransform={(rotation, width, height) => {
-                        // Esta función podría usarse para actualizar el panel en tiempo real
+                        if (selectedId === el.id && onSyncImageState) {
+                          onSyncImageState(el.id, rotation, width, height);
+                        }
                       }} 
                     />
                   );

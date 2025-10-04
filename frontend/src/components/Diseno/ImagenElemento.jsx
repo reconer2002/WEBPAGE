@@ -38,7 +38,10 @@ const ImagenElemento = ({ el, onUpdate, isSelected, onSelect, onTransform }) => 
             const scaleY = node.scaleY();
             const newWidth = Math.max(20, Math.round(node.width() * scaleX));
             const newHeight = Math.max(20, Math.round(node.height() * scaleY));
-            const newRotation = node.rotation();
+            
+            // Normalizar rotación a entero 0-360
+            let newRotation = Math.round(node.rotation());
+            newRotation = ((newRotation % 360) + 360) % 360;
             
             // Call onTransform for real-time updates to left panel
             onTransform(newRotation, newWidth, newHeight);
@@ -53,10 +56,14 @@ const ImagenElemento = ({ el, onUpdate, isSelected, onSelect, onTransform }) => 
           node.scaleX(1);
           node.scaleY(1);
           
+          // Normalizar rotación a entero 0-360
+          let finalRotation = Math.round(node.rotation());
+          finalRotation = ((finalRotation % 360) + 360) % 360;
+          
           onUpdate(el.id, {
             x: node.x(),
             y: node.y(),
-            rotation: node.rotation(),
+            rotation: finalRotation,
             width: Math.max(20, Math.round(node.width() * scaleX)),
             height: Math.max(20, Math.round(node.height() * scaleY)),
           });

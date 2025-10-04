@@ -330,7 +330,47 @@ export const useHerramientaDiseño = (onDisenoGuardado) => {
     }
   };
 
-  const actualizarElemento = (id, cambios) => setElementos((prev) => prev.map((el) => (el.id === id ? { ...el, ...cambios } : el)));
+  const actualizarElemento = (id, cambios) => {
+    setElementos((prev) => prev.map((el) => (el.id === id ? { ...el, ...cambios } : el)));
+    
+    // Force re-render del canvas para cambios inmediatos
+    if (stageRef.current) {
+      requestAnimationFrame(() => {
+        stageRef.current.batchDraw();
+      });
+    }
+  };
+
+  const actualizarRotacionImagen = (id, rotation) => {
+    let newRotation = Math.round(Number(rotation)) || 0;
+    
+    // Normalizar rotación a rango 0-360
+    newRotation = ((newRotation % 360) + 360) % 360;
+    
+    // Actualizar elemento inmediatamente
+    actualizarElemento(id, { rotation: newRotation });
+    
+    // Sincronizar estado local
+    setCurrentImageRotation(newRotation);
+  };
+
+  // Función para sincronizar estados en tiempo real durante transformaciones
+  const sincronizarEstadoTexto = (id, fontSize, rotation) => {
+    if (selectedId === id) {
+      setTextStyle(prev => ({ ...prev, fontSize }));
+    }
+  };
+
+  const sincronizarEstadoImagen = (id, rotation, width, height) => {
+    if (selectedId === id) {
+      // Normalizar rotación a números enteros 0-360
+      let normalizedRotation = Math.round(rotation);
+      normalizedRotation = ((normalizedRotation % 360) + 360) % 360;
+      
+      setCurrentImageRotation(normalizedRotation);
+      setImageDimensions({ width: Math.round(width), height: Math.round(height) });
+    }
+  };
 
   const eliminarElemento = (id) => {
     setElementos((prev) => prev.filter((el) => el.id !== id));
@@ -368,8 +408,19 @@ export const useHerramientaDiseño = (onDisenoGuardado) => {
   };
 
   const actualizarDimensionesImagen = (id, width, height) => {
-    actualizarElemento(id, { width: Math.max(20, width), height: Math.max(20, height) });
-    setImageDimensions({ width: Math.max(20, width), height: Math.max(20, height) });
+    const newWidth = Math.max(20, width);
+    const newHeight = Math.max(20, height);
+    
+    // Actualizar elemento en canvas inmediatamente
+    actualizarElemento(id, { width: newWidth, height: newHeight });
+    
+    // Sincronizar estado local
+    setImageDimensions({ width: newWidth, height: newHeight });
+    
+    // Force re-render del canvas
+    if (stageRef.current) {
+      stageRef.current.batchDraw();
+    }
   };
 
   const handleSelectElement = (el) => {
@@ -389,7 +440,11 @@ export const useHerramientaDiseño = (onDisenoGuardado) => {
     } else if (el.type === "image") {
       setImageEditMode(true);
       setImageDimensions({ width: el.width, height: el.height });
-      setCurrentImageRotation(el.rotation || 0);
+      
+      // Normalizar rotación a entero 0-360
+      let normalizedRotation = Math.round(el.rotation || 0);
+      normalizedRotation = ((normalizedRotation % 360) + 360) % 360;
+      setCurrentImageRotation(normalizedRotation);
     }
   };
 
@@ -439,6 +494,9 @@ export const useHerramientaDiseño = (onDisenoGuardado) => {
     duplicarElemento,
     cambiarCapaElemento,
     actualizarDimensionesImagen,
+    actualizarRotacionImagen,
+    sincronizarEstadoTexto,
+    sincronizarEstadoImagen,
     handleSelectElement,
     handleTextInputChange
   };

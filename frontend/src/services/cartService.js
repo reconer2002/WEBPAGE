@@ -45,30 +45,55 @@ const getCount = async () => {
   return totalCount(items);
 };
 
-const addItem = async (product, qty = 1) => {
+const addItem = async (product, qty = 1, options = {}) => {
   try {
-    await api.post("/cart/items", { productId: product.id, qty });
-    return await getCart();
+    const body = {
+      productId: product.id,
+      qty,
+    };
+    if (options.customImage) body.customImage = options.customImage;
+    if (options.designId) body.designId = options.designId;
+    await api.post("/cart/items", body);
+    const items = await getCart();
+    notify(items);
+    return items;
   } catch (error) {
     console.error("Error al agregar al carrito:", error);
     return [];
   }
 };
 
-const removeItem = async (productId) => {
+const addItemFromArticulo = async (articuloId, qty = 1) => {
   try {
-    await api.delete(`/cart/items/${productId}`);
-    return await getCart();
+    await api.post("/cart/items-from-articulo", { articuloId, qty });
+    const items = await getCart();
+    notify(items);
+    return items;
+  } catch (error) {
+    console.error("Error al agregar desde artículo:", error);
+    return null; // no alterar el estado del carrito en error
+  }
+};
+
+const removeItem = async (productId, designId = 0) => {
+  try {
+    const q = new URLSearchParams({ designId: String(designId ?? 0) }).toString();
+    await api.delete(`/cart/items/${productId}?${q}`);
+    const items = await getCart();
+    notify(items);
+    return items;
   } catch (error) {
     console.error("Error al eliminar del carrito:", error);
     return [];
   }
 };
 
-const setQuantity = async (productId, qty) => {
+const setQuantity = async (productId, qty, designId = 0) => {
   try {
-    await api.patch(`/cart/items/${productId}`, { qty });
-    return await getCart();
+    await api.patch(`/cart/items/${productId}`, { qty, designId });
+    const items = await getCart();
+    notify(items);
+    return items;
   } catch (error) {
     console.error("Error al actualizar cantidad:", error);
     return [];
@@ -81,6 +106,7 @@ const clear = async () => {
     for (const item of items) {
       await removeItem(item.productId);
     }
+    notify([]);
     return [];
   } catch (error) {
     console.error("Error al limpiar el carrito:", error);
@@ -101,6 +127,8 @@ const checkAvailability = async () => {
 const checkout = async () => {
   try {
     const response = await api.post("/cart/checkout");
+    // Tras checkout el carrito queda vacío
+    notify([]);
     return response.data;
   } catch (error) {
     console.error("Error al realizar el checkout:", error);
@@ -108,17 +136,34 @@ const checkout = async () => {
   }
 };
 
+// Reglas por cantidad (fallback si el producto no define bulk)
+// VITE_BULK_RULES="3:10,4:15" => 3+ unidades 10%, 4+ unidades 15%
+const parseBulkRules = (s) =>
+  String(s || '3:10,4:15')
+    .split(',')
+    .map((p) => p.trim())
+    .map((x) => {
+      const [q, pc] = x.split(':').map((n) => parseInt(n, 10));
+      return Number.isFinite(q) && Number.isFinite(pc) ? { min: q, percent: pc } : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.min - b.min);
+
+const BULK_TIERS = parseBulkRules(import.meta.env.VITE_BULK_RULES);
+
 // Función auxiliar para calcular totales
 const computeLineTotals = (item) => {
   const base = item.price * item.quantity;
   let discount = 0;
   if (item.discount_percent) discount += base * (item.discount_percent / 100);
-  if (
-    item.bulk_min_qty &&
-    item.bulk_percent &&
-    item.quantity >= item.bulk_min_qty
-  ) {
+  if (item.bulk_min_qty && item.bulk_percent && item.quantity >= item.bulk_min_qty) {
     discount += base * (item.bulk_percent / 100);
+  } else if (BULK_TIERS.length) {
+    let tier = null;
+    for (const t of BULK_TIERS) {
+      if (item.quantity >= t.min) tier = t; else break;
+    }
+    if (tier) discount += base * (tier.percent / 100);
   }
   const total = Math.max(0, base - Math.floor(discount));
   return { base, discount: Math.floor(discount), total };
@@ -141,6 +186,7 @@ export default {
   getCart,
   getCount,
   addItem,
+  addItemFromArticulo,
   removeItem,
   setQuantity,
   clear,

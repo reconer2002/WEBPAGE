@@ -14,6 +14,7 @@ import Cart from "./pages/Cart";
 import Register from "./components/LoginForm/Register";
 import Profile from "./pages/Profile";
 import VerifyAccount from "./pages/VerifyAccount";
+import SearchResults from "./pages/SearchResults";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -136,6 +137,21 @@ function App() {
               <ProtectedRoute user={user} loading={loadingUser}>
                 <Profile user={user} onUserUpdate={setUser} />
               </ProtectedRoute>
+              <Footer />
+            </>
+          }
+        />
+
+        <Route
+          path="/buscar"
+          element={
+            <>
+              <Header
+                user={user}
+                onLogin={handleLogin}
+                onLogout={handleLogout}
+              />
+              <SearchResults />
               <Footer />
             </>
           }

@@ -33,6 +33,9 @@ CREATE TABLE IF NOT EXISTS cart_items (
   cart_id INT NOT NULL,
   product_id INT NOT NULL,
   quantity INT NOT NULL,
+  -- Referencia opcional al diseño guardado y su imagen personalizada
+  design_id INT NULL,
+  custom_image VARCHAR(255) NULL,
   PRIMARY KEY (cart_id, product_id),
   CONSTRAINT fk_ci_cart FOREIGN KEY (cart_id) REFERENCES carts(id) ON DELETE CASCADE,
   CONSTRAINT fk_ci_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
@@ -56,4 +59,3 @@ SELECT id, stock FROM (
   SELECT (SELECT id FROM products WHERE name='Tote Bag' LIMIT 1), 30
 ) t
 ON DUPLICATE KEY UPDATE stock = VALUES(stock);
-

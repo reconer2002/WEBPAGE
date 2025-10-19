@@ -2,13 +2,16 @@ const express = require("express");
 const path = require("path");
 const app = express();
 require("dotenv").config();
-const { ensureUserProfileSchema } = require("./utils/schema");
+const { ensureUserProfileSchema, ensureCartSchema } = require("./utils/schema");
 
 app.use(express.json());
 
 // Asegurar esquema necesario (campos de perfil y verificación)
 ensureUserProfileSchema().catch((err) => {
   console.warn("No se pudo asegurar el esquema de usuarios:", err?.message);
+});
+ensureCartSchema().catch((err) => {
+  console.warn("No se pudo asegurar el esquema de carrito:", err?.message);
 });
 
 // Rutas
@@ -44,6 +47,8 @@ app.use("/api/cart", cartRouter);
 
 const disenosRouter = require("./routes/disenos");
 app.use("/api/disenos", disenosRouter);
+const productsRouter = require("./routes/products");
+app.use("/api/products", productsRouter);
 
 // Estáticos
 app.use("/img", express.static(path.join(__dirname, "img")));

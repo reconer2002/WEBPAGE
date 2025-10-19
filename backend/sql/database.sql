@@ -122,99 +122,76 @@ CREATE TABLE IF NOT EXISTS disenos (
   FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE,
   FOREIGN KEY (articulo_id) REFERENCES products(id) ON DELETE CASCADE
 );
--- Obtener el ID del usuario Cliente para los diseños de ejemplo
+-- Reiniciar diseños de ejemplo y dejar el diseño solicitado
+-- Limpiar tabla de diseños
+DELETE FROM disenos;
+
+-- Variables de usuario y artículo
 SET @usuario_id = (
-    SELECT id
-    FROM usuarios
-    WHERE nombre = 'Cliente'
-    LIMIT 1
-  );
--- Insertar diseños de ejemplo
+  SELECT id FROM usuarios
+  WHERE LOWER(nombre) = 'cliente' OR email = 'cliente@gmail.com'
+  ORDER BY id LIMIT 1
+);
+
+SET @articulo_id = (
+  SELECT id FROM products WHERE name = 'Polera Básica' LIMIT 1
+);
+
+-- Insertar el diseño "Polera6YIAAAAAAA"
 INSERT INTO disenos (
-    usuario_id,
-    nombre,
-    articulo_id,
-    imagen,
-    elementos,
-    variantes,
-    fecha_creacion
-  )
-SELECT @usuario_id,
-  'Polera Personalizada - Diseño Verano',
-  (
-    SELECT id
-    FROM products
-    WHERE name = 'Polera Básica'
-    LIMIT 1
-  ), '/img/Logo.png', JSON_ARRAY(
+  usuario_id,
+  nombre,
+  articulo_id,
+  imagen,
+  elementos,
+  variantes,
+  fecha_creacion
+) VALUES
+(
+  @usuario_id,
+  'Polera6YIAAAAAAA',
+  @articulo_id,
+  '/img/Polera6YIAAAAAAA.png',
+  JSON_ARRAY(
     JSON_OBJECT(
-      'id', 1, 'type', 'text', 'x', 100, 'y', 150, 'text', 'Verano 2024', 'fontSize', 24, 'fontFamily', 'Arial', 'fill', '#FF6B6B'
-    ), JSON_OBJECT(
-      'id', 2, 'type', 'image', 'x', 150, 'y', 200, 'url', '/img/Logo.png', 'width', 100, 'height', 100
+      'id', 1,
+      'type', 'text',
+      'x', 40,
+      'y', 40,
+      'text', 'YIAAAAAAAA',
+      'fontSize', 28,
+      'fontFamily', 'Arial',
+      'fill', '#8B0000'
     )
-  ), JSON_OBJECT(
-    'color', JSON_OBJECT('id', 1, 'valor', 'Rojo'), 'talla', JSON_OBJECT('id', 2, 'valor', 'M')
-  ), DATE_SUB(NOW(), INTERVAL 2 DAY)
-WHERE NOT EXISTS (
-    SELECT 1
-    FROM disenos
-    WHERE nombre = 'Polera Personalizada - Diseño Verano'
-  );
-INSERT INTO disenos (
-    usuario_id,
-    nombre,
-    articulo_id,
-    imagen,
-    elementos,
-    variantes,
-    fecha_creacion
-  )
-SELECT @usuario_id,
-  'Polerón Deportivo',
-  (
-    SELECT id
-    FROM products
-    WHERE name = 'Polerón Premium'
-    LIMIT 1
-  ), '/img/Logo.png', JSON_ARRAY(
+  ),
+  JSON_OBJECT(
+    'vista', 'frente',
+    'cantidad', 1,
+    'precio', 15000
+  ),
+  '2025-10-05 00:00:00'
+),
+(
+  @usuario_id,
+  'Polera8TCS3200',
+  @articulo_id,
+  '/img/Polera8TCS3200.png',
+  JSON_ARRAY(
     JSON_OBJECT(
-      'id', 1, 'type', 'text', 'x', 120, 'y', 180, 'text', 'Sport Life', 'fontSize', 28, 'fontFamily', 'Impact', 'fill', '#4CAF50'
+      'id', 1,
+      'type', 'text',
+      'x', 40,
+      'y', 200,
+      'text', 'TCS3200',
+      'fontSize', 26,
+      'fontFamily', 'Arial',
+      'fill', '#FFFFFF'
     )
-  ), JSON_OBJECT(
-    'color', JSON_OBJECT('id', 3, 'valor', 'Negro'), 'talla', JSON_OBJECT('id', 4, 'valor', 'L')
-  ), DATE_SUB(NOW(), INTERVAL 1 DAY)
-WHERE NOT EXISTS (
-    SELECT 1
-    FROM disenos
-    WHERE nombre = 'Polerón Deportivo'
-  );
-INSERT INTO disenos (
-    usuario_id,
-    nombre,
-    articulo_id,
-    imagen,
-    elementos,
-    variantes,
-    fecha_creacion
-  )
-SELECT @usuario_id,
-  'Gorro Casual',
-  (
-    SELECT id
-    FROM products
-    WHERE name = 'Gorro Bordado'
-    LIMIT 1
-  ), '/img/Logo.png', JSON_ARRAY(
-    JSON_OBJECT(
-      'id', 1, 'type', 'text', 'x', 90, 'y', 130, 'text', 'Urban Style', 'fontSize', 20, 'fontFamily', 'Verdana', 'fill', '#3F51B5'
-    ), JSON_OBJECT(
-      'id', 2, 'type', 'image', 'x', 130, 'y', 160, 'url', '/img/Logo.png', 'width', 80, 'height', 80
-    )
-  ), JSON_OBJECT(
-    'color', JSON_OBJECT('id', 5, 'valor', 'Azul'), 'talla', JSON_OBJECT('id', 6, 'valor', 'Única')
-  ), NOW()
-WHERE NOT EXISTS (
-    SELECT 1
-    FROM disenos
-    WHERE nombre = 'Gorro Casual'
-  );
+  ),
+  JSON_OBJECT(
+    'vista', 'frente',
+    'cantidad', 2,
+    'precio', 15000
+  ),
+  '2025-10-05 00:00:00'
+);

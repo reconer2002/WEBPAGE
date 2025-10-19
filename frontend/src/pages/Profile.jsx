@@ -202,29 +202,6 @@ const ProfilePage = ({ user, onUserUpdate }) => {
       <div className="profile-card">
         <h2 className="profile-title">Mi perfil</h2>
 
-        <div className="profile-status-block">
-          <div className={`profile-status ${verificado ? "verified" : "pending"}`}>
-            {verificado ? "Cuenta verificada" : "Cuenta pendiente de verificación"}
-          </div>
-          {!verificado && (
-            <>
-              <button
-                type="button"
-                className="profile-btn secondary"
-                onClick={handleSendVerification}
-                disabled={sendingVerification}
-              >
-                {sendingVerification ? "Enviando..." : "Enviar correo de verificación"}
-              </button>
-              {formattedExpiry && (
-                <p className="profile-hint">
-                  El enlace actual expira el {formattedExpiry}.
-                </p>
-              )}
-            </>
-          )}
-        </div>
-
         {feedback && <div className="profile-alert success">{feedback}</div>}
         {error && <div className="profile-alert error">{error}</div>}
 
@@ -387,6 +364,29 @@ const ProfilePage = ({ user, onUserUpdate }) => {
             </button>
           </div>
         </form>
+
+        <div className="profile-status-block">
+          <div className={`profile-status ${verificado ? "verified" : "pending"}`}>
+            {verificado ? "Cuenta verificada" : "Cuenta pendiente de verificación"}
+          </div>
+          {!verificado && (
+            <>
+              <button
+                type="button"
+                className="profile-btn secondary"
+                onClick={handleSendVerification}
+                disabled={sendingVerification}
+              >
+                {sendingVerification ? "Enviando..." : "Enviar correo de verificación"}
+              </button>
+              {formattedExpiry && (
+                <p className="profile-hint">
+                  El enlace actual expira el {formattedExpiry}.
+                </p>
+              )}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

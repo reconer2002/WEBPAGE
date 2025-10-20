@@ -3,7 +3,7 @@ import { Image as KonvaImage, Transformer } from "react-konva";
 import useImage from "use-image";
 
 const ImagenElemento = ({ el, onUpdate, isSelected, onSelect }) => {
-  const [img] = useImage(el.url);
+  const [img] = useImage(el.url, "Anonymous");
   const shapeRef = useRef();
   const trRef = useRef();
 

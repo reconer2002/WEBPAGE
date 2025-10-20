@@ -45,15 +45,18 @@ const getCount = async () => {
   return totalCount(items);
 };
 
-const addItem = async (product, qty = 1, options = {}) => {
+// Agregar por diseño existente (designId). Si no hay designId, cae a agregar por artículo.
+const addItem = async (productOrArticulo, qty = 1, options = {}) => {
   try {
-    const body = {
-      productId: product.id,
-      qty,
-    };
-    if (options.customImage) body.customImage = options.customImage;
-    if (options.designId) body.designId = options.designId;
-    await api.post("/cart/items", body);
+    const designId = options?.designId;
+    if (Number.isFinite(parseInt(designId, 10))) {
+      await api.post("/cart/items", { designId: parseInt(designId, 10) });
+    } else if (productOrArticulo?.id) {
+      // Fallback: crear diseño mínimo desde artículo y agregar
+      await api.post("/cart/items-from-articulo", { articuloId: productOrArticulo.id, qty });
+    } else {
+      throw new Error("Se requiere designId o articuloId válido");
+    }
     const items = await getCart();
     notify(items);
     return items;
@@ -78,25 +81,32 @@ const addItemFromArticulo = async (articuloId, qty = 1) => {
 const removeItem = async (productId, designId = 0) => {
   try {
     const q = new URLSearchParams({ designId: String(designId ?? 0) }).toString();
-    await api.delete(`/cart/items/${productId}?${q}`);
-    const items = await getCart();
+    const res = await api.delete(`/cart/items/${productId}?${q}`);
+    let items = Array.isArray(res?.data?.items) ? res.data.items : null;
+    if (!items) items = await getCart();
     notify(items);
     return items;
   } catch (error) {
     console.error("Error al eliminar del carrito:", error);
-    return [];
+    // Mantener estado consistente en la UI
+    const fallback = await getCart();
+    notify(fallback);
+    return fallback;
   }
 };
 
 const setQuantity = async (productId, qty, designId = 0) => {
   try {
-    await api.patch(`/cart/items/${productId}`, { qty, designId });
-    const items = await getCart();
+    const res = await api.patch(`/cart/items/${productId}`, { qty, designId });
+    let items = Array.isArray(res?.data?.items) ? res.data.items : null;
+    if (!items) items = await getCart();
     notify(items);
     return items;
   } catch (error) {
     console.error("Error al actualizar cantidad:", error);
-    return [];
+    const fallback = await getCart();
+    notify(fallback);
+    return fallback;
   }
 };
 

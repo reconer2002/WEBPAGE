@@ -98,23 +98,28 @@ const Cart = ({ user }) => {
   const dec = async (productId, designId = 0) => {
     const it = items.find((i) => i.product_id === productId && (i.design_id ?? 0) === (designId ?? 0));
     if (!it) return;
-    const newQty = Math.max(1, it.quantity - 1);
-    const updated = await cartService.setQuantity(productId, newQty, designId ?? 0);
-    setItems(updated || []);
+    const current = parseInt(it.quantity, 10) || 1;
+    const newQty = current - 1;
+    let updated;
+    if (newQty <= 0) {
+      updated = await cartService.removeItem(productId, designId ?? 0);
+    } else {
+      updated = await cartService.setQuantity(productId, newQty, designId ?? 0);
+    }
+    if (Array.isArray(updated)) setItems(updated);
   };
 
   const inc = async (productId, designId = 0) => {
     const it = items.find((i) => i.product_id === productId && (i.design_id ?? 0) === (designId ?? 0));
     if (!it) return;
-    const desired = it.quantity + 1;
-    // Intentamos actualizar; la comprobación formal se realiza con el botón de disponibilidad/checkout
+    const desired = (parseInt(it.quantity, 10) || 1) + 1;
     const updated = await cartService.setQuantity(productId, desired, designId ?? 0);
-    setItems(updated || []);
+    if (Array.isArray(updated)) setItems(updated);
   };
 
   const remove = async (productId, designId = 0) => {
     const updated = await cartService.removeItem(productId, designId ?? 0);
-    setItems(updated || []);
+    if (Array.isArray(updated)) setItems(updated);
   };
 
   const checkAvailabilityAll = async () => {

@@ -9,26 +9,14 @@ require("dotenv").config();
 
 // POST /api/auth/register
 router.post("/register", async (req, res) => {
-  const {
-    nombre,
-    email,
-    password,
-    apellido,
-    telefono,
-    direccion,
-    ciudad,
-    region,
-  } = req.body;
+  const { nombre, email, password, apellido, direccion } = req.body;
 
   try {
     // Validar campos requeridos (teléfono ya no es obligatorio)
-    if (!nombre || !email || !password || !apellido) {
+    if (!nombre || !email || !password) {
       return res
         .status(400)
-        .json({
-          error:
-            "Los campos nombre, apellido, email y contraseña son requeridos",
-        });
+        .json({ error: "Los campos nombre, email y contraseña son requeridos" });
     }
 
     // Validar formato de email
@@ -82,19 +70,17 @@ router.post("/register", async (req, res) => {
 
     // Insertar nuevo usuario
     const [result] = await pool.query(
-      "INSERT INTO usuarios (nombre, apellido, email, password, telefono, direccion, ciudad, region, rol_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-      [
-        nombre,
-        apellido,
-        email,
-        hashedPassword,
-        telefono || null,
-        direccion || null,
-        ciudad || null,
-        region || null,
-        rolId,
-      ]
+      "INSERT INTO usuarios (nombre, email, password, rol_id) VALUES (?, ?, ?, ?)",
+      [nombre, email, hashedPassword, rolId]
     );
+
+    // Guardar datos básicos en 'personas' si están disponibles (sin modificar el esquema)
+    try {
+      await pool.query(
+        "INSERT INTO personas (usuario_id, nombre_real, apellido, fecha_nacimiento, direccion) VALUES (?, ?, ?, ?, ?)",
+        [result.insertId, nombre, apellido || '', '2000-01-01', direccion || '']
+      );
+    } catch (_) {}
 
     // Generar token
     const token = jwt.sign(
@@ -151,19 +137,15 @@ router.get("/me", verifyToken, async (req, res) => {
       `SELECT 
          u.id,
          u.nombre,
-         u.apellido,
          u.email,
-         u.telefono,
-         u.direccion,
-         u.ciudad,
-         u.region,
-         u.verificado,
-         u.verificacion_expira,
          u.creado_en,
          u.rol_id,
-         r.nombre AS rol
+         r.nombre AS rol,
+         p.apellido AS persona_apellido,
+         p.direccion AS persona_direccion
        FROM usuarios u
        JOIN roles r ON u.rol_id = r.id
+       LEFT JOIN personas p ON p.usuario_id = u.id
        WHERE u.id = ?`,
       [req.user.id]
     );
@@ -181,14 +163,14 @@ router.get("/me", verifyToken, async (req, res) => {
     res.json({
       id: usuario.id,
       nombre: usuario.nombre,
-      apellido: usuario.apellido,
+      apellido: usuario.persona_apellido || '',
       email: usuario.email,
-      telefono: usuario.telefono,
-      direccion: usuario.direccion,
-      ciudad: usuario.ciudad,
-      region: usuario.region,
-      verificado: !!usuario.verificado,
-      verificacion_expira: usuario.verificacion_expira,
+      telefono: null,
+      direccion: usuario.persona_direccion || '',
+      ciudad: '',
+      region: '',
+      verificado: false,
+      verificacion_expira: null,
       creado_en: usuario.creado_en,
       rol: usuario.rol,
       permisos: permisos.map((p) => p.nombre),
@@ -208,21 +190,20 @@ router.post("/logout", (req, res) => {
 
 // PUT /api/auth/me - actualizar perfil del usuario autenticado
 router.put("/me", verifyToken, async (req, res) => {
-  const { nombre, apellido, email, telefono, direccion, ciudad, region } =
-    req.body || {};
+  const { nombre, apellido, email, direccion } = req.body || {};
 
   try {
     // Obtener usuario actual
     const [[actual]] = await pool.query(
-      "SELECT id, nombre, email, verificado FROM usuarios WHERE id = ?",
+      "SELECT id, nombre, email FROM usuarios WHERE id = ?",
       [req.user.id]
     );
     if (!actual) return res.status(404).json({ error: "Usuario no encontrado" });
 
     // Validaciones básicas (teléfono ya no es obligatorio)
-    if (!nombre || !apellido || !email) {
+    if (!nombre || !email) {
       return res.status(400).json({
-        error: "Los campos nombre, apellido y email son obligatorios",
+        error: "Los campos nombre y email son obligatorios",
       });
     }
 
@@ -249,25 +230,27 @@ router.put("/me", verifyToken, async (req, res) => {
     }
 
     // Determinar si cambió el email
-    const emailCambio = email !== actual.email;
-
-    // Construir actualización
+    // Actualizar datos básicos de usuario
     await pool.query(
-      `UPDATE usuarios
-       SET nombre = ?, apellido = ?, email = ?, telefono = ?, direccion = ?, ciudad = ?, region = ?
-         ${emailCambio ? ", verificado = 0, verificacion_token = NULL, verificacion_expira = NULL" : ""}
-       WHERE id = ?`,
-      [
-        nombre,
-        apellido,
-        email,
-        telefono || null,
-        direccion || null,
-        ciudad || null,
-        region || null,
-        req.user.id,
-      ]
+      `UPDATE usuarios SET nombre = ?, email = ? WHERE id = ?`,
+      [nombre, email, req.user.id]
     );
+    // Actualizar/insertar datos en personas
+    const [[persona]] = await pool.query(
+      "SELECT id FROM personas WHERE usuario_id = ?",
+      [req.user.id]
+    );
+    if (persona) {
+      await pool.query(
+        "UPDATE personas SET nombre_real = ?, apellido = ?, direccion = ? WHERE usuario_id = ?",
+        [nombre, apellido || '', direccion || '', req.user.id]
+      );
+    } else {
+      await pool.query(
+        "INSERT INTO personas (usuario_id, nombre_real, apellido, fecha_nacimiento, direccion) VALUES (?, ?, ?, ?, ?)",
+        [req.user.id, nombre, apellido || '', '2000-01-01', direccion || '']
+      );
+    }
 
     res.json({ message: "Perfil actualizado correctamente" });
   } catch (err) {
@@ -277,73 +260,14 @@ router.put("/me", verifyToken, async (req, res) => {
 });
 
 // POST /api/auth/verify/request - enviar email de verificación
-router.post("/verify/request", verifyToken, async (req, res) => {
-  try {
-    const [[usuario]] = await pool.query(
-      "SELECT id, nombre, email, verificado FROM usuarios WHERE id = ?",
-      [req.user.id]
-    );
-    if (!usuario) return res.status(404).json({ error: "Usuario no encontrado" });
-
-    if (usuario.verificado) {
-      return res.json({ message: "Tu cuenta ya está verificada." });
-    }
-
-    const token = crypto.randomBytes(32).toString("hex");
-    const expira = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 horas
-
-    await pool.query(
-      "UPDATE usuarios SET verificacion_token = ?, verificacion_expira = ? WHERE id = ?",
-      [token, expira, req.user.id]
-    );
-
-    let envioOk = true;
-    try {
-      await sendVerificationEmail({ to: usuario.email, nombre: usuario.nombre, token });
-    } catch (mailErr) {
-      envioOk = false;
-      console.warn("No se pudo enviar el correo de verificación:", mailErr.message);
-    }
-
-    res.json({
-      message: envioOk
-        ? "Hemos enviado un correo con el enlace de verificación."
-        : "Se generó el enlace de verificación, pero el envío de correo no está configurado.",
-    });
-  } catch (err) {
-    console.error("Error al solicitar verificación:", err);
-    res.status(500).json({ error: "Error al solicitar verificación" });
-  }
+router.post("/verify/request", verifyToken, async (_req, res) => {
+  // El esquema actual no contempla verificación por token.
+  return res.json({ message: "Verificación no requerida en este entorno." });
 });
 
 // POST /api/auth/verify - verificar cuenta con token
-router.post("/verify", async (req, res) => {
-  const { token } = req.body || {};
-  if (!token || typeof token !== "string") {
-    return res.status(400).json({ error: "Token inválido" });
-  }
-
-  try {
-    const [[usuario]] = await pool.query(
-      "SELECT id FROM usuarios WHERE verificacion_token = ? AND verificacion_expira > NOW()",
-      [token]
-    );
-    if (!usuario) {
-      return res
-        .status(400)
-        .json({ error: "Token inválido o expirado. Solicita uno nuevo." });
-    }
-
-    await pool.query(
-      "UPDATE usuarios SET verificado = 1, verificacion_token = NULL, verificacion_expira = NULL WHERE id = ?",
-      [usuario.id]
-    );
-
-    res.json({ message: "Tu cuenta ha sido verificada correctamente." });
-  } catch (err) {
-    console.error("Error al verificar cuenta:", err);
-    res.status(500).json({ error: "Error al verificar cuenta" });
-  }
+router.post("/verify", async (_req, res) => {
+  return res.json({ message: "Verificación no habilitada." });
 });
 
 // PUT /api/auth/me/password - cambiar contraseña del usuario autenticado

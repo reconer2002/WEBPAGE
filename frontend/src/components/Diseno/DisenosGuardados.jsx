@@ -161,7 +161,12 @@ const DisenosGuardados = () => {
                   Stock: {stocks[diseno.articulo_id] ?? "—"}
                 </p>
                 <p className="fecha">
-                  {new Date(diseno.fecha_creacion).toLocaleDateString()}
+                  {(() => {
+                    const v = diseno?.fecha_creacion;
+                    if (!v) return "";
+                    const d = new Date(v);
+                    return isNaN(d) ? "" : d.toLocaleDateString();
+                  })()}
                 </p>
               </div>
               <div className="diseno-actions">

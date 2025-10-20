@@ -2,11 +2,12 @@ import api from "./api";
 
 const getDisenos = async () => {
   try {
-    const response = await api.get("/disenos");
-    return response.data;
+    const response = await api.get("/disenos", { timeout: 15000 });
+    const data = response?.data;
+    return Array.isArray(data) ? data : [];
   } catch (error) {
     console.error("Error al obtener diseños:", error);
-    throw error;
+    return [];
   }
 };
 

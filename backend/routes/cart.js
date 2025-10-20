@@ -8,16 +8,80 @@ const DEMO_STOCK = Number.isFinite(parseInt(process.env.DEMO_STOCK, 10))
   ? parseInt(process.env.DEMO_STOCK, 10)
   : null;
 
-// Util: obtiene o crea carrito del usuario
+// Detección y creación de columna cantidad en carrito_disenos para manejar cantidades reales
+let HAS_QTY_COL = null;
+async function hasQtyColumn() {
+  if (HAS_QTY_COL !== null) return HAS_QTY_COL;
+  const [[{ cnt }]] = await db.query(
+    `SELECT COUNT(*) AS cnt
+       FROM information_schema.columns
+      WHERE table_schema = DATABASE()
+        AND table_name = 'carrito_disenos'
+        AND column_name = 'cantidad'`
+  );
+  HAS_QTY_COL = cnt > 0;
+  if (!HAS_QTY_COL) {
+    try {
+      await db.query("ALTER TABLE carrito_disenos ADD COLUMN cantidad INT NOT NULL DEFAULT 1 AFTER diseno_id");
+      HAS_QTY_COL = true;
+    } catch (_) {
+      HAS_QTY_COL = false;
+    }
+  }
+  return HAS_QTY_COL;
+}
+
+// Util: obtiene o crea carrito del usuario en tablas del dump (carritos)
 async function getOrCreateCartId(userId) {
-  const [[cart]] = await db.query('SELECT id FROM carts WHERE user_id = ? ORDER BY id DESC LIMIT 1', [userId]);
-  if (cart) return cart.id;
-  const [res] = await db.query('INSERT INTO carts (user_id) VALUES (?)', [userId]);
+  const [[car]] = await db.query('SELECT id FROM carritos WHERE usuario_id = ? ORDER BY id DESC LIMIT 1', [userId]);
+  if (car) return car.id;
+  const [res] = await db.query('INSERT INTO carritos (usuario_id, cantidad_disenos, costo) VALUES (?, 0, 0)', [userId]);
   return res.insertId;
 }
 
+// Normaliza valores hacia JSON válido para columnas JSON (arrays)
+function toJsonArrayOrNull(val) {
+  if (val === undefined || val === null) return null;
+  try {
+    // Si viene como Buffer u objeto
+    if (Buffer.isBuffer(val)) {
+      const s = val.toString('utf8');
+      if (s.trim().startsWith('[') || s.trim().startsWith('{')) { JSON.parse(s); return s; }
+      return JSON.stringify([s]);
+    }
+    if (typeof val === 'string') {
+      const s = val.trim();
+      if (!s) return null;
+      // Si ya es JSON, validar
+      if (s.startsWith('[') || s.startsWith('{')) { JSON.parse(s); return s; }
+      // Texto plano → array con un elemento
+      return JSON.stringify([s]);
+    }
+    if (Array.isArray(val)) return JSON.stringify(val);
+    // Objeto → intentar como está, si falla, envolver como string
+    try { return JSON.stringify(val); } catch { return JSON.stringify([String(val)]) }
+  } catch (_) {
+    try { return JSON.stringify([String(val)]) } catch { return null }
+  }
+}
+
+// Actualiza agregados de carritos (cantidad_disenos, costo)
+async function updateCartTotals(cartId) {
+  const hasQty = await hasQtyColumn();
+  const [[row]] = await db.query(
+    `SELECT ${hasQty ? 'IFNULL(SUM(cd.cantidad),0)' : 'IFNULL(COUNT(*),0)'} AS cantidad,
+            IFNULL(SUM(COALESCE(o.precio, a.precio) ${hasQty ? ' * cd.cantidad' : ''}),0) AS costo
+       FROM carrito_disenos cd
+       JOIN disenos d ON d.id = cd.diseno_id
+       JOIN objetos o ON o.id = d.objeto_id
+       JOIN articulos a ON a.id = o.articulo_id
+      WHERE cd.carrito_id = ?`,
+    [cartId]
+  );
+  await db.query('UPDATE carritos SET cantidad_disenos = ?, costo = ? WHERE id = ?', [row.cantidad || 0, row.costo || 0, cartId]);
+}
+
 // Reglas de descuento por cantidad (fallback si el producto no define bulk)
-// Formato en .env: BULK_RULES="3:10,4:15"  => a partir de 3 (10%), a partir de 4 (15%)
 const BULK_TIERS = (process.env.BULK_RULES || '3:10,4:15')
   .split(',')
   .map((p) => p.trim())
@@ -28,57 +92,85 @@ const BULK_TIERS = (process.env.BULK_RULES || '3:10,4:15')
   .filter(Boolean)
   .sort((a, b) => a.min - b.min);
 
-// Aplica descuentos por línea
 function computeLineTotals(item) {
   const base = item.price * item.quantity;
   let discount = 0;
   if (item.discount_percent) discount += base * (item.discount_percent / 100);
   if (item.bulk_min_qty && item.bulk_percent && item.quantity >= item.bulk_min_qty) {
     discount += base * (item.bulk_percent / 100);
-  } else {
-    // Fallback con reglas por defecto si el producto no define bulk
-    if (BULK_TIERS.length) {
-      // Busca el mayor tier aplicable según la cantidad
-      let tier = null;
-      for (const t of BULK_TIERS) {
-        if (item.quantity >= t.min) tier = t; else break;
-      }
-      if (tier) {
-        discount += base * (tier.percent / 100);
-      }
-    }
+  } else if (BULK_TIERS.length) {
+    let tier = null;
+    for (const t of BULK_TIERS) { if (item.quantity >= t.min) tier = t; else break; }
+    if (tier) discount += base * (tier.percent / 100);
   }
-  discount = Math.floor(discount);
-  const total = Math.max(0, base - discount);
-  return { base, discount, total };
+  const total = Math.max(0, base - Math.floor(discount));
+  return { base, discount: Math.floor(discount), total };
 }
 
 // GET /api/cart
 router.get('/', auth, async (req, res) => {
   try {
     const cartId = await getOrCreateCartId(req.user.id);
+    const hasQty = await hasQtyColumn();
     const [rows] = await db.query(
-      `SELECT ci.product_id, ci.quantity,
-              p.name, p.price,
-              COALESCE(ci.custom_image, p.image) AS image,
-              p.discount_percent, p.bulk_min_qty, p.bulk_percent,
-              ci.design_id,
-              IFNULL(i.stock,0) AS stock
-       FROM cart_items ci
-       JOIN products p ON p.id = ci.product_id
-       LEFT JOIN product_inventory i ON i.product_id = p.id
-       WHERE ci.cart_id = ?
-       ORDER BY p.name`,
+      `SELECT 
+         cd.diseno_id        AS design_id,
+         ${hasQty ? 'cd.cantidad' : '1'} AS quantity,
+         a.id                AS product_id,
+         a.nombre            AS name,
+         COALESCE(o.precio, a.precio) AS price,
+         COALESCE(JSON_UNQUOTE(JSON_EXTRACT(d.imagenes, '$[0]')), a.foto) AS image,
+         a.descuento         AS discount_percent,
+         NULL                AS bulk_min_qty,
+         NULL                AS bulk_percent,
+         IFNULL(inv.stock, 0) AS stock,
+         d.objeto_id         AS objeto_id,
+         CAST(d.imagenes AS CHAR) AS imagenes_raw,
+         CAST(d.textos   AS CHAR) AS textos_raw
+       FROM carrito_disenos cd
+       JOIN disenos d  ON d.id = cd.diseno_id
+       JOIN objetos o  ON o.id = d.objeto_id
+       JOIN articulos a ON a.id = o.articulo_id
+       LEFT JOIN (
+         SELECT articulo_id, SUM(existencias) AS stock FROM objetos GROUP BY articulo_id
+       ) inv ON inv.articulo_id = a.id
+       WHERE cd.carrito_id = ?
+       ORDER BY a.nombre`,
       [cartId]
     );
-    // Override demo stock si aplica
-    if (DEMO_STOCK !== null) {
-      for (const r of rows) r.stock = DEMO_STOCK;
+    if (DEMO_STOCK !== null) rows.forEach((r) => (r.stock = DEMO_STOCK));
+    // Agregar por grupos (misma combinación de articulo/objeto/imagen/diseño JSON)
+    const groups = new Map();
+    for (const r of rows) {
+      const key = [
+        r.product_id,
+        r.objeto_id,
+        r.imagenes_raw || 'null',
+        r.textos_raw || 'null',
+      ].join('|');
+      if (!groups.has(key)) {
+        groups.set(key, {
+          product_id: r.product_id,
+          name: r.name,
+          price: Number(r.price || 0),
+          image: r.image,
+          discount_percent: r.discount_percent,
+          bulk_min_qty: null,
+          bulk_percent: null,
+          stock: r.stock,
+          design_id: r.design_id, // principal
+          design_ids: [r.design_id],
+          quantity: Number(r.quantity || 1),
+        });
+      } else {
+        const g = groups.get(key);
+        g.quantity += Number(r.quantity || 1);
+        g.design_ids.push(r.design_id);
+        // precio/stock/discount permanecen por unidad
+      }
     }
-
-    // Totales
     let base = 0, discount = 0, total = 0;
-    const items = rows.map(r => {
+    const items = Array.from(groups.values()).map((r) => {
       const t = computeLineTotals(r);
       base += t.base; discount += t.discount; total += t.total;
       return { ...r, line_base: t.base, line_discount: t.discount, line_total: t.total };
@@ -90,27 +182,24 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
-// POST /api/cart/items { productId, qty }
+// POST /api/cart/items { designId }
 router.post('/items', auth, async (req, res) => {
   try {
-    const { productId, qty, customImage } = req.body || {};
-    let designId = req.body?.designId;
-    const id = parseInt(productId, 10);
-    const quantity = Math.max(1, parseInt(qty, 10) || 1);
-    if (!Number.isInteger(id)) return res.status(400).json({ error: 'productId inválido' });
-    designId = Number.isFinite(parseInt(designId, 10)) ? parseInt(designId, 10) : 0;
-
+    const designId = Number.isFinite(parseInt(req.body?.designId, 10)) ? parseInt(req.body.designId, 10) : null;
+    if (!designId) return res.status(400).json({ error: 'Se requiere designId' });
+    const [[own]] = await db.query('SELECT id FROM disenos WHERE id = ? AND usuario_id = ?', [designId, req.user.id]);
+    if (!own) return res.status(404).json({ error: 'Diseño no encontrado' });
     const cartId = await getOrCreateCartId(req.user.id);
-    // Insert básico
-    await db.query(
-      `INSERT INTO cart_items (cart_id, product_id, quantity, custom_image, design_id)
-       VALUES (?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE 
-         quantity = quantity + VALUES(quantity),
-         custom_image = COALESCE(VALUES(custom_image), custom_image),
-         design_id = COALESCE(VALUES(design_id), design_id)`,
-      [cartId, id, quantity, customImage || null, designId]
-    );
+    const hasQty = await hasQtyColumn();
+    if (hasQty) {
+      await db.query(
+        'INSERT INTO carrito_disenos (carrito_id, diseno_id, cantidad) VALUES (?, ?, 1) ON DUPLICATE KEY UPDATE cantidad = cantidad + 1',
+        [cartId, designId]
+      );
+    } else {
+      await db.query('INSERT INTO carrito_disenos (carrito_id, diseno_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE diseno_id = diseno_id', [cartId, designId]);
+    }
+    await updateCartTotals(cartId);
     res.json({ message: 'Agregado al carrito' });
   } catch (err) {
     console.error('Error agregando al carrito:', err);
@@ -118,56 +207,257 @@ router.post('/items', auth, async (req, res) => {
   }
 });
 
-// PATCH /api/cart/items/:productId { qty }
+// PATCH /api/cart/items/:productId { qty, designId } -> ajusta cantidad clonando/eliminando diseños equivalentes
 router.patch('/items/:productId', auth, async (req, res) => {
   try {
-    const id = parseInt(req.params.productId, 10);
-    const quantity = Math.max(1, parseInt(req.body?.qty, 10) || 1);
-    const designId = Number.isFinite(parseInt(req.body?.designId, 10)) ? parseInt(req.body.designId, 10) : 0;
-    if (!Number.isInteger(id)) return res.status(400).json({ error: 'productId inválido' });
+    const desiredQty = Math.max(1, parseInt(req.body?.qty, 10) || 1);
+    const designId = Number.isFinite(parseInt(req.body?.designId, 10)) ? parseInt(req.body.designId, 10) : null;
+    if (!designId) return res.status(400).json({ error: 'designId requerido' });
 
     const cartId = await getOrCreateCartId(req.user.id);
-    const [result] = await db.query(
-      'UPDATE cart_items SET quantity = ? WHERE cart_id = ? AND product_id = ? AND design_id = ?',
-      [quantity, cartId, id, designId]
+    const hasQty = await hasQtyColumn();
+    // Base del grupo: debe existir en el carrito del usuario
+    const [[base]] = await db.query(
+      `SELECT d.id, d.usuario_id, d.objeto_id, d.imagenes, d.textos, d.costo
+         FROM carrito_disenos cd
+         JOIN disenos d ON d.id = cd.diseno_id
+        WHERE cd.carrito_id = ? AND d.id = ?`,
+      [cartId, designId]
     );
-    if (result.affectedRows === 0) return res.status(404).json({ error: 'Item no existe en carrito' });
-    res.json({ message: 'Cantidad actualizada' });
+    if (!base) return res.status(404).json({ error: 'Diseño no encontrado en el carrito' });
+
+    // Diseños equivalentes en este carrito
+    const imgsEq = toJsonArrayOrNull(base.imagenes);
+    const txtsEq = toJsonArrayOrNull(base.textos);
+    const [equivs] = await db.query(
+      `SELECT d.id ${hasQty ? ', cd.cantidad' : ''}
+         FROM carrito_disenos cd
+         JOIN disenos d ON d.id = cd.diseno_id
+        WHERE cd.carrito_id = ?
+          AND d.objeto_id = ?
+          AND (d.imagenes <=> CAST(? AS JSON))
+          AND (d.textos   <=> CAST(? AS JSON))`,
+      [cartId, base.objeto_id, imgsEq, txtsEq]
+    );
+    const currentQty = hasQty ? equivs.reduce((s, e) => s + Number(e.cantidad || 0), 0) : equivs.length;
+    if (currentQty === desiredQty) {
+      // no-op
+    } else if (hasQty) {
+      // Consolidar en una sola fila base con la cantidad deseada
+      await db.query('UPDATE carrito_disenos SET cantidad = ? WHERE carrito_id = ? AND diseno_id = ?', [desiredQty, cartId, base.id]);
+      const ids = equivs.map((e) => e.id).filter((id) => id !== base.id);
+      if (ids.length) {
+        await db.query(
+          `DELETE FROM carrito_disenos WHERE carrito_id = ? AND diseno_id IN (${ids.map(() => '?').join(',')})`,
+          [cartId, ...ids]
+        );
+      }
+    } else if (desiredQty > currentQty) {
+      const toCreate = desiredQty - currentQty;
+      for (let i = 0; i < toCreate; i++) {
+        const imgs = toJsonArrayOrNull(base.imagenes);
+        const txts = toJsonArrayOrNull(base.textos);
+        const costoVal = Number(base.costo || 0);
+        const [ins] = await db.query(
+          `INSERT INTO disenos (usuario_id, objeto_id, imagenes, textos, costo) VALUES (?, ?, ?, ?, ?)`,
+          [req.user.id, base.objeto_id, imgs, txts, costoVal]
+        );
+        await db.query(
+          `INSERT INTO carrito_disenos (carrito_id, diseno_id) VALUES (?, ?)`,
+          [cartId, ins.insertId]
+        );
+      }
+    } else {
+      const toRemove = currentQty - desiredQty;
+      // No remover el diseño base si se puede; elimina otros equivalentes primero
+      const ids = equivs.map((e) => e.id).filter((id) => id !== base.id);
+      const removeIds = ids.slice(0, toRemove);
+      if (removeIds.length) {
+        await db.query(
+          `DELETE FROM carrito_disenos WHERE carrito_id = ? AND diseno_id IN (${removeIds.map(() => '?').join(',')})`,
+          [cartId, ...removeIds]
+        );
+      }
+    }
+
+    // Devolver estado actualizado del carrito (mismo shape que GET)
+    await updateCartTotals(cartId);
+    const [rows] = await db.query(
+      `SELECT 
+         cd.diseno_id        AS design_id,
+         ${hasQty ? 'cd.cantidad' : '1'} AS quantity,
+         a.id                AS product_id,
+         a.nombre            AS name,
+         COALESCE(o.precio, a.precio) AS price,
+         COALESCE(JSON_UNQUOTE(JSON_EXTRACT(d.imagenes, '$[0]')), a.foto) AS image,
+         a.descuento         AS discount_percent,
+         NULL                AS bulk_min_qty,
+         NULL                AS bulk_percent,
+         IFNULL(inv.stock, 0) AS stock,
+         d.objeto_id         AS objeto_id,
+         CAST(d.imagenes AS CHAR) AS imagenes_raw,
+         CAST(d.textos   AS CHAR) AS textos_raw
+       FROM carrito_disenos cd
+       JOIN disenos d  ON d.id = cd.diseno_id
+       JOIN objetos o  ON o.id = d.objeto_id
+       JOIN articulos a ON a.id = o.articulo_id
+       LEFT JOIN (
+         SELECT articulo_id, SUM(existencias) AS stock FROM objetos GROUP BY articulo_id
+       ) inv ON inv.articulo_id = a.id
+       WHERE cd.carrito_id = ?
+       ORDER BY a.nombre`,
+      [cartId]
+    );
+    if (DEMO_STOCK !== null) rows.forEach((r) => (r.stock = DEMO_STOCK));
+    const groups = new Map();
+    for (const r of rows) {
+      const key = [r.product_id, r.objeto_id, r.imagenes_raw || 'null', r.textos_raw || 'null'].join('|');
+      if (!groups.has(key)) {
+        groups.set(key, {
+          product_id: r.product_id,
+          name: r.name,
+          price: Number(r.price || 0),
+          image: r.image,
+          discount_percent: r.discount_percent,
+          bulk_min_qty: null,
+          bulk_percent: null,
+          stock: r.stock,
+          design_id: r.design_id,
+          design_ids: [r.design_id],
+          quantity: Number(r.quantity || 1),
+        });
+      } else {
+        const g = groups.get(key);
+        g.quantity += Number(r.quantity || 1); g.design_ids.push(r.design_id);
+      }
+    }
+    const items = Array.from(groups.values());
+    res.json({ items });
   } catch (err) {
     console.error('Error modificando cantidad:', err);
     res.status(500).json({ error: 'Error al modificar cantidad' });
   }
 });
 
-// DELETE /api/cart/items/:productId
+// DELETE /api/cart/items/:productId?designId=ID
 router.delete('/items/:productId', auth, async (req, res) => {
   try {
-    const id = parseInt(req.params.productId, 10);
-    const designId = Number.isFinite(parseInt(req.query?.designId, 10)) ? parseInt(req.query.designId, 10) : 0;
+    const designId = Number.isFinite(parseInt(req.query?.designId, 10)) ? parseInt(req.query.designId, 10) : null;
+    if (!designId) return res.status(400).json({ error: 'designId requerido' });
     const cartId = await getOrCreateCartId(req.user.id);
-    await db.query('DELETE FROM cart_items WHERE cart_id = ? AND product_id = ? AND design_id = ?', [cartId, id, designId]);
-    res.json({ message: 'Diseño eliminado del carrito' });
+    const hasQty = await hasQtyColumn();
+    // Obtener base del grupo
+    const [[base]] = await db.query(
+      `SELECT d.id, d.objeto_id, d.imagenes, d.textos
+         FROM carrito_disenos cd
+         JOIN disenos d ON d.id = cd.diseno_id
+        WHERE cd.carrito_id = ? AND d.id = ?`,
+      [cartId, designId]
+    );
+    if (!base) return res.status(404).json({ error: 'Diseño no encontrado en el carrito' });
+    // Eliminar todo el grupo equivalente
+    const imgsEq2 = toJsonArrayOrNull(base.imagenes);
+    const txtsEq2 = toJsonArrayOrNull(base.textos);
+    const [equivs] = await db.query(
+      `SELECT d.id ${hasQty ? ', cd.cantidad' : ''}
+         FROM carrito_disenos cd
+         JOIN disenos d ON d.id = cd.diseno_id
+        WHERE cd.carrito_id = ?
+          AND d.objeto_id = ?
+          AND (d.imagenes <=> CAST(? AS JSON))
+          AND (d.textos   <=> CAST(? AS JSON))`,
+      [cartId, base.objeto_id, imgsEq2, txtsEq2]
+    );
+    // Siempre eliminar al menos la fila base
+    await db.query('DELETE FROM carrito_disenos WHERE carrito_id = ? AND diseno_id = ?', [cartId, base.id]);
+    if (!hasQty) {
+      // En modo sin columna cantidad, eliminar equivalentes restantes del grupo
+      const ids = equivs.map((e) => e.id).filter((id) => id !== base.id);
+      if (ids.length) {
+        await db.query(
+          `DELETE FROM carrito_disenos WHERE carrito_id = ? AND diseno_id IN (${ids.map(() => '?').join(',')})`,
+          [cartId, ...ids]
+        );
+      }
+    }
+    await updateCartTotals(cartId);
+    // Responder con items actuales
+    const [rows] = await db.query(
+      `SELECT 
+         cd.diseno_id        AS design_id,
+         ${hasQty ? 'cd.cantidad' : '1'} AS quantity,
+         a.id                AS product_id,
+         a.nombre            AS name,
+         COALESCE(o.precio, a.precio) AS price,
+         COALESCE(JSON_UNQUOTE(JSON_EXTRACT(d.imagenes, '$[0]')), a.foto) AS image,
+         a.descuento         AS discount_percent,
+         NULL                AS bulk_min_qty,
+         NULL                AS bulk_percent,
+         IFNULL(inv.stock, 0) AS stock,
+         d.objeto_id         AS objeto_id,
+         CAST(d.imagenes AS CHAR) AS imagenes_raw,
+         CAST(d.textos   AS CHAR) AS textos_raw
+       FROM carrito_disenos cd
+       JOIN disenos d  ON d.id = cd.diseno_id
+       JOIN objetos o  ON o.id = d.objeto_id
+       JOIN articulos a ON a.id = o.articulo_id
+       LEFT JOIN (
+         SELECT articulo_id, SUM(existencias) AS stock FROM objetos GROUP BY articulo_id
+       ) inv ON inv.articulo_id = a.id
+       WHERE cd.carrito_id = ?
+       ORDER BY a.nombre`,
+      [cartId]
+    );
+    const groups = new Map();
+    for (const r of rows) {
+      const key = [r.product_id, r.objeto_id, r.imagenes_raw || 'null', r.textos_raw || 'null'].join('|');
+      if (!groups.has(key)) {
+        groups.set(key, {
+          product_id: r.product_id,
+          name: r.name,
+          price: Number(r.price || 0),
+          image: r.image,
+          discount_percent: r.discount_percent,
+          bulk_min_qty: null,
+          bulk_percent: null,
+          stock: r.stock,
+          design_id: r.design_id,
+          design_ids: [r.design_id],
+          quantity: Number(r.quantity || 1),
+        });
+      } else {
+        const g = groups.get(key);
+        g.quantity += Number(r.quantity || 1); g.design_ids.push(r.design_id);
+      }
+    }
+    const items = Array.from(groups.values());
+    res.json({ items });
   } catch (err) {
     console.error('Error eliminando item:', err);
     res.status(500).json({ error: 'Error al eliminar del carrito' });
   }
 });
 
-// POST /api/cart/check-availability  -> comprueba todo el carrito
+// POST /api/cart/check-availability
 router.post('/check-availability', auth, async (req, res) => {
   try {
-    if (DEMO_STOCK !== null) {
-      return res.json({ ok: true, problems: [] });
-    }
+    if (DEMO_STOCK !== null) return res.json({ ok: true, problems: [] });
     const cartId = await getOrCreateCartId(req.user.id);
+    const hasQty = await hasQtyColumn();
     const [rows] = await db.query(
-      `SELECT ci.product_id, ci.quantity, IFNULL(i.stock,0) AS stock
-       FROM cart_items ci
-       LEFT JOIN product_inventory i ON i.product_id = ci.product_id
-       WHERE ci.cart_id = ?`,
+      `SELECT a.id AS product_id, ${hasQty ? 'SUM(cd.cantidad)' : 'COUNT(*)'} AS quantity, IFNULL(inv.stock,0) AS stock
+         FROM carrito_disenos cd
+         JOIN disenos d  ON d.id = cd.diseno_id
+         JOIN objetos o  ON o.id = d.objeto_id
+         JOIN articulos a ON a.id = o.articulo_id
+         LEFT JOIN (
+           SELECT articulo_id, SUM(existencias) AS stock FROM objetos GROUP BY articulo_id
+         ) inv ON inv.articulo_id = a.id
+        WHERE cd.carrito_id = ?
+        GROUP BY a.id, inv.stock`,
       [cartId]
     );
-    const problems = rows.filter(r => r.stock < r.quantity);
+    const problems = rows.filter(r => Number(r.stock) < Number(r.quantity));
     res.json({ ok: problems.length === 0, problems });
   } catch (err) {
     console.error('Error comprobando disponibilidad:', err);
@@ -175,95 +465,92 @@ router.post('/check-availability', auth, async (req, res) => {
   }
 });
 
-// POST /api/cart/checkout -> descuenta stock y limpia carrito (transaccional)
+// POST /api/cart/checkout -> descuenta stock y limpia carrito
 router.post('/checkout', auth, async (req, res) => {
   const conn = await db.getConnection();
   try {
     const cartId = await getOrCreateCartId(req.user.id);
     await conn.beginTransaction();
+    const hasQty = await hasQtyColumn();
     const [items] = await conn.query(
-      `SELECT ci.product_id, ci.quantity, IFNULL(i.stock,0) AS stock
-       FROM cart_items ci
-       LEFT JOIN product_inventory i ON i.product_id = ci.product_id
-       WHERE ci.cart_id = ? FOR UPDATE`,
+      `SELECT d.id AS diseno_id, d.objeto_id ${hasQty ? ', cd.cantidad' : ''}
+         FROM carrito_disenos cd
+         JOIN disenos d ON d.id = cd.diseno_id
+        WHERE cd.carrito_id = ? FOR UPDATE`,
       [cartId]
     );
     if (DEMO_STOCK !== null) {
-      // Modo demo: no tocar inventario, solo limpiar carrito
-      await conn.query('DELETE FROM cart_items WHERE cart_id = ?', [cartId]);
+      await conn.query('DELETE FROM carrito_disenos WHERE carrito_id = ?', [cartId]);
       await conn.commit();
+      await updateCartTotals(cartId);
       return res.json({ message: 'Compra realizada (demo). Existencias no afectadas.' });
     }
-    const problems = items.filter(r => r.stock < r.quantity);
-    if (problems.length) {
-      await conn.rollback();
-      return res.status(409).json({ error: 'Stock insuficiente', problems });
-    }
     for (const it of items) {
-      await conn.query(
-        'UPDATE product_inventory SET stock = stock - ? WHERE product_id = ?',
-        [it.quantity, it.product_id]
-      );
+      const qty = hasQty ? Number(it.cantidad || 0) : 1;
+      const [[obj]] = await conn.query('SELECT id, existencias FROM objetos WHERE id = ? FOR UPDATE', [it.objeto_id]);
+      if (!obj || Number(obj.existencias) < qty) {
+        await conn.rollback();
+        return res.status(409).json({ error: 'Stock insuficiente', problems: [{ objeto_id: it.objeto_id, stock: obj ? obj.existencias : 0 }] });
+      }
+      await conn.query('UPDATE objetos SET existencias = existencias - ? WHERE id = ?', [qty, it.objeto_id]);
     }
-    await conn.query('DELETE FROM cart_items WHERE cart_id = ?', [cartId]);
+    await conn.query('DELETE FROM carrito_disenos WHERE carrito_id = ?', [cartId]);
     await conn.commit();
+    await updateCartTotals(cartId);
     res.json({ message: 'Compra realizada. Existencias actualizadas.' });
   } catch (err) {
-    await conn.rollback();
+    try { await conn.rollback(); } catch (_) {}
     console.error('Error en checkout:', err);
     res.status(500).json({ error: 'Error al finalizar compra' });
   } finally {
-    conn.release();
+    try { conn.release(); } catch (_) {}
   }
 });
 
-module.exports = router;
-// New route: add item by articulo id, auto-creating or mapping to products
+// Agregar ítem al carrito desde un articuloId: crea un diseño mínimo y lo asocia al carrito
 router.post('/items-from-articulo', auth, async (req, res) => {
   try {
-    const { articuloId, qty } = req.body || {};
-    const aId = parseInt(articuloId, 10);
-    const quantity = Math.max(1, parseInt(qty, 10) || 1);
+    const aId = parseInt(req.body?.articuloId, 10);
+    const qty = Math.max(1, parseInt(req.body?.qty, 10) || 1);
     if (!Number.isInteger(aId)) return res.status(400).json({ error: 'articuloId inválido' });
-
-    // Get articulo
-    const [[art]] = await db.query('SELECT id, nombre, precio, foto FROM articulos WHERE id = ?', [aId]);
-    if (!art) return res.status(404).json({ error: 'Artículo no encontrado' });
-
-    // Ensure product exists with same name
-    let productId;
-    const [[maybe]] = await db.query('SELECT id FROM products WHERE name = ? LIMIT 1', [art.nombre]);
-    if (maybe) {
-      productId = maybe.id;
-      // Optionally update price/image to reflect articulo
-      await db.query('UPDATE products SET price = ?, image = COALESCE(?, image) WHERE id = ?', [Math.round(art.precio || 0), art.foto || null, productId]);
-    } else {
+    const [[obj]] = await db.query(
+      `SELECT id, precio FROM objetos WHERE articulo_id = ? ORDER BY existencias DESC, id ASC LIMIT 1`,
+      [aId]
+    );
+    if (!obj) return res.status(404).json({ error: 'El artículo no tiene objetos disponibles' });
+    // Reutilizar un diseño mínimo (imagenes/textos NULL) por usuario+objeto
+    const [[existing]] = await db.query(
+      `SELECT id FROM disenos 
+         WHERE usuario_id = ? AND objeto_id = ? AND imagenes IS NULL AND textos IS NULL
+         ORDER BY id DESC LIMIT 1`,
+      [req.user.id, obj.id]
+    );
+    let designId;
+    if (existing) designId = existing.id; else {
       const [ins] = await db.query(
-        'INSERT INTO products (name, price, image, discount_percent, bulk_min_qty, bulk_percent) VALUES (?, ?, ?, 0, NULL, NULL)',
-        [art.nombre, Math.round(art.precio || 0), art.foto || null]
+        `INSERT INTO disenos (usuario_id, objeto_id, costo) VALUES (?, ?, ?)`,
+        [req.user.id, obj.id, Number(obj.precio || 0)]
       );
-      productId = ins.insertId;
+      designId = ins.insertId;
     }
-
-    // Ensure inventory row exists
-    const stockValue = DEMO_STOCK !== null ? DEMO_STOCK : 100;
-    await db.query(
-      'INSERT INTO product_inventory (product_id, stock) VALUES (?, ?) ON DUPLICATE KEY UPDATE stock = stock',
-      [productId, stockValue]
-    );
-
-    // Add to cart with custom image of the articulo if provided
     const cartId = await getOrCreateCartId(req.user.id);
-    await db.query(
-      `INSERT INTO cart_items (cart_id, product_id, quantity, custom_image, design_id)
-       VALUES (?, ?, ?, ?, 0)
-       ON DUPLICATE KEY UPDATE quantity = quantity + VALUES(quantity), custom_image = COALESCE(VALUES(custom_image), custom_image)`,
-      [cartId, productId, quantity, art.foto || null]
-    );
-
+    const hasQty = await hasQtyColumn();
+    if (hasQty) {
+      await db.query(
+        'INSERT INTO carrito_disenos (carrito_id, diseno_id, cantidad) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE cantidad = cantidad + VALUES(cantidad)',
+        [cartId, designId, qty]
+      );
+    } else {
+      for (let i = 0; i < qty; i++) {
+        await db.query('INSERT INTO carrito_disenos (carrito_id, diseno_id) VALUES (?, ?)', [cartId, designId]);
+      }
+    }
+    await updateCartTotals(cartId);
     res.json({ message: 'Agregado al carrito desde artículo' });
   } catch (err) {
     console.error('Error agregando artículo al carrito:', err);
     res.status(500).json({ error: 'Error al agregar artículo al carrito' });
   }
 });
+
+module.exports = router;

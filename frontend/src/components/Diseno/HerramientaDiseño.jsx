@@ -11,6 +11,7 @@ import "./HerramientaDiseño.css";
 import articulosService from "../../services/articulosService";
 import variantesService from "../../services/variantesService";
 import disenosService from "../../services/disenosService";
+import cartService from "../../services/cartService";
 import ImagenElemento from "./ImagenElemento";
 
 const HerramientaDiseño = () => {
@@ -43,7 +44,7 @@ const HerramientaDiseño = () => {
     height: 100,
   });
 
-  const [baseImage] = useImage(articuloSeleccionado?.foto || "");
+  const [baseImage] = useImage(articuloSeleccionado?.foto || "", "Anonymous");
 
   useEffect(() => {
     const fetchArticulos = async () => {
@@ -208,20 +209,20 @@ const HerramientaDiseño = () => {
     return acc;
   }, {});
 
-  const captureAndUploadViews = async () => {
+  const saveDesign = async () => {
+    // Devuelve id del diseño creado o null
     try {
-      // Primero validar si hay usuario autenticado
       const token = localStorage.getItem("token");
       if (!token) {
         alert("Necesitas iniciar sesión para guardar el diseño");
-        return;
+        return null;
       }
 
       const canvas = stageRef.current.toCanvas();
       const imagen = canvas.toDataURL();
 
       const nombre = prompt("Ingresa un nombre para tu diseño:");
-      if (!nombre) return;
+      if (!nombre) return null;
 
       const diseno = {
         nombre,
@@ -231,8 +232,9 @@ const HerramientaDiseño = () => {
         variantes: variantesSeleccionadas,
       };
 
-      await disenosService.guardarDiseno(diseno);
+      const res = await disenosService.guardarDiseno(diseno);
       alert("Diseño guardado exitosamente");
+      return res?.id ?? null;
     } catch (error) {
       console.error("Error al guardar diseño:", error);
       if (error.response?.status === 401) {
@@ -243,6 +245,19 @@ const HerramientaDiseño = () => {
             (error.response?.data?.error || error.message)
         );
       }
+      return null;
+    }
+  };
+
+  const saveAndAddToCart = async () => {
+    const designId = await saveDesign();
+    if (!designId) return;
+    try {
+      await cartService.addItem({ id: articuloSeleccionado.id }, 1, { designId });
+      alert("Diseño agregado al carrito");
+    } catch (e) {
+      console.error("Error al agregar al carrito", e);
+      alert("No se pudo agregar al carrito");
     }
   };
 
@@ -562,13 +577,22 @@ const HerramientaDiseño = () => {
               )}
 
               <div className="sidebar-section">
-                <button
-                  className="save-btn"
-                  onClick={captureAndUploadViews}
-                  style={{ width: "100%" }}
-                >
-                  💾 Guardar diseño
-                </button>
+                <div style={{ display: "grid", gap: 8 }}>
+                  <button
+                    className="save-btn"
+                    onClick={saveDesign}
+                    style={{ width: "100%" }}
+                  >
+                    💾 Guardar diseño
+                  </button>
+                  <button
+                    className="save-btn"
+                    onClick={saveAndAddToCart}
+                    style={{ width: "100%", background: "#0f766e", color: "#fff" }}
+                  >
+                    💾 Guardar y agregar al carrito
+                  </button>
+                </div>
               </div>
             </>
           )}

@@ -80,6 +80,30 @@
   filter: brightness(0.8);
 }
 
+/* Buscador minimalista */
+.search-form { display: flex; align-items: center; }
+.search-input {
+  padding: 6px 10px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+  width: 200px;
+  background: #fff;
+}
+.search-input:focus {
+  outline: none;
+  border-color: var(--color-primario);
+  box-shadow: 0 0 0 3px rgba(0, 106, 113, 0.12);
+}
+
+/* Icono y contador del carrito */
+.nav-cart {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 /* Icono carrito inline */
 .cart-icon-inline {
   width: 24px;
@@ -91,6 +115,7 @@
 .cart-container {
   position: relative;
   display: inline-block;
+  transform: translateY(1px); /* centra visualmente el ícono */
 }
 
 /* Badge del contador de carrito */

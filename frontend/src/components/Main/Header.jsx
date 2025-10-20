@@ -5,20 +5,34 @@ import "./Header.css";
 import LoginForm from "../LoginForm/LoginForm";
 import authService from "../../services/authService";
 import paginaService from "../../services/paginaService";
-import { useCart } from "../../context/CartContext";
+import cartService from "../../services/cartService";
 
 const Header = ({ user, onLogin, onLogout }) => {
   const [logoUrl, setLogoUrl] = useState("");
+  const [cartCount, setCartCount] = useState(0);
   const navigate = useNavigate();
-  const { getCartCount } = useCart();
 
   useEffect(() => {
     const fetchLogo = async () => {
       const data = await paginaService.getFooterData();
       setLogoUrl(data.logo);
     };
+    const fetchCartCount = async () => {
+      if (user) {
+        const count = await cartService.getCount();
+        setCartCount(count);
+      }
+    };
     fetchLogo();
-  }, []);
+    fetchCartCount();
+
+    // Escuchar eventos de actualización del carrito
+    const handleCartUpdate = (e) => {
+      setCartCount(e.detail.count);
+    };
+    window.addEventListener("cart:updated", handleCartUpdate);
+    return () => window.removeEventListener("cart:updated", handleCartUpdate);
+  }, [user]);
 
   const handleLogout = () => {
     authService.logout();
@@ -26,16 +40,18 @@ const Header = ({ user, onLogin, onLogout }) => {
     navigate("/");
   };
 
+  
+
   return (
     <header className="header">
       <div className="logo">
-        <a href="#">
+        <Link to="/">
           {logoUrl ? (
             <img src={logoUrl} alt="Logo" />
           ) : (
             <span className="logo-placeholder">Logo</span>
           )}
-        </a>
+        </Link>
       </div>
 
       <div className="right-section">
@@ -62,6 +78,7 @@ const Header = ({ user, onLogin, onLogout }) => {
         <nav className="sub-nav">
           <Link to="/perfil">Perfil</Link>
           <Link to="/disenos">Tus diseños</Link>
+          {null}
           <Link to="/cart" className="nav-cart">
             <div className="cart-container">
               <img
@@ -69,8 +86,8 @@ const Header = ({ user, onLogin, onLogout }) => {
                 alt="Carrito"
                 className="cart-icon-inline"
               />
-              {getCartCount() > 0 && (
-                <span className="cart-badge">{getCartCount()}</span>
+              {cartCount > 0 && (
+                <span className="cart-badge">{cartCount}</span>
               )}
             </div>
             Carrito

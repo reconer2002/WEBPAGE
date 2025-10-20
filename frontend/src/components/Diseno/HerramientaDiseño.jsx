@@ -3,9 +3,15 @@ import { Stage, Layer, Text, Image as KonvaImage, Transformer } from "react-konv
 import useImage from "use-image";
 import "./HerramientaDiseño.css";
 import articulosService from "../../services/articulosService";
+<<<<<<< HEAD
 import objetosService from "../../services/objetosService";
 import diseniosBaseService from "../../services/diseniosBaseService";
 import disenosMockService from "../../services/disenosMockService";
+=======
+import variantesService from "../../services/variantesService";
+import disenosService from "../../services/disenosService";
+import cartService from "../../services/cartService";
+>>>>>>> wip-merge-20251019-204919
 import ImagenElemento from "./ImagenElemento";
 
 const HerramientaDiseño = ({ onDisenoGuardado }) => {
@@ -53,7 +59,11 @@ const HerramientaDiseño = ({ onDisenoGuardado }) => {
   const [imageDimensions, setImageDimensions] = useState({ width: 100, height: 100 });
   const [currentImageRotation, setCurrentImageRotation] = useState(0);
 
+<<<<<<< HEAD
   const [baseImage, imageStatus] = useImage(imagenesVistas[vistaActual] || "", 'anonymous');
+=======
+  const [baseImage] = useImage(articuloSeleccionado?.foto || "", "Anonymous");
+>>>>>>> wip-merge-20251019-204919
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -371,6 +381,7 @@ const HerramientaDiseño = ({ onDisenoGuardado }) => {
     actualizarElemento(selectedId, { x: Math.max(0, newX), y: Math.max(0, newY) });
   };
 
+<<<<<<< HEAD
   const captureAndUploadViews = async () => {
     if (!objetoSeleccionado) {
       alert("Primero selecciona un objeto para personalizar");
@@ -442,6 +453,68 @@ const HerramientaDiseño = ({ onDisenoGuardado }) => {
       alert("Error al guardar el diseño. Inténtalo de nuevo.");
     } finally {
       setGuardandoDiseno(false);
+=======
+  const handleVarianteSelect = (categoria, variante) => {
+    setVariantesSeleccionadas((prev) => ({ ...prev, [categoria]: variante }));
+  };
+
+  const variantesPorCategoria = variantes.reduce((acc, variante) => {
+    const categoria = variante.categoria || variante.nombre_categoria;
+    if (!acc[categoria]) acc[categoria] = [];
+    acc[categoria].push(variante);
+    return acc;
+  }, {});
+
+  const saveDesign = async () => {
+    // Devuelve id del diseño creado o null
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        alert("Necesitas iniciar sesión para guardar el diseño");
+        return null;
+      }
+
+      const canvas = stageRef.current.toCanvas();
+      const imagen = canvas.toDataURL();
+
+      const nombre = prompt("Ingresa un nombre para tu diseño:");
+      if (!nombre) return null;
+
+      const diseno = {
+        nombre,
+        articulo_id: articuloSeleccionado.id,
+        imagen,
+        elementos,
+        variantes: variantesSeleccionadas,
+      };
+
+      const res = await disenosService.guardarDiseno(diseno);
+      alert("Diseño guardado exitosamente");
+      return res?.id ?? null;
+    } catch (error) {
+      console.error("Error al guardar diseño:", error);
+      if (error.response?.status === 401) {
+        alert("Necesitas iniciar sesión para guardar el diseño");
+      } else {
+        alert(
+          "Error al guardar el diseño: " +
+            (error.response?.data?.error || error.message)
+        );
+      }
+      return null;
+    }
+  };
+
+  const saveAndAddToCart = async () => {
+    const designId = await saveDesign();
+    if (!designId) return;
+    try {
+      await cartService.addItem({ id: articuloSeleccionado.id }, 1, { designId });
+      alert("Diseño agregado al carrito");
+    } catch (e) {
+      console.error("Error al agregar al carrito", e);
+      alert("No se pudo agregar al carrito");
+>>>>>>> wip-merge-20251019-204919
     }
   };
 
@@ -860,6 +933,7 @@ const HerramientaDiseño = ({ onDisenoGuardado }) => {
               </div>
 
               <div className="sidebar-section">
+<<<<<<< HEAD
                 <button 
                   className="save-btn" 
                   onClick={captureAndUploadViews} 
@@ -871,6 +945,24 @@ const HerramientaDiseño = ({ onDisenoGuardado }) => {
                 >
                   {guardandoDiseno ? "Guardando..." : "💾 Guardar diseño"}
                 </button>
+=======
+                <div style={{ display: "grid", gap: 8 }}>
+                  <button
+                    className="save-btn"
+                    onClick={saveDesign}
+                    style={{ width: "100%" }}
+                  >
+                    💾 Guardar diseño
+                  </button>
+                  <button
+                    className="save-btn"
+                    onClick={saveAndAddToCart}
+                    style={{ width: "100%", background: "#0f766e", color: "#fff" }}
+                  >
+                    💾 Guardar y agregar al carrito
+                  </button>
+                </div>
+>>>>>>> wip-merge-20251019-204919
               </div>
             </>
           )}

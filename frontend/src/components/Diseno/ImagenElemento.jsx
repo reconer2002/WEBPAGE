@@ -2,8 +2,8 @@ import React, { useRef, useEffect } from "react";
 import { Image as KonvaImage, Transformer } from "react-konva";
 import useImage from "use-image";
 
-const ImagenElemento = ({ el, onUpdate, isSelected, onSelect, onTransform }) => {
-  const [img] = useImage(el.url);
+const ImagenElemento = ({ el, onUpdate, isSelected, onSelect }) => {
+  const [img] = useImage(el.url, "Anonymous");
   const shapeRef = useRef();
   const trRef = useRef();
 
@@ -31,23 +31,7 @@ const ImagenElemento = ({ el, onUpdate, isSelected, onSelect, onTransform }) => 
         onDragEnd={(e) => {
           onUpdate(el.id, { x: e.target.x(), y: e.target.y() });
         }}
-        onTransform={() => {
-          const node = shapeRef.current;
-          if (node && onTransform) {
-            const scaleX = node.scaleX();
-            const scaleY = node.scaleY();
-            const newWidth = Math.max(20, Math.round(node.width() * scaleX));
-            const newHeight = Math.max(20, Math.round(node.height() * scaleY));
-            
-            // Normalizar rotación a entero 0-360
-            let newRotation = Math.round(node.rotation());
-            newRotation = ((newRotation % 360) + 360) % 360;
-            
-            // Call onTransform for real-time updates to left panel
-            onTransform(newRotation, newWidth, newHeight);
-          }
-        }}
-        onTransformEnd={() => {
+        onTransformEnd={(e) => {
           const node = shapeRef.current;
           const scaleX = node.scaleX();
           const scaleY = node.scaleY();
@@ -56,14 +40,10 @@ const ImagenElemento = ({ el, onUpdate, isSelected, onSelect, onTransform }) => 
           node.scaleX(1);
           node.scaleY(1);
           
-          // Normalizar rotación a entero 0-360
-          let finalRotation = Math.round(node.rotation());
-          finalRotation = ((finalRotation % 360) + 360) % 360;
-          
           onUpdate(el.id, {
             x: node.x(),
             y: node.y(),
-            rotation: finalRotation,
+            rotation: node.rotation(),
             width: Math.max(20, Math.round(node.width() * scaleX)),
             height: Math.max(20, Math.round(node.height() * scaleY)),
           });

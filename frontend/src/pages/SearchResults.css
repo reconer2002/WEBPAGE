@@ -1,0 +1,17 @@
+.search-container { max-width: 1100px; margin: 1.5rem auto; padding: 1rem; }
+.search-title { color: var(--color-primario); margin: 0 0 12px; font-weight: 700; }
+.search-empty { background: #f8fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 24px; text-align: center; color: #64748b; }
+.search-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+.search-card { background: #fff; border: 1px solid #eee; border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; }
+.search-imgbox { width: 100%; height: 180px; display:flex; align-items:center; justify-content:center; background:#f8fafb; }
+.search-imgbox img { max-width:100%; max-height:100%; object-fit: contain; }
+.search-info { display:flex; justify-content: space-between; align-items: center; padding: 12px; }
+.search-price { color:#111827; font-weight:600; }
+.search-actions { padding: 0 12px 12px; }
+.search-actions .btn { display:inline-block; padding:8px 12px; border-radius:8px; background: var(--color-primario); color:#fff; text-decoration:none; font-size:14px; }
+.search-actions .btn:hover { background: var(--color-primario-hover, #005a60); }
+
+@media (max-width: 600px) {
+  .search-imgbox { height: 150px; }
+}
+

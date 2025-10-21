@@ -1,0 +1,11 @@
+.register-container { max-width: 720px; margin: 24px auto; padding: 16px; }
+.register-form { display: grid; gap: 12px; }
+.register-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.register-field { display: grid; gap: 6px; font-size: 0.95rem; }
+.register-input { padding: 8px; border: 1px solid #cbd5e1; border-radius: 8px; }
+.register-full { grid-column: 1 / -1; }
+
+@media (max-width: 640px) {
+  .register-row { grid-template-columns: 1fr; }
+}
+

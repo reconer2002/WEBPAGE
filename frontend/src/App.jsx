@@ -15,6 +15,7 @@ import Register from "./components/LoginForm/Register";
 import Profile from "./pages/Profile";
 import VerifyAccount from "./pages/VerifyAccount";
 import SearchResults from "./pages/SearchResults";
+import { CartProvider } from "./context/CartContext";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -85,6 +86,7 @@ function App() {
 
   return (
     <Router>
+      <CartProvider>
       <Routes>
         <Route
           path="/mantenedor"
@@ -218,6 +220,7 @@ function App() {
           }
         />
       </Routes>
+      </CartProvider>
     </Router>
   );
 }

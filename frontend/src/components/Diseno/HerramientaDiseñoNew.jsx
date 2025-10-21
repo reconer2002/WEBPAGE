@@ -50,7 +50,8 @@ const HerramientaDiseño = ({ onDisenoGuardado }) => {
     sincronizarEstadoTexto,
     sincronizarEstadoImagen,
     handleSelectElement,
-    handleTextInputChange
+    handleTextInputChange,
+    saveAndAddToCart,
   } = useHerramientaDiseño(onDisenoGuardado);
 
   return (
@@ -253,6 +254,7 @@ const HerramientaDiseño = ({ onDisenoGuardado }) => {
         onEliminarElemento={eliminarElemento}
         onDuplicarElemento={duplicarElemento}
         onCaptureAndUploadViews={captureAndUploadViews}
+        onSaveAndAddToCart={saveAndAddToCart}
       />
     </div>
   );

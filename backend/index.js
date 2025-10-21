@@ -4,13 +4,22 @@ const app = express();
 require('dotenv').config();
 
 // ✅ Middleware para JSON
-app.use(express.json());
+// Aceptar payloads grandes (canvas base64) hasta 10MB
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // ✅ IMPORTAR dbSelector
 const dbSelector = require('./middleware/dbSelector');
+// ✅ Migraciones suaves para perfil de usuario (añade columnas si faltan)
+const { ensureUserProfileSchema } = require('./utils/schema');
 
 // ✅ Aplicarlo ANTES de las rutas
 app.use(dbSelector);
+
+// Asegurar columnas de perfil sin requerir bandera (idempotente)
+ensureUserProfileSchema().catch((err) => {
+  console.warn('No se pudo asegurar el esquema de usuarios:', err?.message);
+});
 
 // ✅ Rutas
 const authRoutes = require('./routes/auth');
@@ -43,8 +52,26 @@ app.use('/api/objetos', objetosRouter);
 const diseniosBaseRouter = require('./routes/disenios_base');
 app.use('/api/disenios_base', diseniosBaseRouter);
 
-// ✅ Archivos estáticos
-app.use('/img', express.static(path.join(__dirname, 'img')));
+// Rutas faltantes: disenos, cart y products
+const disenosRouter = require('./routes/disenos');
+app.use('/api/disenos', disenosRouter);
+
+const cartRouter = require('./routes/cart');
+app.use('/api/cart', cartRouter);
+
+const productsRouter = require('./routes/products');
+app.use('/api/products', productsRouter);
+
+// ✅ Archivos estáticos con CORS para permitir captura del canvas
+app.use(
+  '/img',
+  (req, res, next) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    next();
+  },
+  express.static(path.join(__dirname, 'img'))
+);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Servidor corriendo en puerto ${PORT}`));

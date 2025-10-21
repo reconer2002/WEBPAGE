@@ -1,6 +1,5 @@
 import React from "react";
 import { generarNombreObjeto } from "../../utils/disenoHelpers";
-import { useCart } from "../../../../context/CartContext";
 
 const SidebarDiseño = ({
   loading,
@@ -18,24 +17,19 @@ const SidebarDiseño = ({
   onHandleImageUpload,
   onEliminarElemento,
   onDuplicarElemento,
-  onCaptureAndUploadViews
+  onCaptureAndUploadViews,
+  onSaveAndAddToCart
 }) => {
-  const { addToCart } = useCart();
-
   const handleAgregarAlCarrito = () => {
-    if (!objetoSeleccionado) return;
-    
-    // Crear un objeto de diseño simulado
-    const diseño = {
-      id: Date.now(),
-      nombre: `Diseño de ${generarNombreObjeto(objetoSeleccionado)}`,
-      imagenPrincipal: objetoSeleccionado.imagen,
-      objeto: objetoSeleccionado,
-      vista: vistaActual,
-      elementos: elementos[vistaActual] || []
-    };
-    
-    addToCart(diseño);
+    // Delegar al manejador provisto por el hook (guardado + cart backend)
+    if (typeof onSaveAndAddToCart === 'function') {
+      onSaveAndAddToCart();
+      return;
+    }
+    if (typeof onCaptureAndUploadViews === 'function') {
+      // Si solo tenemos el guardado, guardamos primero y luego que el usuario vaya a "Tus Diseños"
+      onCaptureAndUploadViews();
+    }
   };
   return (
     <div className="options-column">

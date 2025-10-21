@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import articulosService from "../../../services/articulosService";
 import objetosService from "../../../services/objetosService";
 import diseniosBaseService from "../../../services/diseniosBaseService";
-import disenosMockService from "../../../services/disenosMockService";
+import disenosService from "../../../services/disenosService";
+import cartService from "../../../services/cartService";
 import { configurarImagenesVistas, calcularPosicionElemento } from "../utils/disenoHelpers";
 
 export const useHerramientaDiseño = (onDisenoGuardado) => {
@@ -297,36 +298,49 @@ export const useHerramientaDiseño = (onDisenoGuardado) => {
         return;
       }
 
-      // Preparar datos del diseño
+      // Preparar datos del diseño para backend real
       const disenoData = {
         nombre: nombreDiseno,
-        objeto_id: objetoSeleccionado.id,
-        articulo_nombre: objetoSeleccionado.articulo_nombre,
         articulo_id: objetoSeleccionado.articulo_id,
-        precio: objetoSeleccionado.precio,
         imagen: dataURL,
-        vista_principal: vistaActual,
-        elementos_por_vista: elementosPorVista,
-        imagenes_base: imagenesVistas,
+        elementos: elementos,
         variantes: objetoSeleccionado.variantes || []
       };
 
-      // Guardar usando el servicio mock
-      const disenoGuardado = await disenosMockService.guardarDiseno(disenoData);
-      
+      // Validar sesión
+      const token = localStorage.getItem('token');
+      if (!token) {
+        alert('Debes iniciar sesión para guardar tus diseños');
+        setGuardandoDiseno(false);
+        return null;
+      }
+
+      const res = await disenosService.guardarDiseno(disenoData);
       alert(`¡Diseño "${nombreDiseno}" guardado exitosamente!`);
-      console.log("Diseño guardado:", disenoGuardado);
 
       // Notificar al componente padre que se guardó un diseño
-      if (onDisenoGuardado) {
-        onDisenoGuardado();
-      }
+      if (onDisenoGuardado) onDisenoGuardado();
+      return res?.id ?? null;
 
     } catch (error) {
       console.error("Error al guardar el diseño:", error);
-      alert("Error al guardar el diseño. Inténtalo de nuevo.");
+      const msg = error?.response?.data?.error || error?.message || 'Fallo desconocido';
+      alert("Error al guardar el diseño: " + msg);
     } finally {
       setGuardandoDiseno(false);
+    }
+  };
+
+  // Guardar y agregar al carrito (backend)
+  const saveAndAddToCart = async () => {
+    const designId = await captureAndUploadViews();
+    if (!designId) return;
+    try {
+      await cartService.addItem({ id: objetoSeleccionado.articulo_id }, 1, { designId });
+      alert('Diseño agregado al carrito');
+    } catch (e) {
+      console.error('Error al agregar al carrito', e);
+      alert('No se pudo agregar al carrito');
     }
   };
 
@@ -489,6 +503,7 @@ export const useHerramientaDiseño = (onDisenoGuardado) => {
     cambiarVista,
     posicionarElemento,
     captureAndUploadViews,
+    saveAndAddToCart,
     actualizarElemento,
     eliminarElemento,
     duplicarElemento,

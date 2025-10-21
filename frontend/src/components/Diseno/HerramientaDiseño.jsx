@@ -3,15 +3,10 @@ import { Stage, Layer, Text, Image as KonvaImage, Transformer } from "react-konv
 import useImage from "use-image";
 import "./HerramientaDiseño.css";
 import articulosService from "../../services/articulosService";
-<<<<<<< HEAD
 import objetosService from "../../services/objetosService";
 import diseniosBaseService from "../../services/diseniosBaseService";
-import disenosMockService from "../../services/disenosMockService";
-=======
-import variantesService from "../../services/variantesService";
 import disenosService from "../../services/disenosService";
 import cartService from "../../services/cartService";
->>>>>>> wip-merge-20251019-204919
 import ImagenElemento from "./ImagenElemento";
 
 const HerramientaDiseño = ({ onDisenoGuardado }) => {
@@ -59,11 +54,7 @@ const HerramientaDiseño = ({ onDisenoGuardado }) => {
   const [imageDimensions, setImageDimensions] = useState({ width: 100, height: 100 });
   const [currentImageRotation, setCurrentImageRotation] = useState(0);
 
-<<<<<<< HEAD
-  const [baseImage, imageStatus] = useImage(imagenesVistas[vistaActual] || "", 'anonymous');
-=======
-  const [baseImage] = useImage(articuloSeleccionado?.foto || "", "Anonymous");
->>>>>>> wip-merge-20251019-204919
+  const [baseImage, imageStatus] = useImage(imagenesVistas[vistaActual] || "", "Anonymous");
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -381,111 +372,48 @@ const HerramientaDiseño = ({ onDisenoGuardado }) => {
     actualizarElemento(selectedId, { x: Math.max(0, newX), y: Math.max(0, newY) });
   };
 
-<<<<<<< HEAD
-  const captureAndUploadViews = async () => {
+  // Guardar diseño usando API real y (opcional) agregar al carrito
+  const saveDesign = async () => {
     if (!objetoSeleccionado) {
       alert("Primero selecciona un objeto para personalizar");
-      return;
+      return null;
     }
-
     try {
       setGuardandoDiseno(true);
-      
-      // Guardar el ID del elemento seleccionado actual
-      const elementoSeleccionadoAntes = selectedId;
-      
-      // Deseleccionar temporalmente para que no aparezcan los controles
-      setSelectedId(null);
-      setImageEditMode(false);
-      
-      // Esperar un frame para que se actualice la UI
-      await new Promise(resolve => requestAnimationFrame(resolve));
-      
-      // Capturar imagen de la vista actual del canvas
-      const stage = stageRef.current;
-      const dataURL = stage.toDataURL({ mimeType: 'image/png', quality: 1 });
-      
-      // Restaurar la selección después de la captura
-      setSelectedId(elementoSeleccionadoAntes);
-      if (elementoSeleccionadoAntes) {
-        const elemento = elementos.find(el => el.id === elementoSeleccionadoAntes);
-        if (elemento?.type === "image") {
-          setImageEditMode(true);
-        }
-      }
-      
-      // Crear el nombre del diseño
-      const nombreDiseno = prompt("Ingresa un nombre para tu diseño:", 
-        `Diseño ${objetoSeleccionado.articulo_nombre} ${new Date().toLocaleDateString()}`);
-      
-      if (!nombreDiseno) {
-        setGuardandoDiseno(false);
-        return;
-      }
-
-      // Preparar datos del diseño
-      const disenoData = {
-        nombre: nombreDiseno,
-        objeto_id: objetoSeleccionado.id,
-        articulo_nombre: objetoSeleccionado.articulo_nombre,
-        articulo_id: objetoSeleccionado.articulo_id,
-        precio: objetoSeleccionado.precio,
-        imagen: dataURL, // Imagen principal (vista actual)
-        vista_principal: vistaActual,
-        elementos_por_vista: elementosPorVista, // Guardar todos los elementos
-        imagenes_base: imagenesVistas, // Guardar las imágenes base de todas las vistas
-        variantes: objetoSeleccionado.variantes || []
-      };
-
-      // Guardar usando el servicio mock
-      const disenoGuardado = await disenosMockService.guardarDiseno(disenoData);
-      
-      alert(`¡Diseño "${nombreDiseno}" guardado exitosamente!`);
-      console.log("Diseño guardado:", disenoGuardado);
-
-      // Notificar al componente padre que se guardó un diseño
-      if (onDisenoGuardado) {
-        onDisenoGuardado();
-      }
-
-    } catch (error) {
-      console.error("Error al guardar el diseño:", error);
-      alert("Error al guardar el diseño. Inténtalo de nuevo.");
-    } finally {
-      setGuardandoDiseno(false);
-=======
-  const handleVarianteSelect = (categoria, variante) => {
-    setVariantesSeleccionadas((prev) => ({ ...prev, [categoria]: variante }));
-  };
-
-  const variantesPorCategoria = variantes.reduce((acc, variante) => {
-    const categoria = variante.categoria || variante.nombre_categoria;
-    if (!acc[categoria]) acc[categoria] = [];
-    acc[categoria].push(variante);
-    return acc;
-  }, {});
-
-  const saveDesign = async () => {
-    // Devuelve id del diseño creado o null
-    try {
       const token = localStorage.getItem("token");
       if (!token) {
         alert("Necesitas iniciar sesión para guardar el diseño");
         return null;
       }
 
-      const canvas = stageRef.current.toCanvas();
-      const imagen = canvas.toDataURL();
+      // Ocultar controles para la captura
+      const elementoSeleccionadoAntes = selectedId;
+      setSelectedId(null);
+      setImageEditMode(false);
+      await new Promise((r) => requestAnimationFrame(r));
 
-      const nombre = prompt("Ingresa un nombre para tu diseño:");
+      const stage = stageRef.current;
+      const imagen = stage.toDataURL({ mimeType: 'image/png', quality: 1 });
+
+      // Restaurar selección
+      setSelectedId(elementoSeleccionadoAntes);
+      if (elementoSeleccionadoAntes) {
+        const elemento = elementos.find((el) => el.id === elementoSeleccionadoAntes);
+        if (elemento?.type === 'image') setImageEditMode(true);
+      }
+
+      const nombre = prompt(
+        "Ingresa un nombre para tu diseño:",
+        `Diseño ${objetoSeleccionado.articulo_nombre} ${new Date().toLocaleDateString()}`
+      );
       if (!nombre) return null;
 
       const diseno = {
         nombre,
-        articulo_id: articuloSeleccionado.id,
+        articulo_id: objetoSeleccionado.articulo_id,
         imagen,
-        elementos,
-        variantes: variantesSeleccionadas,
+        elementos: elementos,
+        variantes: objetoSeleccionado.variantes || [],
       };
 
       const res = await disenosService.guardarDiseno(diseno);
@@ -493,15 +421,10 @@ const HerramientaDiseño = ({ onDisenoGuardado }) => {
       return res?.id ?? null;
     } catch (error) {
       console.error("Error al guardar diseño:", error);
-      if (error.response?.status === 401) {
-        alert("Necesitas iniciar sesión para guardar el diseño");
-      } else {
-        alert(
-          "Error al guardar el diseño: " +
-            (error.response?.data?.error || error.message)
-        );
-      }
+      alert("Error al guardar el diseño: " + (error?.response?.data?.error || error.message));
       return null;
+    } finally {
+      setGuardandoDiseno(false);
     }
   };
 
@@ -509,12 +432,11 @@ const HerramientaDiseño = ({ onDisenoGuardado }) => {
     const designId = await saveDesign();
     if (!designId) return;
     try {
-      await cartService.addItem({ id: articuloSeleccionado.id }, 1, { designId });
+      await cartService.addItem({ id: objetoSeleccionado.articulo_id }, 1, { designId });
       alert("Diseño agregado al carrito");
     } catch (e) {
       console.error("Error al agregar al carrito", e);
       alert("No se pudo agregar al carrito");
->>>>>>> wip-merge-20251019-204919
     }
   };
 
@@ -933,36 +855,24 @@ const HerramientaDiseño = ({ onDisenoGuardado }) => {
               </div>
 
               <div className="sidebar-section">
-<<<<<<< HEAD
-                <button 
-                  className="save-btn" 
-                  onClick={captureAndUploadViews} 
-                  style={{ 
-                    width: "100%", 
-                    opacity: (objetoSeleccionado && !guardandoDiseno) ? 1 : 0.5 
-                  }}
-                  disabled={!objetoSeleccionado || guardandoDiseno}
-                >
-                  {guardandoDiseno ? "Guardando..." : "💾 Guardar diseño"}
-                </button>
-=======
                 <div style={{ display: "grid", gap: 8 }}>
                   <button
                     className="save-btn"
                     onClick={saveDesign}
-                    style={{ width: "100%" }}
+                    style={{ width: "100%", opacity: (objetoSeleccionado && !guardandoDiseno) ? 1 : 0.5 }}
+                    disabled={!objetoSeleccionado || guardandoDiseno}
                   >
-                    💾 Guardar diseño
+                    {guardandoDiseno ? "Guardando..." : "💾 Guardar diseño"}
                   </button>
                   <button
                     className="save-btn"
                     onClick={saveAndAddToCart}
-                    style={{ width: "100%", background: "#0f766e", color: "#fff" }}
+                    style={{ width: "100%", background: "#0f766e", color: "#fff", opacity: (objetoSeleccionado && !guardandoDiseno) ? 1 : 0.5 }}
+                    disabled={!objetoSeleccionado || guardandoDiseno}
                   >
                     💾 Guardar y agregar al carrito
                   </button>
                 </div>
->>>>>>> wip-merge-20251019-204919
               </div>
             </>
           )}

@@ -128,6 +128,36 @@ function App() {
         />
 
         <Route
+          path="/disenos/crear"
+          element={
+            <>
+              <Header
+                user={user}
+                onLogin={handleLogin}
+                onLogout={handleLogout}
+              />
+              <DisenosPage user={user} loading={loadingUser} mode="crear" />
+              <Footer />
+            </>
+          }
+        />
+
+        <Route
+          path="/disenos/editar/:id"
+          element={
+            <>
+              <Header
+                user={user}
+                onLogin={handleLogin}
+                onLogout={handleLogout}
+              />
+              <DisenosPage user={user} loading={loadingUser} mode="editar" />
+              <Footer />
+            </>
+          }
+        />
+
+        <Route
           path="/perfil"
           element={
             <>

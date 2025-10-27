@@ -2,15 +2,12 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import "./DisenosGuardados.css";
 import disenosService from "../../services/disenosService";
-import productsService from "../../services/productsService";
 import cartService from "../../services/cartService";
 
 const DisenosGuardados = () => {
   const [disenos, setDisenos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [addingId, setAddingId] = useState(null);
-  const [stocks, setStocks] = useState({});
-  const [updatingStock, setUpdatingStock] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -28,30 +25,6 @@ const DisenosGuardados = () => {
 
     cargarDisenos();
   }, []);
-
-  const refreshStocks = async () => {
-    try {
-      setUpdatingStock(true);
-      const ids = Array.from(new Set(disenos.map((d) => d.articulo_id).filter(Boolean)));
-      const map = {};
-      for (const id of ids) {
-        try {
-          const p = await productsService.getProduct(id);
-          map[id] = typeof p?.stock === "number" ? p.stock : null;
-        } catch (e) {
-          map[id] = null;
-        }
-      }
-      setStocks(map);
-    } finally {
-      setUpdatingStock(false);
-    }
-  };
-
-  useEffect(() => {
-    if (disenos.length) refreshStocks();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [disenos.length]);
 
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "";
   const resolveImage = (primary, fallback) => {
@@ -106,18 +79,7 @@ const DisenosGuardados = () => {
 
   return (
     <div className="disenos-guardados">
-      <h2 style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span>Tus Diseños Guardados</span>
-        <button
-          className="crear-diseno-btn"
-          onClick={refreshStocks}
-          disabled={updatingStock || loading}
-          title="Actualizar stock"
-          style={{ padding: "8px 12px" }}
-        >
-          {updatingStock ? "Actualizando…" : "Actualizar stock"}
-        </button>
-      </h2>
+      <h2>Tus Diseños Guardados</h2>
 
       {loading ? (
         <div className="disenos-loading">
@@ -128,13 +90,22 @@ const DisenosGuardados = () => {
           <p>No tienes diseños guardados</p>
           <button
             className="crear-diseno-btn"
-            onClick={() => navigate("/disenos")}
+            onClick={() => navigate("/disenos/crear")}
           >
             Crear nuevo diseño
           </button>
         </div>
       ) : (
-        <div className="disenos-grid">
+        <>
+          <div style={{ marginBottom: "20px", display: "flex", justifyContent: "flex-end" }}>
+            <button
+              className="crear-diseno-btn"
+              onClick={() => navigate("/disenos/crear")}
+            >
+              ➕ Crear nuevo diseño
+            </button>
+          </div>
+          <div className="disenos-grid">
           {disenos.map((diseno) => (
             <div key={diseno.id} className="diseno-card">
               <div className="diseno-imgbox">
@@ -158,23 +129,23 @@ const DisenosGuardados = () => {
                 <h3>{diseno.nombre}</h3>
                 <p>{diseno.articulo_nombre}</p>
                 <p style={{ margin: 0, color: "#0f766e", fontWeight: 600 }}>
-                  Stock: {stocks[diseno.articulo_id] ?? "—"}
+                  Stock: {diseno.stock ?? "—"}
                 </p>
-                <p className="fecha">
-                  {(() => {
-                    const v = diseno?.fecha_creacion;
-                    if (!v) return "";
-                    const d = new Date(v);
-                    return isNaN(d) ? "" : d.toLocaleDateString();
-                  })()}
-                </p>
+                {diseno.fecha_modificacion && (
+                  <p className="fecha" style={{ fontSize: 11, color: "#6b7280", marginTop: 4 }}>
+                    {(() => {
+                      const d = new Date(diseno.fecha_modificacion);
+                      return isNaN(d) ? "" : `Modificado: ${d.toLocaleDateString()}`;
+                    })()}
+                  </p>
+                )}
               </div>
               <div className="diseno-actions">
                 <button
                   className="editar-btn"
                   onClick={() => {
-                    // TODO: Implementar edición de diseño
-                    alert("Funcionalidad de edición en desarrollo");
+                    // Navegar a la ruta de edición
+                    navigate(`/disenos/editar/${diseno.id}`);
                   }}
                 >
                   Editar
@@ -230,7 +201,8 @@ const DisenosGuardados = () => {
               </div>
             </div>
           ))}
-        </div>
+          </div>
+        </>
       )}
     </div>
   );

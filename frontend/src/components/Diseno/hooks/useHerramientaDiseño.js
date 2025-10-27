@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import articulosService from "../../../services/articulosService";
 import objetosService from "../../../services/objetosService";
 import diseniosBaseService from "../../../services/diseniosBaseService";
@@ -6,7 +7,8 @@ import disenosService from "../../../services/disenosService";
 import cartService from "../../../services/cartService";
 import { configurarImagenesVistas, calcularPosicionElemento } from "../utils/disenoHelpers";
 
-export const useHerramientaDiseño = (onDisenoGuardado) => {
+export const useHerramientaDiseño = () => {
+  const navigate = useNavigate();
   // Estados principales
   const [elementosPorVista, setElementosPorVista] = useState({
     frente: [],
@@ -28,6 +30,10 @@ export const useHerramientaDiseño = (onDisenoGuardado) => {
   });
   const [loading, setLoading] = useState(true);
   const [guardandoDiseno, setGuardandoDiseno] = useState(false);
+  
+  // Estado para rastrear si estamos editando un diseño existente
+  const [disenoIdActual, setDisenoIdActual] = useState(null);
+  const [nombreDisenoActual, setNombreDisenoActual] = useState(null);
 
   // Estados para edición
   const [textInputValue, setTextInputValue] = useState("");
@@ -276,6 +282,42 @@ export const useHerramientaDiseño = (onDisenoGuardado) => {
       // Esperar un frame para que se actualice la UI
       await new Promise(resolve => requestAnimationFrame(resolve));
       
+      // Convertir URLs blob a base64 en todos los elementos
+      const convertirImagenesABase64 = async (elementosVista) => {
+        const elementosConvertidos = [];
+        for (const el of elementosVista) {
+          if (el.type === 'image' && el.url && el.url.startsWith('blob:')) {
+            try {
+              // Convertir blob URL a base64
+              const response = await fetch(el.url);
+              const blob = await response.blob();
+              const base64 = await new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result);
+                reader.readAsDataURL(blob);
+              });
+              elementosConvertidos.push({ ...el, url: base64 });
+              console.log("Imagen convertida de blob a base64");
+            } catch (error) {
+              console.error("Error convirtiendo imagen a base64:", error);
+              elementosConvertidos.push(el); // Mantener original si falla
+            }
+          } else {
+            elementosConvertidos.push(el);
+          }
+        }
+        return elementosConvertidos;
+      };
+
+      // Convertir todas las imágenes en todas las vistas
+      console.log("Convirtiendo imágenes blob a base64...");
+      const elementosConvertidos = {
+        frente: await convertirImagenesABase64(elementosPorVista.frente || []),
+        izquierda: await convertirImagenesABase64(elementosPorVista.izquierda || []),
+        derecha: await convertirImagenesABase64(elementosPorVista.derecha || []),
+        detras: await convertirImagenesABase64(elementosPorVista.detras || [])
+      };
+      
       // Capturar imagen de la vista actual del canvas
       const stage = stageRef.current;
       const dataURL = stage.toDataURL({ mimeType: 'image/png', quality: 1 });
@@ -289,23 +331,68 @@ export const useHerramientaDiseño = (onDisenoGuardado) => {
         }
       }
       
-      // Crear el nombre del diseño
-      const nombreDiseno = prompt("Ingresa un nombre para tu diseño:", 
-        `Diseño ${objetoSeleccionado.articulo_nombre} ${new Date().toLocaleDateString()}`);
+      // Si estamos editando, preguntar si actualizar o crear nuevo
+      let accion = 'nuevo';
+      if (disenoIdActual) {
+        const confirmacion = confirm(
+          `Estás editando "${nombreDisenoActual}".\n\n` +
+          `¿Qué deseas hacer?\n\n` +
+          `OK = Actualizar diseño existente\n` +
+          `Cancelar = Guardar como nuevo diseño`
+        );
+        accion = confirmacion ? 'actualizar' : 'nuevo';
+      }
       
-      if (!nombreDiseno) {
-        setGuardandoDiseno(false);
-        return;
+      // Crear o solicitar el nombre del diseño
+      let nombreDiseno;
+      if (accion === 'actualizar') {
+        nombreDiseno = nombreDisenoActual;
+        const nuevoNombre = prompt(
+          "Nombre del diseño (presiona OK para mantener el actual):", 
+          nombreDiseno
+        );
+        if (nuevoNombre === null) {
+          setGuardandoDiseno(false);
+          return; // Usuario canceló
+        }
+        if (nuevoNombre.trim()) {
+          nombreDiseno = nuevoNombre.trim();
+        }
+      } else {
+        nombreDiseno = prompt(
+          "Ingresa un nombre para tu diseño:", 
+          `Diseño ${objetoSeleccionado.articulo_nombre} ${new Date().toLocaleDateString()}`
+        );
+        if (!nombreDiseno) {
+          setGuardandoDiseno(false);
+          return;
+        }
       }
 
-      // Preparar datos del diseño para backend real
+      // Preparar datos completos del diseño para backend
       const disenoData = {
         nombre: nombreDiseno,
         articulo_id: objetoSeleccionado.articulo_id,
-        imagen: dataURL,
-        elementos: elementos,
-        variantes: objetoSeleccionado.variantes || []
+        objeto_id: objetoSeleccionado.id,
+        vista_actual: vistaActual,
+        elementos: elementosConvertidos[vistaActual], // Elementos de la vista actual (con imágenes base64)
+        elementos_por_vista: elementosConvertidos, // Elementos de todas las vistas (con imágenes base64)
+        imagen_preview: dataURL,
       };
+
+      console.log("=== ENVIANDO DISEÑO ===");
+      console.log("Acción:", accion);
+      console.log("ID (si actualiza):", disenoIdActual);
+      console.log("Nombre:", nombreDiseno);
+      console.log("Objeto ID:", objetoSeleccionado.id);
+      console.log("Vista actual:", vistaActual);
+      console.log("Elementos en vista actual:", elementosConvertidos[vistaActual].length);
+      console.log("Total elementos por vista:", {
+        frente: elementosConvertidos.frente?.length || 0,
+        izquierda: elementosConvertidos.izquierda?.length || 0,
+        derecha: elementosConvertidos.derecha?.length || 0,
+        detras: elementosConvertidos.detras?.length || 0,
+      });
 
       // Validar sesión
       const token = localStorage.getItem('token');
@@ -315,12 +402,27 @@ export const useHerramientaDiseño = (onDisenoGuardado) => {
         return null;
       }
 
-      const res = await disenosService.guardarDiseno(disenoData);
-      alert(`¡Diseño "${nombreDiseno}" guardado exitosamente!`);
+      let res;
+      if (accion === 'actualizar') {
+        // Actualizar diseño existente
+        res = await disenosService.actualizarDiseno(disenoIdActual, disenoData);
+        alert(`✅ Diseño "${nombreDiseno}" actualizado exitosamente!`);
+        // Navegar a la lista de diseños
+        navigate('/disenos');
+      } else {
+        // Crear nuevo diseño
+        res = await disenosService.guardarDiseno(disenoData);
+        const nuevoId = res?.id;
+        if (nuevoId) {
+          setDisenoIdActual(nuevoId);
+          setNombreDisenoActual(nombreDiseno);
+        }
+        alert(`✅ Diseño "${nombreDiseno}" guardado exitosamente!`);
+        // Navegar a la lista de diseños
+        navigate('/disenos');
+      }
 
-      // Notificar al componente padre que se guardó un diseño
-      if (onDisenoGuardado) onDisenoGuardado();
-      return res?.id ?? null;
+      return res?.id ?? disenoIdActual;
 
     } catch (error) {
       console.error("Error al guardar el diseño:", error);
@@ -338,6 +440,8 @@ export const useHerramientaDiseño = (onDisenoGuardado) => {
     try {
       await cartService.addItem({ id: objetoSeleccionado.articulo_id }, 1, { designId });
       alert('Diseño agregado al carrito');
+      // Navegar al carrito
+      navigate('/cart');
     } catch (e) {
       console.error('Error al agregar al carrito', e);
       alert('No se pudo agregar al carrito');
@@ -467,6 +571,133 @@ export const useHerramientaDiseño = (onDisenoGuardado) => {
     actualizarElemento(selectedId, { text: e.target.value });
   };
 
+  // Función para cargar un diseño existente
+  const cargarDiseno = async (disenoId) => {
+    try {
+      console.log("=== CARGANDO DISEÑO ===");
+      console.log("ID del diseño:", disenoId);
+      console.log("Objetos disponibles:", todosLosObjetos.length);
+      
+      setLoading(true);
+      const diseno = await disenosService.getDiseno(disenoId);
+      console.log("Diseño obtenido:", diseno);
+      
+      // Buscar el objeto correspondiente
+      const objeto = todosLosObjetos.find(obj => obj.id === diseno.objeto_id);
+      console.log("Objeto encontrado:", objeto);
+      
+      if (!objeto) {
+        alert("No se encontró el objeto asociado a este diseño. Puede que ya no esté disponible.");
+        return;
+      }
+      
+      // Seleccionar el objeto
+      console.log("Seleccionando objeto...");
+      handleObjetoSelect(objeto);
+      
+      // Cargar elementos completos
+      try {
+        let elementosCargados = {};
+        
+        // Opción 1: Si hay elementos_por_vista (nuevo formato)
+        if (diseno.elementos_por_vista) {
+          console.log("Cargando elementos por vista (formato nuevo)");
+          elementosCargados = diseno.elementos_por_vista;
+          
+          // Asegurar que todas las vistas existen
+          elementosCargados = {
+            frente: elementosCargados.frente || [],
+            izquierda: elementosCargados.izquierda || [],
+            derecha: elementosCargados.derecha || [],
+            detras: elementosCargados.detras || []
+          };
+        } 
+        // Opción 2: Si hay elementos (formato legacy)
+        else if (diseno.elementos) {
+          console.log("Cargando elementos (formato legacy)");
+          const elementosArray = Array.isArray(diseno.elementos) 
+            ? diseno.elementos 
+            : [];
+          
+          // Colocar todos en la vista actual (frente por defecto)
+          elementosCargados = {
+            frente: elementosArray,
+            izquierda: [],
+            derecha: [],
+            detras: []
+          };
+        }
+        // Opción 3: No hay elementos, crear vacío
+        else {
+          console.log("No hay elementos guardados");
+          elementosCargados = {
+            frente: [],
+            izquierda: [],
+            derecha: [],
+            detras: []
+          };
+        }
+        
+        console.log("Elementos cargados por vista:", {
+          frente: elementosCargados.frente?.length || 0,
+          izquierda: elementosCargados.izquierda?.length || 0,
+          derecha: elementosCargados.derecha?.length || 0,
+          detras: elementosCargados.detras?.length || 0,
+        });
+        
+        // Regenerar IDs únicos para evitar conflictos
+        const regenerarIds = (elementos) => {
+          return elementos.map((el, index) => ({
+            ...el,
+            id: Date.now() + index + Math.random() * 1000
+          }));
+        };
+        
+        // Establecer elementos por vista con IDs regenerados
+        setElementosPorVista({
+          frente: regenerarIds(elementosCargados.frente || []),
+          izquierda: regenerarIds(elementosCargados.izquierda || []),
+          derecha: regenerarIds(elementosCargados.derecha || []),
+          detras: regenerarIds(elementosCargados.detras || [])
+        });
+        
+        // Establecer vista actual
+        const vistaInicial = diseno.vista_actual || 'frente';
+        setVistaActual(vistaInicial);
+        
+        // Guardar ID y nombre del diseño para permitir actualización
+        setDisenoIdActual(diseno.id);
+        setNombreDisenoActual(diseno.nombre_diseno);
+        
+        // Limpiar selección
+        setSelectedId(null);
+        setImageEditMode(false);
+        
+        const totalElementos = 
+          (elementosCargados.frente?.length || 0) +
+          (elementosCargados.izquierda?.length || 0) +
+          (elementosCargados.derecha?.length || 0) +
+          (elementosCargados.detras?.length || 0);
+        
+        console.log(
+          `✅ Diseño "${diseno.nombre_diseno}" cargado exitosamente!\n` +
+          `📦 Objeto: ${objeto.articulo_nombre}\n` +
+          `🎨 Elementos: ${totalElementos}\n` +
+          `👁️ Vista: ${vistaInicial}`
+        );
+        
+      } catch (error) {
+        console.error("Error al parsear elementos del diseño:", error);
+        console.warn("El diseño se cargó pero hubo un error al recuperar los elementos:", error.message);
+      }
+    } catch (error) {
+      console.error("Error al cargar diseño:", error);
+      console.error("Detalles del error:", error.message || "Error desconocido");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return {
     // Estados
     elementos,
@@ -480,6 +711,8 @@ export const useHerramientaDiseño = (onDisenoGuardado) => {
     imagenesVistas,
     loading,
     guardandoDiseno,
+    disenoIdActual,
+    nombreDisenoActual,
     textInputValue,
     textStyle,
     setTextStyle,
@@ -513,6 +746,7 @@ export const useHerramientaDiseño = (onDisenoGuardado) => {
     sincronizarEstadoTexto,
     sincronizarEstadoImagen,
     handleSelectElement,
-    handleTextInputChange
+    handleTextInputChange,
+    cargarDiseno
   };
 };

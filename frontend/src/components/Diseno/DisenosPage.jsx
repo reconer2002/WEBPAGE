@@ -1,68 +1,29 @@
-import React, { useState, useRef } from "react";
-import HerramientaDiseño from "./HerramientaDiseñoNew";
+import React, { useState } from "react";
+import { useParams, useLocation } from "react-router-dom";
+import HerramientaDiseño from "./HerramientaDiseño";
 import DisenosGuardados from "./DisenosGuardados";
 import ProtectedRoute from "../ProtectedRoute";
 import "./DisenosPage.css";
 
-const DisenosPage = ({ user, loading }) => {
-  const [activeTab, setActiveTab] = useState("herramienta");
+const DisenosPage = ({ user, loading, mode }) => {
+  const { id } = useParams(); // Para /disenos/editar/:id
+  const location = useLocation();
   const [error, setError] = useState(null);
-  const disenosGuardadosRef = useRef();
 
-  const handleTabClick = (tab) => {
-    if (tab === "guardados") {
-      if (!user) {
-        setError("Debes iniciar sesión para ver tus diseños guardados");
-        return;
-      }
-      // Verificar permisos si el usuario no es superadmin
-      if (
-        user.rol !== "superadmin" &&
-        !user.permisos?.includes("personalizar_productos")
-      ) {
-        setError("No tienes permiso para ver los diseños guardados");
-        return;
-      }
-    }
-    setActiveTab(tab);
-    setError(null);
-  };
-
-  // Función para notificar cuando se guarda un diseño
-  const handleDisenoGuardado = () => {
-    // Recargar los diseños guardados si está en esa pestaña
-    if (activeTab === "guardados" && disenosGuardadosRef.current) {
-      disenosGuardadosRef.current.recargarDisenos();
-    } else {
-      // Si no está en la pestaña, cambiar automáticamente
-      setActiveTab("guardados");
-    }
-  };
+  // Determinar qué mostrar basado en la ruta
+  const isHerramienta = mode === "crear" || mode === "editar";
+  const editarId = mode === "editar" ? id : null;
 
   return (
     <div className="disenos-page">
-      <nav className="disenos-nav">
-        <button
-          className={`tab-btn ${activeTab === "herramienta" ? "active" : ""}`}
-          onClick={() => handleTabClick("herramienta")}
-        >
-          Herramienta de Diseño
-        </button>
-        <button
-          className={`tab-btn ${activeTab === "guardados" ? "active" : ""}`}
-          onClick={() => handleTabClick("guardados")}
-        >
-          Diseños Guardados
-        </button>
-      </nav>
-
       <div className="disenos-content">
         {error && <div className="error-message">{error}</div>}
-        {activeTab === "herramienta" ? (
+        {isHerramienta ? (
           <HerramientaDiseño 
+            key={editarId || 'new'} // Usar editarId para forzar re-mount
             onError={setError} 
             user={user} 
-            onDisenoGuardado={handleDisenoGuardado}
+            editarId={editarId}
           />
         ) : (
           <ProtectedRoute
@@ -70,7 +31,7 @@ const DisenosPage = ({ user, loading }) => {
             requiredPermission="personalizar_productos"
             loading={loading}
           >
-            <DisenosGuardados ref={disenosGuardadosRef} onError={setError} />
+            <DisenosGuardados onError={setError} />
           </ProtectedRoute>
         )}
       </div>

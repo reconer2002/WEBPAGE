@@ -10,6 +10,8 @@ const SidebarDiseño = ({
   selectedId,
   elementos,
   guardandoDiseno,
+  disenoIdActual,
+  nombreDisenoActual,
   onObjetoSelect,
   onCambiarVista,
   onAgregarTexto,
@@ -171,6 +173,27 @@ const SidebarDiseño = ({
             </div>
 
             <div className="sidebar-section">
+              {disenoIdActual && nombreDisenoActual && (
+                <div style={{
+                  background: '#fef3c7',
+                  border: '2px solid #f59e0b',
+                  borderRadius: '8px',
+                  padding: '12px',
+                  marginBottom: '12px',
+                  textAlign: 'center'
+                }}>
+                  <div style={{ fontSize: 12, fontWeight: 'bold', color: '#92400e', marginBottom: 4 }}>
+                    ✏️ Editando diseño
+                  </div>
+                  <div style={{ fontSize: 14, fontWeight: 'bold', color: '#b45309' }}>
+                    "{nombreDisenoActual}"
+                  </div>
+                  <div style={{ fontSize: 10, color: '#78350f', marginTop: 4 }}>
+                    ID: {disenoIdActual}
+                  </div>
+                </div>
+              )}
+              
               <button 
                 className="save-btn" 
                 onClick={onCaptureAndUploadViews} 
@@ -181,7 +204,8 @@ const SidebarDiseño = ({
                 }}
                 disabled={!objetoSeleccionado || guardandoDiseno}
               >
-                {guardandoDiseno ? "🔄 Guardando..." : "💾 Guardar diseño"}
+                {guardandoDiseno ? "🔄 Guardando..." : 
+                 disenoIdActual ? "💾 Actualizar diseño" : "💾 Guardar diseño"}
               </button>
               
               <button 

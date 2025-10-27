@@ -11,6 +11,16 @@ const getDisenos = async () => {
   }
 };
 
+const getDiseno = async (id) => {
+  try {
+    const response = await api.get(`/disenos/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error al obtener diseño:", error);
+    throw error;
+  }
+};
+
 const guardarDiseno = async (diseno) => {
   try {
     const response = await api.post("/disenos", diseno);
@@ -43,6 +53,7 @@ const actualizarDiseno = async (id, diseno) => {
 
 export default {
   getDisenos,
+  getDiseno,
   guardarDiseno,
   eliminarDiseno,
   actualizarDiseno,

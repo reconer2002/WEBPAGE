@@ -119,34 +119,29 @@ router.get('/', auth, async (req, res) => {
          a.id                AS product_id,
          a.nombre            AS name,
          COALESCE(o.precio, a.precio) AS price,
-         COALESCE(JSON_UNQUOTE(JSON_EXTRACT(d.imagenes, '$[0]')), a.foto) AS image,
+         COALESCE(d.imagen_preview, a.foto) AS image,
          a.descuento         AS discount_percent,
          NULL                AS bulk_min_qty,
          NULL                AS bulk_percent,
-         IFNULL(inv.stock, 0) AS stock,
+         IFNULL(o.existencias, 0) AS stock,
          d.objeto_id         AS objeto_id,
-         CAST(d.imagenes AS CHAR) AS imagenes_raw,
-         CAST(d.textos   AS CHAR) AS textos_raw
+         CAST(d.elementos_por_vista AS CHAR) AS elementos_por_vista_raw
        FROM carrito_disenos cd
        JOIN disenos d  ON d.id = cd.diseno_id
        JOIN objetos o  ON o.id = d.objeto_id
        JOIN articulos a ON a.id = o.articulo_id
-       LEFT JOIN (
-         SELECT articulo_id, SUM(existencias) AS stock FROM objetos GROUP BY articulo_id
-       ) inv ON inv.articulo_id = a.id
        WHERE cd.carrito_id = ?
        ORDER BY a.nombre`,
       [cartId]
     );
     if (DEMO_STOCK !== null) rows.forEach((r) => (r.stock = DEMO_STOCK));
-    // Agregar por grupos (misma combinación de articulo/objeto/imagen/diseño JSON)
+    // Agregar por grupos (misma combinación de articulo/objeto/elementos)
     const groups = new Map();
     for (const r of rows) {
       const key = [
         r.product_id,
         r.objeto_id,
-        r.imagenes_raw || 'null',
-        r.textos_raw || 'null',
+        r.elementos_por_vista_raw || 'null',
       ].join('|');
       if (!groups.has(key)) {
         groups.set(key, {
@@ -218,7 +213,7 @@ router.patch('/items/:productId', auth, async (req, res) => {
     const hasQty = await hasQtyColumn();
     // Base del grupo: debe existir en el carrito del usuario
     const [[base]] = await db.query(
-      `SELECT d.id, d.usuario_id, d.objeto_id, d.imagenes, d.textos, d.costo
+      `SELECT d.id, d.usuario_id, d.objeto_id, d.elementos_por_vista, d.costo
          FROM carrito_disenos cd
          JOIN disenos d ON d.id = cd.diseno_id
         WHERE cd.carrito_id = ? AND d.id = ?`,
@@ -227,17 +222,15 @@ router.patch('/items/:productId', auth, async (req, res) => {
     if (!base) return res.status(404).json({ error: 'Diseño no encontrado en el carrito' });
 
     // Diseños equivalentes en este carrito
-    const imgsEq = toJsonArrayOrNull(base.imagenes);
-    const txtsEq = toJsonArrayOrNull(base.textos);
+    const elemsEq = toJsonArrayOrNull(base.elementos_por_vista);
     const [equivs] = await db.query(
       `SELECT d.id ${hasQty ? ', cd.cantidad' : ''}
          FROM carrito_disenos cd
          JOIN disenos d ON d.id = cd.diseno_id
         WHERE cd.carrito_id = ?
           AND d.objeto_id = ?
-          AND (d.imagenes <=> CAST(? AS JSON))
-          AND (d.textos   <=> CAST(? AS JSON))`,
-      [cartId, base.objeto_id, imgsEq, txtsEq]
+          AND (d.elementos_por_vista <=> CAST(? AS JSON))`,
+      [cartId, base.objeto_id, elemsEq]
     );
     const currentQty = hasQty ? equivs.reduce((s, e) => s + Number(e.cantidad || 0), 0) : equivs.length;
     if (currentQty === desiredQty) {
@@ -255,12 +248,11 @@ router.patch('/items/:productId', auth, async (req, res) => {
     } else if (desiredQty > currentQty) {
       const toCreate = desiredQty - currentQty;
       for (let i = 0; i < toCreate; i++) {
-        const imgs = toJsonArrayOrNull(base.imagenes);
-        const txts = toJsonArrayOrNull(base.textos);
+        const elems = toJsonArrayOrNull(base.elementos_por_vista);
         const costoVal = Number(base.costo || 0);
         const [ins] = await db.query(
-          `INSERT INTO disenos (usuario_id, objeto_id, imagenes, textos, costo) VALUES (?, ?, ?, ?, ?)`,
-          [req.user.id, base.objeto_id, imgs, txts, costoVal]
+          `INSERT INTO disenos (usuario_id, objeto_id, elementos_por_vista, costo) VALUES (?, ?, ?, ?)`,
+          [req.user.id, base.objeto_id, elems, costoVal]
         );
         await db.query(
           `INSERT INTO carrito_disenos (carrito_id, diseno_id) VALUES (?, ?)`,
@@ -289,21 +281,17 @@ router.patch('/items/:productId', auth, async (req, res) => {
          a.id                AS product_id,
          a.nombre            AS name,
          COALESCE(o.precio, a.precio) AS price,
-         COALESCE(JSON_UNQUOTE(JSON_EXTRACT(d.imagenes, '$[0]')), a.foto) AS image,
+         COALESCE(d.imagen_preview, a.foto) AS image,
          a.descuento         AS discount_percent,
          NULL                AS bulk_min_qty,
          NULL                AS bulk_percent,
-         IFNULL(inv.stock, 0) AS stock,
+         IFNULL(o.existencias, 0) AS stock,
          d.objeto_id         AS objeto_id,
-         CAST(d.imagenes AS CHAR) AS imagenes_raw,
-         CAST(d.textos   AS CHAR) AS textos_raw
+         CAST(d.elementos_por_vista AS CHAR) AS elementos_por_vista_raw
        FROM carrito_disenos cd
        JOIN disenos d  ON d.id = cd.diseno_id
        JOIN objetos o  ON o.id = d.objeto_id
        JOIN articulos a ON a.id = o.articulo_id
-       LEFT JOIN (
-         SELECT articulo_id, SUM(existencias) AS stock FROM objetos GROUP BY articulo_id
-       ) inv ON inv.articulo_id = a.id
        WHERE cd.carrito_id = ?
        ORDER BY a.nombre`,
       [cartId]
@@ -311,7 +299,7 @@ router.patch('/items/:productId', auth, async (req, res) => {
     if (DEMO_STOCK !== null) rows.forEach((r) => (r.stock = DEMO_STOCK));
     const groups = new Map();
     for (const r of rows) {
-      const key = [r.product_id, r.objeto_id, r.imagenes_raw || 'null', r.textos_raw || 'null'].join('|');
+      const key = [r.product_id, r.objeto_id, r.elementos_por_vista_raw || 'null'].join('|');
       if (!groups.has(key)) {
         groups.set(key, {
           product_id: r.product_id,
@@ -348,7 +336,7 @@ router.delete('/items/:productId', auth, async (req, res) => {
     const hasQty = await hasQtyColumn();
     // Obtener base del grupo
     const [[base]] = await db.query(
-      `SELECT d.id, d.objeto_id, d.imagenes, d.textos
+      `SELECT d.id, d.objeto_id, d.elementos_por_vista
          FROM carrito_disenos cd
          JOIN disenos d ON d.id = cd.diseno_id
         WHERE cd.carrito_id = ? AND d.id = ?`,
@@ -356,17 +344,15 @@ router.delete('/items/:productId', auth, async (req, res) => {
     );
     if (!base) return res.status(404).json({ error: 'Diseño no encontrado en el carrito' });
     // Eliminar todo el grupo equivalente
-    const imgsEq2 = toJsonArrayOrNull(base.imagenes);
-    const txtsEq2 = toJsonArrayOrNull(base.textos);
+    const elemsEq2 = toJsonArrayOrNull(base.elementos_por_vista);
     const [equivs] = await db.query(
       `SELECT d.id ${hasQty ? ', cd.cantidad' : ''}
          FROM carrito_disenos cd
          JOIN disenos d ON d.id = cd.diseno_id
         WHERE cd.carrito_id = ?
           AND d.objeto_id = ?
-          AND (d.imagenes <=> CAST(? AS JSON))
-          AND (d.textos   <=> CAST(? AS JSON))`,
-      [cartId, base.objeto_id, imgsEq2, txtsEq2]
+          AND (d.elementos_por_vista <=> CAST(? AS JSON))`,
+      [cartId, base.objeto_id, elemsEq2]
     );
     // Siempre eliminar al menos la fila base
     await db.query('DELETE FROM carrito_disenos WHERE carrito_id = ? AND diseno_id = ?', [cartId, base.id]);
@@ -389,28 +375,24 @@ router.delete('/items/:productId', auth, async (req, res) => {
          a.id                AS product_id,
          a.nombre            AS name,
          COALESCE(o.precio, a.precio) AS price,
-         COALESCE(JSON_UNQUOTE(JSON_EXTRACT(d.imagenes, '$[0]')), a.foto) AS image,
+         COALESCE(d.imagen_preview, a.foto) AS image,
          a.descuento         AS discount_percent,
          NULL                AS bulk_min_qty,
          NULL                AS bulk_percent,
-         IFNULL(inv.stock, 0) AS stock,
+         IFNULL(o.existencias, 0) AS stock,
          d.objeto_id         AS objeto_id,
-         CAST(d.imagenes AS CHAR) AS imagenes_raw,
-         CAST(d.textos   AS CHAR) AS textos_raw
+         CAST(d.elementos_por_vista AS CHAR) AS elementos_por_vista_raw
        FROM carrito_disenos cd
        JOIN disenos d  ON d.id = cd.diseno_id
        JOIN objetos o  ON o.id = d.objeto_id
        JOIN articulos a ON a.id = o.articulo_id
-       LEFT JOIN (
-         SELECT articulo_id, SUM(existencias) AS stock FROM objetos GROUP BY articulo_id
-       ) inv ON inv.articulo_id = a.id
        WHERE cd.carrito_id = ?
        ORDER BY a.nombre`,
       [cartId]
     );
     const groups = new Map();
     for (const r of rows) {
-      const key = [r.product_id, r.objeto_id, r.imagenes_raw || 'null', r.textos_raw || 'null'].join('|');
+      const key = [r.product_id, r.objeto_id, r.elementos_por_vista_raw || 'null'].join('|');
       if (!groups.has(key)) {
         groups.set(key, {
           product_id: r.product_id,
@@ -445,16 +427,13 @@ router.post('/check-availability', auth, async (req, res) => {
     const cartId = await getOrCreateCartId(req.user.id);
     const hasQty = await hasQtyColumn();
     const [rows] = await db.query(
-      `SELECT a.id AS product_id, ${hasQty ? 'SUM(cd.cantidad)' : 'COUNT(*)'} AS quantity, IFNULL(inv.stock,0) AS stock
+      `SELECT a.id AS product_id, d.objeto_id, ${hasQty ? 'SUM(cd.cantidad)' : 'COUNT(*)'} AS quantity, IFNULL(o.existencias,0) AS stock
          FROM carrito_disenos cd
          JOIN disenos d  ON d.id = cd.diseno_id
          JOIN objetos o  ON o.id = d.objeto_id
          JOIN articulos a ON a.id = o.articulo_id
-         LEFT JOIN (
-           SELECT articulo_id, SUM(existencias) AS stock FROM objetos GROUP BY articulo_id
-         ) inv ON inv.articulo_id = a.id
         WHERE cd.carrito_id = ?
-        GROUP BY a.id, inv.stock`,
+        GROUP BY a.id, d.objeto_id, o.existencias`,
       [cartId]
     );
     const problems = rows.filter(r => Number(r.stock) < Number(r.quantity));
@@ -518,10 +497,10 @@ router.post('/items-from-articulo', auth, async (req, res) => {
       [aId]
     );
     if (!obj) return res.status(404).json({ error: 'El artículo no tiene objetos disponibles' });
-    // Reutilizar un diseño mínimo (imagenes/textos NULL) por usuario+objeto
+    // Reutilizar un diseño mínimo (elementos_por_vista NULL) por usuario+objeto
     const [[existing]] = await db.query(
       `SELECT id FROM disenos 
-         WHERE usuario_id = ? AND objeto_id = ? AND imagenes IS NULL AND textos IS NULL
+         WHERE usuario_id = ? AND objeto_id = ? AND elementos_por_vista IS NULL
          ORDER BY id DESC LIMIT 1`,
       [req.user.id, obj.id]
     );

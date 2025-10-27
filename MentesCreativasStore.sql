@@ -88,6 +88,7 @@ DROP TABLE IF EXISTS `carrito_disenos`;
 CREATE TABLE `carrito_disenos` (
   `carrito_id` bigint NOT NULL,
   `diseno_id` bigint NOT NULL,
+  `cantidad` int NOT NULL DEFAULT '1',
   PRIMARY KEY (`carrito_id`,`diseno_id`),
   KEY `fk_cd_diseno` (`diseno_id`),
   CONSTRAINT `fk_cd_carrito` FOREIGN KEY (`carrito_id`) REFERENCES `carritos` (`id`) ON DELETE CASCADE,
@@ -101,7 +102,7 @@ CREATE TABLE `carrito_disenos` (
 
 LOCK TABLES `carrito_disenos` WRITE;
 /*!40000 ALTER TABLE `carrito_disenos` DISABLE KEYS */;
-INSERT INTO `carrito_disenos` VALUES (1,1),(2,2),(3,3);
+INSERT INTO `carrito_disenos` VALUES (1,1,1),(2,2,1),(3,3,1);
 /*!40000 ALTER TABLE `carrito_disenos` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -264,24 +265,19 @@ CREATE TABLE `disenos` (
   `id` bigint NOT NULL AUTO_INCREMENT,
   `usuario_id` int NOT NULL,
   `objeto_id` bigint NOT NULL,
-  `imagenes` json DEFAULT NULL,
-  `imagenes_localizacion` json DEFAULT NULL,
-  `imagenes_tamano` json DEFAULT NULL,
-  `imagenes_capas` json DEFAULT NULL,
-  `textos` json DEFAULT NULL,
-  `textos_localizacion` json DEFAULT NULL,
-  `textos_tamano` json DEFAULT NULL,
-  `textos_color` json DEFAULT NULL,
-  `textos_fuente` json DEFAULT NULL,
-  `textos_estilo` json DEFAULT NULL,
-  `textos_capas` json DEFAULT NULL,
+  `nombre_diseno` varchar(150) NOT NULL DEFAULT 'Diseño sin nombre',
+  `elementos_por_vista` json DEFAULT NULL COMMENT 'Estructura: {frente: [{type, src/text, x, y, width, height, rotation, fontSize, fontFamily, fill, etc}], detras: [...], izquierda: [...], derecha: [...]}',
+  `imagen_preview` mediumtext DEFAULT NULL COMMENT 'Imagen base64 de la vista frontal para mostrar en listados',
   `costo` decimal(10,2) DEFAULT '0.00',
+  `fecha_creacion` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `fecha_modificacion` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `usuario_id` (`usuario_id`),
   KEY `objeto_id` (`objeto_id`),
+  KEY `idx_fecha_modificacion` (`fecha_modificacion`),
   CONSTRAINT `fk_disenos_objeto` FOREIGN KEY (`objeto_id`) REFERENCES `objetos` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_disenos_usuario` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -290,7 +286,7 @@ CREATE TABLE `disenos` (
 
 LOCK TABLES `disenos` WRITE;
 /*!40000 ALTER TABLE `disenos` DISABLE KEYS */;
-INSERT INTO `disenos` VALUES (1,1,3,'[\"/img/disenos/diseno-1-img1.png\"]','[{\"x\": 120, \"y\": 200}]','[{\"h\": 200, \"w\": 300}]','[1]','[\"¡Diseño Premium!\"]','[{\"x\": 100, \"y\": 50}]','[24.0]','[\"#000000\"]','[\"Arial\"]','[{\"c\": false, \"n\": true, \"s\": false}]','[2]',2500.00),(2,2,4,'[\"/img/disenos/diseno-2-img1.png\", \"/img/disenos/diseno-2-img2.png\"]','[{\"x\": 110, \"y\": 180}, {\"x\": 200, \"y\": 220}]','[{\"h\": 140, \"w\": 180}, {\"h\": 90, \"w\": 120}]','[1, 2]','[\"Boceto Inicial\", \"Detalle A\"]','[{\"x\": 90, \"y\": 40}, {\"x\": 180, \"y\": 60}]','[20.0, 14.0]','[\"#111111\", \"#333333\"]','[\"Helvetica\", \"Verdana\"]','[{\"c\": false, \"n\": false, \"s\": false}, {\"c\": false, \"n\": true, \"s\": false}]','[2, 3]',1500.00),(3,3,6,'[\"/img/disenos/diseno-3-img1.png\"]','[{\"x\": 130, \"y\": 210}]','[{\"h\": 180, \"w\": 250}]','[1]','[\"Estilo Minimalista\"]','[{\"x\": 105, \"y\": 55}]','[18.5]','[\"#222222\"]','[\"Roboto\"]','[{\"c\": true, \"n\": false, \"s\": false}]','[2]',1200.00);
+/*!40000 ALTER TABLE `disenos` ENABLE KEYS */;
 /*!40000 ALTER TABLE `disenos` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -306,6 +302,7 @@ CREATE TABLE `disenos_pedido` (
   `pedido_id` bigint NOT NULL,
   `usuario_id` int NOT NULL,
   `objeto_id` bigint NOT NULL,
+  `nombre_diseno` varchar(150) NOT NULL DEFAULT 'Diseño sin nombre',
   `datos` json NOT NULL,
   `costo` decimal(10,2) NOT NULL,
   PRIMARY KEY (`id`),
@@ -659,10 +656,19 @@ DROP TABLE IF EXISTS `usuarios`;
 CREATE TABLE `usuarios` (
   `id` int NOT NULL AUTO_INCREMENT,
   `nombre` varchar(100) DEFAULT NULL,
+  `apellido` varchar(100) DEFAULT NULL,
   `email` varchar(100) DEFAULT NULL,
+  `telefono` varchar(30) DEFAULT NULL,
+  `direccion` varchar(255) DEFAULT NULL,
+  `ciudad` varchar(100) DEFAULT NULL,
+  `region` varchar(100) DEFAULT NULL,
   `password` varchar(255) DEFAULT NULL,
   `rol_id` int DEFAULT NULL,
+  `verificado` tinyint(1) DEFAULT '0',
+  `verificacion_token` varchar(64) DEFAULT NULL,
+  `verificacion_expira` datetime DEFAULT NULL,
   `creado_en` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `actualizado_en` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `email` (`email`),
   KEY `rol_id` (`rol_id`),
@@ -676,7 +682,7 @@ CREATE TABLE `usuarios` (
 
 LOCK TABLES `usuarios` WRITE;
 /*!40000 ALTER TABLE `usuarios` DISABLE KEYS */;
-INSERT INTO `usuarios` VALUES (1,'superadmin','superadmin@gmail.com','$2a$10$ElttXEchpfV8xoMSjkCDoeO1ARp2MLWC2V6/qtnuXegZV2nQgoDX6',2,'2025-08-08 00:01:28'),(2,'admin','admin@gmail.com','$2a$10$ElttXEchpfV8xoMSjkCDoeO1ARp2MLWC2V6/qtnuXegZV2nQgoDX6',3,'2025-08-08 00:01:28'),(3,'cliente','cliente@gmail.com','$2a$10$ElttXEchpfV8xoMSjkCDoeO1ARp2MLWC2V6/qtnuXegZV2nQgoDX6',1,'2025-08-08 00:01:28');
+INSERT INTO `usuarios` VALUES (1,'superadmin',NULL,'superadmin@gmail.com',NULL,NULL,NULL,NULL,'$2a$10$ElttXEchpfV8xoMSjkCDoeO1ARp2MLWC2V6/qtnuXegZV2nQgoDX6',2,0,NULL,NULL,'2025-08-08 00:01:28','2025-10-21 00:49:27'),(2,'admin',NULL,'admin@gmail.com',NULL,NULL,NULL,NULL,'$2a$10$ElttXEchpfV8xoMSjkCDoeO1ARp2MLWC2V6/qtnuXegZV2nQgoDX6',3,0,NULL,NULL,'2025-08-08 00:01:28','2025-10-21 00:49:27'),(3,'cliente',NULL,'cliente@gmail.com',NULL,NULL,NULL,NULL,'$2a$10$ElttXEchpfV8xoMSjkCDoeO1ARp2MLWC2V6/qtnuXegZV2nQgoDX6',1,0,NULL,NULL,'2025-08-08 00:01:28','2025-10-21 00:49:27');
 /*!40000 ALTER TABLE `usuarios` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -718,4 +724,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-10-20  0:33:23
+-- Dump completed on 2025-10-20 22:07:28

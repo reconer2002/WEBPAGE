@@ -58,7 +58,7 @@ const Header = ({ user, onLogin, onLogout }) => {
         <div className="user-block">
           {user ? (
             <div className="user-block-logged">
-              <span className="welcome-msg">Bienvenido {user.nombre}</span>
+              <span className="welcome-msg">Bienvenido {user.nombre_usuario}</span>
               <button onClick={handleLogout} className="btn logout-btn">
                 Logout
               </button>

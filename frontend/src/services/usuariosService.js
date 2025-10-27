@@ -1,4 +1,4 @@
-import api from "./api"; // tu api.js con baseURL /api y token
+import api from "./api";
 
 export const getUsuarios = async (params) => {
   const res = await api.get("/usuarios", { params });
@@ -16,12 +16,39 @@ export const updateRolesMasivo = async (ids, rol) => {
 };
 
 export const crearUsuario = async (usuario) => {
-  const res = await api.post("/usuarios", usuario);
+  // usuario debe incluir los campos de persona
+  const payload = {
+    username: usuario.username,
+    email: usuario.email,
+    password: usuario.password,
+    rol: usuario.rol,
+    nombre: usuario.nombre,
+    apellido: usuario.apellido,
+    telefono: usuario.telefono,
+    ciudad: usuario.ciudad,
+    region: usuario.region,
+  };
+
+  const res = await api.post("/usuarios", payload);
   return res.data;
 };
 
 export const editarUsuario = async (id, usuario) => {
-  const res = await api.put(`/usuarios/${id}`, usuario);
+  // igual que crear, pero usando PUT
+  const payload = {
+    username: usuario.username,
+    email: usuario.email,
+    rol: usuario.rol,
+    persona: {
+      nombre: usuario.nombre,
+      apellido: usuario.apellido,
+      telefono: usuario.telefono,
+      ciudad: usuario.ciudad,
+      region: usuario.region,
+    },
+  };
+
+  const res = await api.put(`/usuarios/${id}`, payload);
   return res.data;
 };
 

@@ -22,13 +22,15 @@ const REGIONES = [
 ];
 
 const initialState = {
-  nombre: "",
+  username: "",
+  nombre_real: "",
   apellido: "",
   email: "",
   telefono: "",
   direccion: "",
   ciudad: "",
   region: "",
+  fecha_nacimiento: "",
 };
 
 const ProfilePage = ({ user, onUserUpdate }) => {
@@ -62,22 +64,24 @@ const ProfilePage = ({ user, onUserUpdate }) => {
   const applyProfile = (profile) => {
     if (!profile) return;
     setFormData({
-      nombre: profile.nombre || "",
+      username: profile.nombre_usuario || "",
+      nombre_real: profile.nombre_real || "",
       apellido: profile.apellido || "",
       email: profile.email || "",
       telefono: profile.telefono || "",
       direccion: profile.direccion || "",
       ciudad: profile.ciudad || "",
       region: profile.region || "",
+      fecha_nacimiento: profile.fecha_nacimiento
+        ? profile.fecha_nacimiento.split("T")[0]
+        : "",
     });
     setVerificado(Boolean(profile.verificado));
     setVerificationExpiry(profile.verificacion_expira || null);
   };
 
   const loadProfile = async (silent = false) => {
-    if (!silent) {
-      setLoading(true);
-    }
+    if (!silent) setLoading(true);
     setError(null);
     try {
       const current = await authService.getCurrentUser();
@@ -89,9 +93,7 @@ const ProfilePage = ({ user, onUserUpdate }) => {
       console.error("Error cargando perfil", err);
       setError("No se pudo cargar tu información. Intenta nuevamente.");
     } finally {
-      if (!silent) {
-        setLoading(false);
-      }
+      if (!silent) setLoading(false);
     }
   };
 
@@ -104,7 +106,6 @@ const ProfilePage = ({ user, onUserUpdate }) => {
 
   useEffect(() => {
     loadProfile();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleChange = (e) => {
@@ -119,14 +120,24 @@ const ProfilePage = ({ user, onUserUpdate }) => {
     setSaving(true);
     setFeedback(null);
     setError(null);
-    const response = await authService.updateProfile(formData);
-    if (response.success) {
-      setFeedback(response.message);
-      await loadProfile(true);
-    } else {
-      setError(response.message);
+    try {
+      // eliminamos campos vacíos o nulos antes de enviar
+      const filteredData = Object.fromEntries(
+        Object.entries(formData).filter(([_, v]) => v !== null && v !== "")
+      );
+      const response = await authService.updateProfile(filteredData);
+      if (response.success) {
+        setFeedback(response.message);
+        await loadProfile(true);
+      } else {
+        setError(response.message);
+      }
+    } catch (err) {
+      console.error("Error guardando perfil:", err);
+      setError("Ocurrió un error al guardar los cambios.");
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   const handleSendVerification = async () => {
@@ -210,11 +221,22 @@ const ProfilePage = ({ user, onUserUpdate }) => {
             <h3>Datos personales</h3>
             <div className="profile-grid">
               <label className="profile-field">
+                <span>Nombre de usuario</span>
+                <input
+                  type="text"
+                  name="username"
+                  value={formData.username}
+                  onChange={handleChange}
+                  disabled={saving}
+                  required
+                />
+              </label>
+              <label className="profile-field">
                 <span>Nombre</span>
                 <input
                   type="text"
-                  name="nombre"
-                  value={formData.nombre}
+                  name="nombre_real"
+                  value={formData.nombre_real}
                   onChange={handleChange}
                   disabled={saving}
                   required
@@ -248,6 +270,16 @@ const ProfilePage = ({ user, onUserUpdate }) => {
                   type="tel"
                   name="telefono"
                   value={formData.telefono}
+                  onChange={handleChange}
+                  disabled={saving}
+                />
+              </label>
+              <label className="profile-field">
+                <span>Fecha de nacimiento</span>
+                <input
+                  type="date"
+                  name="fecha_nacimiento"
+                  value={formData.fecha_nacimiento}
                   onChange={handleChange}
                   disabled={saving}
                 />

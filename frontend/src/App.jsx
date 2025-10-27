@@ -14,6 +14,8 @@ import Cart from "./pages/Cart";
 import Register from "./components/LoginForm/Register";
 import Profile from "./pages/Profile";
 import VerifyAccount from "./pages/VerifyAccount";
+import VerifyPending from "./pages/VerifyPending";
+import ResendVerification from "./pages/ResendVerification";
 import SearchResults from "./pages/SearchResults";
 import { CartProvider } from "./context/CartContext";
 
@@ -199,6 +201,28 @@ function App() {
                 onLogout={handleLogout}
               />
               <Register onRegister={handleLogin} />
+              <Footer />
+            </>
+          }
+        />
+
+        <Route
+          path="/verify-pending"
+          element={
+            <>
+              <Header user={user} onLogin={handleLogin} onLogout={handleLogout} />
+              <VerifyPending />
+              <Footer />
+            </>
+          }
+        />
+
+        <Route
+          path="/resend-verification"
+          element={
+            <>
+              <Header user={user} onLogin={handleLogin} onLogout={handleLogout} />
+              <ResendVerification />
               <Footer />
             </>
           }

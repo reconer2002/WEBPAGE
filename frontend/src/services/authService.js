@@ -6,9 +6,15 @@ const login = async (identificador, password) => {
     localStorage.setItem('token', data.token);
     return { success: true, token: data.token };
   } catch (err) {
+    // Mejor extraer mensajes del backend (puede usar 'error' o 'message') y exponer flags como canResend
+    const responseData = err.response?.data || {};
+    const message = responseData.message || responseData.error || err.message || 'Error al iniciar sesión';
     return {
       success: false,
-      message: err.response?.data?.message || 'Error al iniciar sesión',
+      message,
+      canResend: responseData.canResend || false,
+      resendEndpoint: responseData.resendEndpoint || null,
+      status: err.response?.status || null,
     };
   }
 };
@@ -71,7 +77,7 @@ const sendVerificationEmail = async () => {
 const verifyEmail = async (token) => {
   try {
     const { data } = await api.post('/auth/verify', { token });
-    return { success: true, message: data?.message || 'Cuenta verificada' };
+    return { success: true, message: data?.message || 'Cuenta verificada', token: data?.token || null };
   } catch (err) {
     return { success: false, message: err.response?.data?.error || 'Error al verificar' };
   }

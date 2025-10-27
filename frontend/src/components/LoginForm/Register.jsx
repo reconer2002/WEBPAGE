@@ -36,7 +36,8 @@ export default function Register({ onRegister }) {
       if (res.success) {
         setOk(res.message || "Registro exitoso");
         onRegister?.(res.user || null);
-        navigate("/");
+        // Redirigir a pantalla de espera de verificación mostrando el email
+        navigate('/verify-pending', { state: { email: form.email } });
       } else {
         setError(res.message || "No se pudo registrar");
       }

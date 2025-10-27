@@ -17,7 +17,15 @@ const LoginForm = ({ user, onLogin, onLogout }) => {
       setUsername("");
       setPassword("");
     } else {
-      alert(result.message); // opcional, notificación
+      // Mostrar mensaje amigable en la UI
+      if (result.canResend) {
+        // En caso de cuenta no verificada, avisar e indicar reenvío
+        alert(result.message + '\n\nPuedes solicitar un nuevo enlace desde la página de reenvío.');
+        // opcional: redirigir automáticamente al formulario de reenvío
+        window.location.href = '/resend-verification';
+      } else {
+        alert(result.message);
+      }
     }
   };
 

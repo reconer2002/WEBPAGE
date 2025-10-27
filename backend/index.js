@@ -21,8 +21,8 @@ ensureUserProfileSchema().catch((err) => {
   console.warn('No se pudo asegurar el esquema de usuarios:', err?.message);
 });
 
-// ✅ Rutas
-const authRoutes = require('./routes/auth');
+// ✅ Rutas (usar authemail con verificación por email)
+const authRoutes = require('./routes/authemail');
 app.use('/api/auth', authRoutes);
 
 const usuariosRoutes = require('./routes/usuarios');
@@ -75,3 +75,12 @@ app.use(
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Servidor corriendo en puerto ${PORT}`));
+
+// Webhook para recibir eventos de Maileroo (bounces/deliveries)
+try {
+  const mailerooWebhook = require('./routes/maileroo_webhook');
+  app.use('/webhook/maileroo', express.json(), mailerooWebhook);
+  console.log('Maileroo webhook route mounted at /webhook/maileroo');
+} catch (e) {
+  console.warn('No se pudo montar webhook de Maileroo:', e && e.message ? e.message : e);
+}

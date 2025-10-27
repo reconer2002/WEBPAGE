@@ -22,7 +22,7 @@ async function ensureClienteRol(db) {
 
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
-  const { nombre, email, password, apellido, direccion, telefono, ciudad, region } = req.body || {};
+  const { nombre, email, password, apellido, direccion, telefono, ciudad, region, fecha_nacimiento } = req.body || {};
 
   try {
     if (!nombre || !email || !password) {
@@ -44,13 +44,21 @@ router.post('/register', async (req, res) => {
 
     const [ins] = await req.db.query('INSERT INTO usuarios (nombre, email, password, rol_id) VALUES (?, ?, ?, ?)', [nombre, email, hashed, rolId]);
 
-    // Guardar datos extendidos si existen las columnas (idempotente)
+    // Guardar datos de persona normalizados en tabla personas (idempotente)
     try {
       await req.db.query(
-        'UPDATE usuarios SET telefono = ?, ciudad = ?, region = ?, apellido = ?, direccion = ? WHERE id = ?',
-        [telefono || null, ciudad || null, region || null, apellido || null, direccion || null, ins.insertId]
+        `INSERT INTO personas (usuario_id, apellido, direccion, telefono, ciudad, region, fecha_nacimiento)
+         VALUES (?, ?, ?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE
+           apellido = VALUES(apellido),
+           direccion = VALUES(direccion),
+           telefono = VALUES(telefono),
+           ciudad   = VALUES(ciudad),
+           region   = VALUES(region),
+           fecha_nacimiento = VALUES(fecha_nacimiento)`,
+        [ins.insertId, apellido || null, direccion || null, telefono || null, ciudad || null, region || null, fecha_nacimiento || null]
       );
-    } catch (_) { /* columnas pueden no existir; ignorar */ }
+    } catch (_) { /* tabla/columnas pueden no existir aún; ignorar */ }
 
     const token = jwt.sign({ id: ins.insertId, email }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN });
     res.status(201).json({ message: 'Usuario registrado exitosamente', token });
@@ -96,9 +104,10 @@ router.get('/me', verifyToken, async (req, res) => {
   try {
     const [[usuario]] = await req.db.query(
       `SELECT u.id, u.nombre, u.email, u.creado_en, u.rol_id, r.nombre AS rol,
-              u.telefono, u.ciudad, u.region, u.apellido, u.direccion
+              p.telefono, p.ciudad, p.region, p.apellido, p.direccion, p.fecha_nacimiento
          FROM usuarios u
          JOIN roles r ON u.rol_id = r.id
+    LEFT JOIN personas p ON p.usuario_id = u.id
         WHERE u.id = ?`,
       [req.user.id]
     );
@@ -121,6 +130,7 @@ router.get('/me', verifyToken, async (req, res) => {
       direccion: usuario.direccion || '',
       ciudad: usuario.ciudad || '',
       region: usuario.region || '',
+      fecha_nacimiento: usuario.fecha_nacimiento || null,
       creado_en: usuario.creado_en,
       rol: usuario.rol,
       permisos: permisos.map(p => p.nombre),
@@ -133,7 +143,7 @@ router.get('/me', verifyToken, async (req, res) => {
 
 // PUT /api/auth/me - actualizar perfil
 router.put('/me', verifyToken, async (req, res) => {
-  const { nombre, apellido, email, telefono, direccion, ciudad, region } = req.body || {};
+  const { nombre, apellido, email, telefono, direccion, ciudad, region, fecha_nacimiento } = req.body || {};
   try {
     const [[actual]] = await req.db.query('SELECT id FROM usuarios WHERE id = ?', [req.user.id]);
     if (!actual) return res.status(404).json({ error: 'Usuario no encontrado' });
@@ -148,9 +158,24 @@ router.put('/me', verifyToken, async (req, res) => {
     const [conflictos] = await req.db.query('SELECT id FROM usuarios WHERE (email = ? OR nombre = ?) AND id <> ?', [email, nombre, req.user.id]);
     if (conflictos.length) return res.status(400).json({ error: 'Email o nombre ya registrado por otro usuario' });
 
+    // Actualizar datos básicos en usuarios
     await req.db.query(
-      `UPDATE usuarios SET nombre = ?, email = ?, telefono = ?, direccion = ?, ciudad = ?, region = ?, apellido = ? WHERE id = ?`,
-      [nombre, email, telefono || null, direccion || null, ciudad || null, region || null, apellido || null, req.user.id]
+      `UPDATE usuarios SET nombre = ?, email = ? WHERE id = ?`,
+      [nombre, email, req.user.id]
+    );
+
+    // Upsert de datos de persona normalizados
+    await req.db.query(
+      `INSERT INTO personas (usuario_id, apellido, direccion, telefono, ciudad, region, fecha_nacimiento)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+         apellido = VALUES(apellido),
+         direccion = VALUES(direccion),
+         telefono = VALUES(telefono),
+         ciudad   = VALUES(ciudad),
+         region   = VALUES(region),
+         fecha_nacimiento = VALUES(fecha_nacimiento)`,
+      [req.user.id, apellido || null, direccion || null, telefono || null, ciudad || null, region || null, fecha_nacimiento || null]
     );
 
     res.json({ message: 'Perfil actualizado correctamente' });

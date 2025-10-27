@@ -204,4 +204,6 @@ export default {
   checkout,
   computeLineTotals,
   computeCartTotals,
+  // Forzar un evento de actualización (por ejemplo, tras pago exitoso)
+  broadcast: (items) => notify(Array.isArray(items) ? items : []),
 };

@@ -29,6 +29,7 @@ const initialState = {
   direccion: "",
   ciudad: "",
   region: "",
+  fecha_nacimiento: "",
 };
 
 const ProfilePage = ({ user, onUserUpdate }) => {
@@ -69,6 +70,8 @@ const ProfilePage = ({ user, onUserUpdate }) => {
       direccion: profile.direccion || "",
       ciudad: profile.ciudad || "",
       region: profile.region || "",
+      // normalizar a YYYY-MM-DD si viene con tiempo
+      fecha_nacimiento: profile.fecha_nacimiento ? String(profile.fecha_nacimiento).slice(0, 10) : "",
     });
     setVerificado(Boolean(profile.verificado));
     setVerificationExpiry(profile.verificacion_expira || null);
@@ -208,34 +211,44 @@ const ProfilePage = ({ user, onUserUpdate }) => {
         <form className="profile-form" onSubmit={handleSubmit}>
           <div className="profile-section">
             <h3>Datos personales</h3>
-            <div className="profile-grid">
-              <label className="profile-field">
-                <span>Nombre</span>
-                <input
-                  type="text"
-                  name="nombre"
-                  value={formData.nombre}
-                  onChange={handleChange}
-                  disabled={saving}
-                  required
-                />
-              </label>
-              <label className="profile-field">
-                <span>Apellido</span>
-                <input
-                  type="text"
-                  name="apellido"
-                  value={formData.apellido}
-                  onChange={handleChange}
-                  disabled={saving}
-                  required
-                />
-              </label>
-              <label className="profile-field">
-                <span>Email</span>
-                <input
-                  type="email"
-                  name="email"
+          <div className="profile-grid">
+            <label className="profile-field">
+              <span>Nombre</span>
+              <input
+                type="text"
+                name="nombre"
+                value={formData.nombre}
+                onChange={handleChange}
+                disabled={saving}
+                required
+              />
+            </label>
+            <label className="profile-field">
+              <span>Apellido</span>
+              <input
+                type="text"
+                name="apellido"
+                value={formData.apellido}
+                onChange={handleChange}
+                disabled={saving}
+                required
+              />
+            </label>
+            <label className="profile-field">
+              <span>Fecha de nacimiento</span>
+              <input
+                type="date"
+                name="fecha_nacimiento"
+                value={formData.fecha_nacimiento}
+                onChange={handleChange}
+                disabled={saving}
+              />
+            </label>
+            <label className="profile-field">
+              <span>Email</span>
+              <input
+                type="email"
+                name="email"
                   value={formData.email}
                   onChange={handleChange}
                   disabled={saving}

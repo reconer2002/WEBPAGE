@@ -11,7 +11,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // ✅ IMPORTAR dbSelector
 const dbSelector = require('./middleware/dbSelector');
 // ✅ Migraciones suaves para perfil de usuario (añade columnas si faltan)
-const { ensureUserProfileSchema } = require('./utils/schema');
+const { ensureUserProfileSchema, ensureCommerceSchema } = require('./utils/schema');
 
 // ✅ Aplicarlo ANTES de las rutas
 app.use(dbSelector);
@@ -19,6 +19,11 @@ app.use(dbSelector);
 // Asegurar columnas de perfil sin requerir bandera (idempotente)
 ensureUserProfileSchema().catch((err) => {
   console.warn('No se pudo asegurar el esquema de usuarios:', err?.message);
+});
+
+// Asegurar tablas de pedidos/envíos y compatibilidades
+ensureCommerceSchema().catch((err) => {
+  console.warn('No se pudo asegurar el esquema de comercio:', err?.message);
 });
 
 // ✅ Rutas
@@ -61,6 +66,18 @@ app.use('/api/cart', cartRouter);
 
 const productsRouter = require('./routes/products');
 app.use('/api/products', productsRouter);
+
+// Checkout / Pagos
+const checkoutRouter = require('./routes/checkout');
+app.use('/api/checkout', checkoutRouter);
+
+// Pedidos (admin)
+const pedidosRouter = require('./routes/pedidos');
+app.use('/api/pedidos', pedidosRouter);
+
+// Envios (gestión de delivery)
+const enviosRouter = require('./routes/envios');
+app.use('/api/envios', enviosRouter);
 
 // ✅ Archivos estáticos con CORS para permitir captura del canvas
 app.use(

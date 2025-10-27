@@ -4,7 +4,7 @@ import authService from "../../services/authService";
 import "./Register.css";
 
 export default function Register({ onRegister }) {
-  const [form, setForm] = useState({ nombre: "", apellido: "", email: "", password: "", telefono: "", direccion: "", ciudad: "", region: "" });
+  const [form, setForm] = useState({ nombre: "", apellido: "", email: "", password: "", telefono: "", direccion: "", ciudad: "", region: "", fecha_nacimiento: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [ok, setOk] = useState(null);
@@ -32,6 +32,7 @@ export default function Register({ onRegister }) {
         direccion: form.direccion,
         ciudad: form.ciudad,
         region: form.region,
+        fecha_nacimiento: form.fecha_nacimiento || null,
       });
       if (res.success) {
         setOk(res.message || "Registro exitoso");
@@ -89,6 +90,16 @@ export default function Register({ onRegister }) {
             onChange={onChange}
             required
             placeholder="tu@correo.cl"
+            className="register-input"
+          />
+        </label>
+        <label className="register-field">
+          Fecha de nacimiento
+          <input
+            type="date"
+            name="fecha_nacimiento"
+            value={form.fecha_nacimiento}
+            onChange={onChange}
             className="register-input"
           />
         </label>

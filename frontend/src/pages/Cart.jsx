@@ -147,18 +147,8 @@ const Cart = ({ user }) => {
   };
 
   const checkout = async () => {
-    try {
-      // Realizar el checkout con el backend
-      await cartService.checkout();
-      setItems([]);
-      setInventory({});
-      setMessage("Compra realizada. Existencias actualizadas.");
-    } catch (error) {
-      setMessage(
-        "Error al procesar la compra: " +
-          (error.response?.data?.error || "Error desconocido")
-      );
-    }
+    // Redirigir al nuevo flujo de checkout para pagar con pasarela
+    window.location.href = '/checkout';
   };
 
   return (

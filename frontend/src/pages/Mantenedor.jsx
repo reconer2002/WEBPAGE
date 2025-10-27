@@ -8,6 +8,7 @@ import PaginaDesactivar from "../components/Mantenedor/PaginaDesactivar";
 import PaginaColores from "../components/Mantenedor/PaginaColores";
 import Testimonios from "../components/Mantenedor/Testimonios";
 import ProductosArticulos from "../components/Mantenedor/ProductosArticulos";
+import PedidosGestion from "../components/Mantenedor/PedidosGestion";
 import "./Mantenedor.css";
 
 const Mantenedor = () => {
@@ -23,11 +24,23 @@ const Mantenedor = () => {
   );
 
   // ✅ Cambiar entorno y guardarlo
-  const toggleEntorno = () => {
+  const toggleEntorno = async () => {
     const nuevo = entorno === "prod" ? "test" : "prod";
     localStorage.setItem("entorno", nuevo);
     setEntorno(nuevo);
-    alert(`Entorno cambiado a: ${nuevo}`);
+    // Limpiar caches locales y recargar categorías desde el backend con el header x-entorno
+    setSubcategorias({});
+    setSubcategoriaActiva(null);
+    setLoading(true);
+    try {
+      const data = await mantenedorService.getCategorias();
+      setCategorias(Array.isArray(data) ? data : []);
+      alert(`Entorno cambiado a: ${nuevo}`);
+    } catch (err) {
+      console.error("Error recargando categorías:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Fetch categorías al montar
@@ -73,21 +86,24 @@ const Mantenedor = () => {
   };
 
   // Click en subcategoría
-  const handleSubcategoriaClick = (catId, subId) => {
-    if (catId === 1 && subId === 1) {
+  const handleSubcategoriaClick = (catId, subId, subName = null) => {
+    const name = (subName || '').toString().toLowerCase();
+    if (catId === 1 && (subId === 1 || name === 'cuentas')) {
       setSubcategoriaActiva("Cuentas");
-    } else if (catId === 1 && subId === 2) {
+    } else if (catId === 1 && (subId === 2 || name === 'roles')) {
       setSubcategoriaActiva("Roles");
-    } else if (catId === 2 && subId === 3) {
+    } else if (catId === 2 && (subId === 3 || name === 'configuracion')) {
       setSubcategoriaActiva("PaginaConfiguracion");
-    } else if (catId === 2 && subId === 4) {
+    } else if (catId === 2 && (subId === 4 || name === 'conexion')) {
       setSubcategoriaActiva("PaginaDesactivar");
-    } else if (catId === 2 && subId === 5) {
+    } else if (catId === 2 && (subId === 5 || name === 'colores')) {
       setSubcategoriaActiva("PaginaColores");
-    } else if (catId === 3 && subId === 6) {
+    } else if (catId === 3 && (subId === 6 || name === 'testimonios')) {
       setSubcategoriaActiva("Testimonios");
-    } else if (catId === 4 && subId === 7) {
+    } else if (catId === 4 && (subId === 7 || name === 'articulos')) {
       setSubcategoriaActiva("Articulos");
+    } else if (catId === 4 && (subId === 8 || name === 'pedidos')) {
+      setSubcategoriaActiva("Pedidos");
     } else {
       setSubcategoriaActiva(null);
     }
@@ -131,10 +147,10 @@ const Mantenedor = () => {
                 <div className="subcategorias-list">
                   {entry.items.length > 0 ? (
                     entry.items.map((sub) => (
-                      <button
+                    <button
                         key={sub.id}
                         className="subcategoria-btn"
-                        onClick={() => handleSubcategoriaClick(cat.id, sub.id)}
+                        onClick={() => handleSubcategoriaClick(cat.id, sub.id, sub.nombre)}
                       >
                         {sub.nombre}
                       </button>
@@ -159,6 +175,7 @@ const Mantenedor = () => {
       {subcategoriaActiva === "PaginaColores" && <PaginaColores />}
       {subcategoriaActiva === "Testimonios" && <Testimonios />}
       {subcategoriaActiva === "Articulos" && <ProductosArticulos />}
+      {subcategoriaActiva === "Pedidos" && <PedidosGestion />}
     </div>
   );
 };

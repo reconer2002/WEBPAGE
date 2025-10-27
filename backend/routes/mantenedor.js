@@ -62,12 +62,24 @@ router.get('/categorias/:id/subcategorias', authenticateToken, async (req, res) 
     }
 
     // Obtener subcategorías que puede ver
-    const [subcategorias] = await req.db.query(`
+    let [subcategorias] = await req.db.query(`
       SELECT id, nombre
       FROM subcategorias_mantenedor
       WHERE categoria_id = ?
       AND permiso_id IN (?)
     `, [categoriaId, permisosIds]);
+
+    // Compatibilidad: asegurar que "pedidos" esté disponible en la categoría PRODUCTOS, aunque no exista en la tabla
+    try {
+      const [[catRow]] = await req.db.query('SELECT nombre FROM categorias_mantenedor WHERE id = ? LIMIT 1', [categoriaId]);
+      const catName = (catRow?.nombre || '').toString().trim().toUpperCase();
+      if (catName === 'PRODUCTOS') {
+        const hasPedidos = Array.isArray(subcategorias) && subcategorias.some(s => (s.nombre || '').toString().toLowerCase() === 'pedidos');
+        if (!hasPedidos) {
+          subcategorias = [...subcategorias, { id: -100, nombre: 'pedidos' }];
+        }
+      }
+    } catch (_) {}
 
     res.json(subcategorias);
   } catch (error) {

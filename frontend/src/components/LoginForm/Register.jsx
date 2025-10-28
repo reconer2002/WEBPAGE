@@ -5,7 +5,7 @@ import "./Register.css";
 
 export default function Register({ onRegister }) {
   const [form, setForm] = useState({
-    username: "", 
+    nombre: "", // Nombre de usuario para login
     nombre_real: "",
     apellido: "",
     email: "",
@@ -37,7 +37,7 @@ export default function Register({ onRegister }) {
 
     try {
       const res = await authService.register({
-        username: form.username,
+        nombre: form.nombre,
         nombre_real: form.nombre_real,
         apellido: form.apellido,
         email: form.email,
@@ -82,8 +82,8 @@ export default function Register({ onRegister }) {
           <label className="register-field">
             Nombre de usuario
             <input
-              name="username"
-              value={form.username}
+              name="nombre"
+              value={form.nombre}
               onChange={onChange}
               required
               placeholder="Ej: reneolguin"

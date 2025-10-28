@@ -65,6 +65,15 @@ app.use('/api/products', productsRouter);
 const estadisticasRouter = require('./routes/estadisticas');
 app.use('/api/estadisticas', estadisticasRouter);
 
+const checkoutRouter = require('./routes/checkout');
+app.use('/api/checkout', checkoutRouter);
+
+const pedidosRouter = require('./routes/pedidos');
+app.use('/api/pedidos', pedidosRouter);
+
+const enviosRouter = require('./routes/envios');
+app.use('/api/envios', enviosRouter);
+
 // ✅ Archivos estáticos con CORS para permitir captura del canvas
 app.use(
   '/img',
@@ -78,3 +87,12 @@ app.use(
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Servidor corriendo en puerto ${PORT}`));
+
+// Webhook para recibir eventos de Maileroo (bounces/deliveries)
+try {
+  const mailerooWebhook = require('./routes/maileroo_webhook');
+  app.use('/webhook/maileroo', express.json(), mailerooWebhook);
+  console.log('Maileroo webhook route mounted at /webhook/maileroo');
+} catch (e) {
+  console.warn('No se pudo montar webhook de Maileroo:', e && e.message ? e.message : e);
+}

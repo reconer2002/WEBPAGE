@@ -144,8 +144,8 @@ const DisenosGuardados = () => {
                 <button
                   className="editar-btn"
                   onClick={() => {
-                    // Navegar a la ruta de edición
-                    navigate(`/disenos/editar/${diseno.id}`);
+                    // TODO: Implementar edición de diseño
+                    alert("Funcionalidad de edición en desarrollo");
                   }}
                 >
                   Editar

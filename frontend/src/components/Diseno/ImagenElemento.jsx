@@ -2,7 +2,18 @@ import React, { useRef, useEffect } from "react";
 import { Image as KonvaImage, Transformer } from "react-konva";
 import useImage from "use-image";
 
-const ImagenElemento = ({ el, onUpdate, isSelected, onSelect, onTransform }) => {
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "";
+const resolveUrl = (u) => {
+  if (!u) return u;
+  const s = String(u).trim();
+  if (!s) return s;
+  if (s.startsWith('data:')) return s;
+  if (/^https?:\/\//i.test(s)) return s;
+  if (s.startsWith('/img/')) return `${BACKEND_URL}${s}`;
+  return s;
+};
+
+const ImagenElemento = ({ el, onUpdate, isSelected, onSelect }) => {
   const [img] = useImage(el.url, "Anonymous");
   const shapeRef = useRef();
   const trRef = useRef();

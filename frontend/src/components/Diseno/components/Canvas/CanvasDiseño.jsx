@@ -1,6 +1,17 @@
 import React from "react";
 import { Stage, Layer, Text, Image as KonvaImage, Transformer } from "react-konva";
 import useImage from "use-image";
+
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "";
+const resolveUrl = (u) => {
+  if (!u) return u;
+  const s = String(u).trim();
+  if (!s) return s;
+  if (s.startsWith('data:')) return s;
+  if (/^https?:\/\//i.test(s)) return s;
+  if (s.startsWith('/img/')) return `${BACKEND_URL}${s}`;
+  return s;
+};
 import ImagenElemento from "../../ImagenElemento";
 
 const CanvasDiseño = ({
@@ -17,7 +28,7 @@ const CanvasDiseño = ({
   onSyncTextState,
   onSyncImageState
 }) => {
-  const [baseImage] = useImage(imagenesVistas[vistaActual] || "", 'anonymous');
+  const [baseImage] = useImage(resolveUrl(imagenesVistas[vistaActual] || ""), 'anonymous');
 
   return (
     <div className="preview-column">

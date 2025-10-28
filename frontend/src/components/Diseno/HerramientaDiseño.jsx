@@ -59,12 +59,387 @@ const HerramientaDiseño = ({ editarId }) => {
 
   // Cargar diseño si se proporciona editarId
   useEffect(() => {
-    if (editarId && !loading && todosLosObjetos.length > 0 && !disenoIdActual) {
-      console.log("Cargando diseño con ID:", editarId);
-      cargarDiseno(parseInt(editarId, 10));
+    const handleKeyDown = (e) => {
+      if (!selectedId) return;
+      const selectedElement = elementos.find((el) => el.id === selectedId);
+      if (!selectedElement) return;
+      if (selectedElement.type === "text" && document.activeElement === inputRef.current) return;
+
+      switch (e.key) {
+        case "Delete":
+          e.preventDefault();
+          eliminarElemento(selectedId);
+          break;
+        case "d":
+        case "D":
+          if (e.ctrlKey || e.metaKey) {
+            e.preventDefault();
+            duplicarElemento(selectedId);
+          }
+          break;
+        default:
+          break;
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [selectedId, elementos, vistaActual]); // Agregar vistaActual como dependencia
+
+  // Close panels on Escape key (works even if panel is open)
+  useEffect(() => {
+    const onEsc = (e) => {
+      if (e.key === "Escape") {
+        setSelectedId(null);
+        setImageEditMode(false);
+      }
+    };
+    document.addEventListener("keydown", onEsc);
+    return () => document.removeEventListener("keydown", onEsc);
+  }, []);
+
+
+
+  const agregarTexto = () => {
+    const marginY = 120; // Mismo margen que en posicionarElemento
+    const fontSize = 20;
+    const text = "Texto";
+    const estimatedWidth = text.length * fontSize * 0.6;
+    const x = (canvasWidth - estimatedWidth) / 2; // Centrado horizontalmente
+    const y = marginY; // Posición superior
+    
+    const nuevoTexto = { 
+      id: Date.now(), 
+      type: "text", 
+      x, 
+      y, 
+      text, 
+      fontSize, 
+      fill: "#000000", 
+      fontFamily: "Arial", 
+      fontStyle: "normal", 
+      rotation: 0, 
+      scale: 1 
+    };
+    setElementos((prev) => [...prev, nuevoTexto]);
+    
+    // Seleccionar el nuevo elemento automáticamente
+    setSelectedId(nuevoTexto.id);
+    setImageEditMode(false);
+    setTextInputValue(text);
+    setTextStyle({ fontSize, fill: "#000000", fontFamily: "Arial", fontStyle: "normal", rotation: 0, scale: 1 });
+    
+    // Enfocar el input de texto después de un breve delay
+    setTimeout(() => inputRef.current?.focus(), 10);
+  };
+
+  const agregarImagen = (url, originalWidth = 100, originalHeight = 100) => {
+    const marginY = 120; // Mismo margen que en posicionarElemento
+    
+    // Escalar la imagen si es muy grande, manteniendo la proporción
+    const maxWidth = 200;
+    const maxHeight = 200;
+    let width = originalWidth;
+    let height = originalHeight;
+    
+    if (width > maxWidth || height > maxHeight) {
+      const aspectRatio = width / height;
+      if (width > height) {
+        width = maxWidth;
+        height = width / aspectRatio;
+      } else {
+        height = maxHeight;
+        width = height * aspectRatio;
+      }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editarId, todosLosObjetos.length]);
+    
+    const x = (canvasWidth - width) / 2; // Centrado horizontalmente
+    const y = marginY; // Posición superior
+    
+    const nuevaImagen = { 
+      id: Date.now(), 
+      type: "image", 
+      x, 
+      y, 
+      url, 
+      width: Math.round(width), 
+      height: Math.round(height), 
+      rotation: 0, 
+      draggable: true 
+    };
+    setElementos((prev) => [...prev, nuevaImagen]);
+    
+    // Seleccionar la nueva imagen automáticamente
+    setSelectedId(nuevaImagen.id);
+    setImageEditMode(true);
+    setImageDimensions({ width: Math.round(width), height: Math.round(height) });
+    setCurrentImageRotation(0);
+  };
+
+  const handleImageUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      alert("Por favor selecciona un archivo de imagen válido");
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    
+    // Crear una imagen temporal para obtener las dimensiones originales
+    const img = new Image();
+    img.onload = () => {
+      agregarImagen(url, img.width, img.height);
+    };
+    img.src = url;
+    
+    e.target.value = "";
+  };
+
+
+
+  const handleObjetoSelect = (objeto) => {
+    setObjetoSeleccionado(objeto);
+    
+    // Obtener el diseño base del objeto
+    const disenioBase = diseniosBase.find(d => d.id === objeto.disenio_base_id);
+    
+    // Función helper para construir URLs de imágenes
+    const buildImageUrl = (imagePath) => {
+      if (!imagePath) return null;
+      // Si ya es una URL completa, devolverla tal como está
+      if (imagePath.startsWith('http')) return imagePath;
+      // Si empieza con /, usar tal como está (el proxy de Vite lo manejará)
+      if (imagePath.startsWith('/')) {
+        return imagePath;
+      }
+      // Si no tiene /, asumir que es una ruta relativa y agregarle /img/
+      return `/img/${imagePath}`;
+    };
+    
+    if (disenioBase) {
+      // Usar las imágenes del diseño base para las diferentes vistas
+      const imagenesVistas = {
+        frente: buildImageUrl(disenioBase.frente),
+        izquierda: buildImageUrl(disenioBase.izquierda),
+        derecha: buildImageUrl(disenioBase.derecha),
+        detras: buildImageUrl(disenioBase.espalda)
+      };
+      
+      setImagenesVistas(imagenesVistas);
+    } else {
+      // Fallback a las imágenes del artículo si no hay diseño base
+      const articulo = articulos.find(a => a.id === objeto.articulo_id);
+      
+      if (articulo && (articulo.foto_frente || articulo.foto)) {
+        setImagenesVistas({
+          frente: buildImageUrl(articulo.foto_frente || articulo.foto),
+          izquierda: buildImageUrl(articulo.foto_izquierda || articulo.foto),
+          derecha: buildImageUrl(articulo.foto_derecha || articulo.foto),
+          detras: buildImageUrl(articulo.foto_detras || articulo.foto)
+        });
+      } else {
+        // Usar imágenes predeterminadas como último recurso
+        setImagenesVistas({
+          frente: buildImageUrl('/img/disenios_base/PoleraAmarillaFront.png'),
+          izquierda: buildImageUrl('/img/disenios_base/PoleraAmarillaLeft.png'),
+          derecha: buildImageUrl('/img/disenios_base/PoleraAmarillaRight.png'),
+          detras: buildImageUrl('/img/disenios_base/PoleraAmarillaBack.png')
+        });
+      }
+    }
+  };
+
+  const cambiarVista = (vista) => {
+    setVistaActual(vista);
+    // Limpiar selección al cambiar de vista
+    setSelectedId(null);
+    setImageEditMode(false);
+  };
+
+  const posicionarElemento = (posicion) => {
+    if (!selectedId) return;
+    
+    const elemento = elementos.find(el => el.id === selectedId);
+    if (!elemento) return;
+
+    let newX, newY;
+    // Márgenes optimizados para diseño de polera - zona central concentrada
+    const marginX = 100; // Margen horizontal más amplio - lados más al centro
+    const marginY = 120; // Margen vertical más amplio - superior/inferior más al centro
+    const elementWidth = elemento.width || (elemento.text ? elemento.text.length * (elemento.fontSize || 16) * 0.6 : 100);
+    const elementHeight = elemento.height || (elemento.fontSize || 16);
+
+    switch (posicion) {
+      case 'top-left':
+        newX = marginX;
+        newY = marginY;
+        break;
+      case 'top-center':
+        newX = (canvasWidth - elementWidth) / 2;
+        newY = marginY;
+        break;
+      case 'top-right':
+        newX = canvasWidth - elementWidth - marginX;
+        newY = marginY;
+        break;
+      case 'middle-left':
+        newX = marginX;
+        newY = (canvasHeight - elementHeight) / 2;
+        break;
+      case 'middle-center':
+        newX = (canvasWidth - elementWidth) / 2;
+        newY = (canvasHeight - elementHeight) / 2;
+        break;
+      case 'middle-right':
+        newX = canvasWidth - elementWidth - marginX;
+        newY = (canvasHeight - elementHeight) / 2;
+        break;
+      case 'bottom-left':
+        newX = marginX;
+        newY = canvasHeight - elementHeight - marginY;
+        break;
+      case 'bottom-center':
+        newX = (canvasWidth - elementWidth) / 2;
+        newY = canvasHeight - elementHeight - marginY;
+        break;
+      case 'bottom-right':
+        newX = canvasWidth - elementWidth - marginX;
+        newY = canvasHeight - elementHeight - marginY;
+        break;
+      default:
+        return;
+    }
+
+    actualizarElemento(selectedId, { x: Math.max(0, newX), y: Math.max(0, newY) });
+  };
+
+  // Guardar diseño usando API real y (opcional) agregar al carrito
+  const saveDesign = async () => {
+    if (!objetoSeleccionado) {
+      alert("Primero selecciona un objeto para personalizar");
+      return null;
+    }
+    try {
+      setGuardandoDiseno(true);
+      const token = localStorage.getItem("token");
+      if (!token) {
+        alert("Necesitas iniciar sesión para guardar el diseño");
+        return null;
+      }
+
+      // Ocultar controles para la captura
+      const elementoSeleccionadoAntes = selectedId;
+      setSelectedId(null);
+      setImageEditMode(false);
+      await new Promise((r) => requestAnimationFrame(r));
+
+      const stage = stageRef.current;
+      const imagen = stage.toDataURL({ mimeType: 'image/png', quality: 1 });
+
+      // Restaurar selección
+      setSelectedId(elementoSeleccionadoAntes);
+      if (elementoSeleccionadoAntes) {
+        const elemento = elementos.find((el) => el.id === elementoSeleccionadoAntes);
+        if (elemento?.type === 'image') setImageEditMode(true);
+      }
+
+      const nombre = prompt(
+        "Ingresa un nombre para tu diseño:",
+        `Diseño ${objetoSeleccionado.articulo_nombre} ${new Date().toLocaleDateString()}`
+      );
+      if (!nombre) return null;
+
+      const diseno = {
+        nombre,
+        articulo_id: objetoSeleccionado.articulo_id,
+        imagen,
+        elementos: elementos,
+        variantes: objetoSeleccionado.variantes || [],
+      };
+
+      const res = await disenosService.guardarDiseno(diseno);
+      alert("Diseño guardado exitosamente");
+      return res?.id ?? null;
+    } catch (error) {
+      console.error("Error al guardar diseño:", error);
+      alert("Error al guardar el diseño: " + (error?.response?.data?.error || error.message));
+      return null;
+    } finally {
+      setGuardandoDiseno(false);
+    }
+  };
+
+  const saveAndAddToCart = async () => {
+    const designId = await saveDesign();
+    if (!designId) return;
+    try {
+      await cartService.addItem({ id: objetoSeleccionado.articulo_id }, 1, { designId });
+      alert("Diseño agregado al carrito");
+    } catch (e) {
+      console.error("Error al agregar al carrito", e);
+      alert("No se pudo agregar al carrito");
+    }
+  };
+
+  const actualizarElemento = (id, cambios) => setElementos((prev) => prev.map((el) => (el.id === id ? { ...el, ...cambios } : el)));
+
+  const eliminarElemento = (id) => {
+    setElementos((prev) => prev.filter((el) => el.id !== id));
+    if (selectedId === id) {
+      setSelectedId(null);
+      setImageEditMode(false);
+    }
+  };
+
+  const duplicarElemento = (id) => {
+    const elemento = elementos.find((el) => el.id === id);
+    if (!elemento) return;
+    const nuevoElemento = { ...elemento, id: Date.now(), x: elemento.x + 20, y: elemento.y + 20 };
+    setElementos((prev) => [...prev, nuevoElemento]);
+    setSelectedId(nuevoElemento.id);
+    if (elemento.type === "image") {
+      setImageEditMode(true);
+      setImageDimensions({ width: elemento.width, height: elemento.height });
+    }
+  };
+
+  const cambiarCapaElemento = (id, direccion) => {
+    const index = elementos.findIndex((el) => el.id === id);
+    if (index === -1) return;
+    const nuevosElementos = [...elementos];
+    const elemento = nuevosElementos[index];
+    if (direccion === "arriba" && index < elementos.length - 1) {
+      nuevosElementos[index] = nuevosElementos[index + 1];
+      nuevosElementos[index + 1] = elemento;
+    } else if (direccion === "abajo" && index > 0) {
+      nuevosElementos[index] = nuevosElementos[index - 1];
+      nuevosElementos[index - 1] = elemento;
+    }
+    setElementos(nuevosElementos);
+  };
+
+  const actualizarDimensionesImagen = (id, width, height) => {
+    actualizarElemento(id, { width: Math.max(20, width), height: Math.max(20, height) });
+    setImageDimensions({ width: Math.max(20, width), height: Math.max(20, height) });
+  };
+
+  const handleSelectElement = (el) => {
+    setSelectedId(el.id);
+    if (el.type === "text") {
+      setImageEditMode(false);
+      setTextInputValue(el.text);
+      setTextStyle({ fontSize: el.fontSize, fill: el.fill, fontFamily: el.fontFamily || "Arial", fontStyle: el.fontStyle || "normal", rotation: el.rotation || 0, scale: el.scale || 1 });
+      setTimeout(() => inputRef.current?.focus(), 10);
+    } else if (el.type === "image") {
+      setImageEditMode(true);
+      setImageDimensions({ width: el.width, height: el.height });
+      setCurrentImageRotation(el.rotation || 0);
+    }
+  };
+
+  const handleTextInputChange = (e) => {
+    setTextInputValue(e.target.value);
+    actualizarElemento(selectedId, { text: e.target.value });
+  };
 
   return (
     <div className="herramienta-diseño-container centered-layout">

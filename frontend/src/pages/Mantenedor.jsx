@@ -9,6 +9,8 @@ import PaginaColores from "../components/Mantenedor/PaginaColores";
 import Testimonios from "../components/Mantenedor/Testimonios";
 import ProductosArticulos from "../components/Mantenedor/ProductosArticulos";
 import InformesEstadisticas from "../components/Mantenedor/InformesEstadisticas";
+import InformesArticulos from "../components/Mantenedor/InformesArticulos";
+import PedidosGestion from "../components/Mantenedor/PedidosGestion";
 import "./Mantenedor.css";
 
 const Mantenedor = () => {
@@ -90,9 +92,13 @@ const Mantenedor = () => {
     } else if (catId === 4 && subId === 7) {
       setSubcategoriaActiva("Articulos");
     } else if (catId === 5 && subId === 8) {
-      setSubcategoriaActiva("Estadisticas");
+        setSubcategoriaActiva("InformesEstadisticas");
+    } else if (catId === 5 && subId === 9) {
+        setSubcategoriaActiva("InformesArticulos");
+    } else if (catId === 4 && subId === 10) {
+        setSubcategoriaActiva("PedidosGestion");
     } else {
-      setSubcategoriaActiva(null);
+        setSubcategoriaActiva(null);
     }
   };
 
@@ -162,7 +168,9 @@ const Mantenedor = () => {
       {subcategoriaActiva === "PaginaColores" && <PaginaColores />}
       {subcategoriaActiva === "Testimonios" && <Testimonios />}
       {subcategoriaActiva === "Articulos" && <ProductosArticulos />}
-      {subcategoriaActiva === "Estadisticas" && <InformesEstadisticas />}
+      {subcategoriaActiva === "InformesEstadisticas" && <InformesEstadisticas />}
+      {subcategoriaActiva === "InformesArticulos" && <InformesArticulos />}
+      {subcategoriaActiva === "PedidosGestion" && <PedidosGestion />}
     </div>
   );
 };

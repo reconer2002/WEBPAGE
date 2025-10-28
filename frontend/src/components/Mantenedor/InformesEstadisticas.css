@@ -6,13 +6,18 @@
   margin-top: 20px;
 }
 
-.informes-estadisticas-container h3 {
+.informes-estadisticas-container h3,
+.informes-estadisticas-container h4 {
   color: #333;
   margin-bottom: 15px;
+}
+
+.informes-estadisticas-container h3 {
   border-bottom: 2px solid #ddd;
   padding-bottom: 10px;
 }
 
+/* --- Resumen de Números --- */
 .estadisticas-resumen {
   display: flex;
   gap: 20px;
@@ -30,20 +35,69 @@
   text-align: center;
 }
 
-.resumen-card h4 {
-  margin-top: 0;
-  color: #555;
-  font-size: 1rem;
-}
-
 .big-number {
   font-size: 2.5rem;
   font-weight: bold;
-  color: #007bff; /* Color primario */
+  color: #007bff;
   margin: 5px 0 0;
 }
 
 .error-message {
   color: red;
   font-weight: bold;
+}
+
+/* --- Gráfico Circular de Roles --- */
+.estadisticas-graficos-pie {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+/* --- Rankings de Usuarios --- */
+.estadisticas-rankings {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 30px;
+    justify-content: space-around;
+    margin-top: 20px;
+}
+
+.ranking-panel {
+    background-color: #fff;
+    padding: 15px;
+    border-radius: 6px;
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.1);
+    flex: 1;
+    min-width: 380px;
+}
+
+.ranking-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* Centrar gráfico */
+    gap: 15px;
+}
+
+.ranking-table-list table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+.ranking-table-list th, .ranking-table-list td {
+    border: 1px solid #eee;
+    padding: 8px;
+    text-align: left;
+}
+
+.ranking-table-list th {
+    background-color: #f2f2f2;
+    font-weight: bold;
+}
+
+.ranking-table-list td:nth-child(1) {
+    text-align: center;
+    font-weight: bold;
 }

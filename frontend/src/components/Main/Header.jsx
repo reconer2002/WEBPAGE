@@ -78,7 +78,7 @@ const Header = ({ user, onLogin, onLogout }) => {
         <nav className="sub-nav">
           <Link to="/perfil">Perfil</Link>
           <Link to="/disenos">Tus diseños</Link>
-          {null}
+          <Link to="/compras">Mis compras</Link>
           <Link to="/cart" className="nav-cart">
             <div className="cart-container">
               <img

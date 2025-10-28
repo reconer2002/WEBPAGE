@@ -1,22 +1,102 @@
 import React, { useEffect, useState } from "react";
-import { getEstadisticas } from "../../services/estadisticasService"; // Importamos el servicio
+// Importar componentes de Recharts (asumiendo que se instaló la librería)
+import { PieChart, Pie, Cell, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts"; 
+import { getEstadisticas } from "../../services/estadisticasService"; 
 import "./InformesEstadisticas.css";
+
+// Colores para el gráfico circular (Roles)
+const COLORS_ROLES = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#A239CA'];
+// Colores para los gráficos de barras (Rankings)
+const COLOR_GASTO = '#4CAF50'; 
+const COLOR_PEDIDOS = '#2196F3';
+const COLOR_DISENOS = '#FF5722';
+
+// Función para formatear valores monetarios
+const formatCurrency = (value) => `$${parseFloat(value).toLocaleString('es-CL', { minimumFractionDigits: 0 })}`;
+// Función para formatear conteos simples
+const formatCount = (value) => `${parseInt(value)} uds.`;
+
+
+// Componente auxiliar para mostrar el ranking como tabla
+const RankingTable = ({ data, title, dataKey, valueFormatter, barColor }) => {
+    if (!data || data.length === 0) return <p>No hay datos de ranking disponibles.</p>;
+
+    // 💡 CORRECCIÓN DE ERROR Y ORDEN VISUAL:
+    // 1. Copiamos el array para inmutabilidad ([...data]).
+    // 2. Revertimos el orden (.reverse()) para que el #1 quede arriba en BarChart.
+    const reversedData = [...data].reverse();
+
+    return (
+        <div className="ranking-panel">
+            <h4>{title}</h4>
+            <div className="ranking-content">
+                <div className="ranking-chart">
+                    {/* GRÁFICO DE BARRAS */}
+                    <BarChart
+                        width={400}
+                        height={250}
+                        data={reversedData} // Usamos el array inmutable y revertido
+                        layout="vertical"
+                        margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                    >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis type="number" tickFormatter={valueFormatter}/>
+                        {/* El ranking #1 queda arriba gracias a reversedData */}
+                        <YAxis dataKey="nombre" type="category" width={90} /> 
+                        <Tooltip formatter={(value) => valueFormatter ? valueFormatter(value) : value} />
+                        <Bar dataKey={dataKey} fill={barColor} radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                </div>
+                <div className="ranking-table-list">
+                    {/* RANKING EN FORMATO DE LISTA */}
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Usuario</th>
+                                <th>{dataKey.replace('total', 'Total ')}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {/* 💡 CORRECCIÓN: Usamos el array ORIGINAL (data) y el index + 1 para numerar, 
+                                para que el #1 sea el primer elemento de la tabla. 
+                                La tabla no necesita orden inverso si no es un BarChart vertical.
+                            */}
+                            {data.map((item, index) => (
+                                <tr key={item.id}>
+                                    {/* Numeración simple 1, 2, 3... */}
+                                    <td>{index + 1}</td> 
+                                    <td>{item.nombre}</td>
+                                    <td>{valueFormatter ? valueFormatter(item[dataKey]) : item[dataKey]}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 
 const InformesEstadisticas = () => {
   const [datos, setDatos] = useState({
     totalUsuarios: 0,
-    // Aquí se agregarían otros campos como totalPedidos, etc.
+    totalPedidos: 0,
+    usuariosPorRol: [],
+    rankingDineroGastado: [],
+    rankingMasPedidos: [],
+    rankingMasDisenos: [],
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Traer estadísticas desde la API al montar
   useEffect(() => {
     const fetchEstadisticas = async () => {
       try {
         setLoading(true);
         setError(null);
-        // Llamada al nuevo servicio
+        // Función importada de '../../services/estadisticasService'
         const data = await getEstadisticas();
         setDatos(data);
       } catch (err) {
@@ -29,34 +109,94 @@ const InformesEstadisticas = () => {
     fetchEstadisticas();
   }, []);
 
+  // Formatear datos de roles para PieChart (no necesita ser copiado, solo mapeado)
+  const dataRoles = datos.usuariosPorRol.map(item => ({
+    name: item.rol,
+    value: item.cantidad
+  }));
+
   return (
     <div className="informes-estadisticas-container">
       <h3>📊 Informes - Estadísticas</h3>
-      <p>
-        **Nota:** La información se carga del entorno{" "}
-        **{localStorage.getItem("entorno") || "prod"}**
-      </p>
 
       {loading && <p>Cargando estadísticas...</p>}
       {error && <p className="error-message">Error: {error}</p>}
 
       {!loading && !error && (
-        <div className="estadisticas-resumen">
-          {/* Tarjeta de cantidad de usuarios */}
-          <div className="resumen-card">
-            <h4>Cantidad de Usuarios</h4>
-            <p className="big-number">{datos.totalUsuarios}</p>
+        <>
+          {/* SECCIÓN 1: RESUMEN DE NÚMEROS */}
+          <div className="estadisticas-resumen">
+            <div className="resumen-card">
+              <h4>Total de Usuarios</h4>
+              <p className="big-number">{datos.totalUsuarios.toLocaleString()}</p>
+            </div>
+            
+            <div className="resumen-card">
+              <h4>Total de Pedidos</h4>
+              <p className="big-number">{datos.totalPedidos.toLocaleString()}</p>
+            </div>
           </div>
+          
+          <hr />
 
-          {/* Aquí irían las otras estadísticas y gráficos */}
-          {/* <div className="resumen-card">
-            <h4>Cantidad de Pedidos</h4>
-            <p className="big-number">{datos.totalPedidos}</p>
-          </div> */}
-        </div>
+          {/* SECCIÓN 2: GRÁFICO CIRCULAR DE ROLES */}
+          <div className="estadisticas-graficos-pie">
+            <h4>Usuarios por Rol</h4>
+            <PieChart width={450} height={350}>
+              <Pie
+                data={dataRoles}
+                dataKey="value"
+                nameKey="name"
+                cx="50%"
+                cy="50%"
+                innerRadius={60}
+                outerRadius={100}
+                paddingAngle={3}
+                labelLine={false}
+                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+              >
+                {dataRoles.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={COLORS_ROLES[index % COLORS_ROLES.length]} />
+                ))}
+              </Pie>
+              <Tooltip formatter={(value, name) => [`${value} ${value === 1 ? 'usuario' : 'usuarios'}`, name]}/>
+              <Legend layout="horizontal" align="center" verticalAlign="bottom"/>
+            </PieChart>
+          </div>
+          
+          <hr />
+          
+          {/* SECCIÓN 3: RANKINGS DE USUARIOS */}
+          <h2>🏆 Rankings de Usuarios (Top 10)</h2>
+          <div className="estadisticas-rankings">
+            
+            <RankingTable
+                data={datos.rankingDineroGastado}
+                title="Usuarios con más dinero gastado"
+                dataKey="totalGastado"
+                valueFormatter={formatCurrency}
+                barColor={COLOR_GASTO}
+            />
+
+            <RankingTable
+                data={datos.rankingMasPedidos}
+                title="Usuarios con más pedidos hechos"
+                dataKey="totalPedidos"
+                valueFormatter={formatCount}
+                barColor={COLOR_PEDIDOS}
+            />
+
+            <RankingTable
+                data={datos.rankingMasDisenos}
+                title="Usuarios con más diseños generados"
+                dataKey="totalDisenos"
+                valueFormatter={formatCount}
+                barColor={COLOR_DISENOS}
+            />
+
+          </div>
+        </>
       )}
-
-      {/* Aquí se agregarán los gráficos de circular y de barras */}
     </div>
   );
 };

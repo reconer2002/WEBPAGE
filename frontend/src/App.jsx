@@ -10,7 +10,12 @@ import HomePage from "./pages/HomePage";
 import authService from "./services/authService";
 import paginaService from "./services/paginaService";
 import DisenosPage from "./components/Diseno/DisenosPage";
+import EditarDiseno from "./components/Diseno/EditarDiseno";
 import Cart from "./pages/Cart";
+import Checkout from "./pages/Checkout";
+import CheckoutMock from "./pages/CheckoutMock";
+import CheckoutResult from "./pages/CheckoutResult";
+import MisCompras from "./pages/MisCompras";
 import Register from "./components/LoginForm/Register";
 import Profile from "./pages/Profile";
 import VerifyAccount from "./pages/VerifyAccount";
@@ -128,6 +133,23 @@ function App() {
         />
 
         <Route
+          path="/disenos/:id/editar"
+          element={
+            <>
+              <Header
+                user={user}
+                onLogin={handleLogin}
+                onLogout={handleLogout}
+              />
+              <ProtectedRoute user={user} requiredPermission="personalizar_productos" loading={loadingUser}>
+                <EditarDiseno />
+              </ProtectedRoute>
+              <Footer />
+            </>
+          }
+        />
+
+        <Route
           path="/perfil"
           element={
             <>
@@ -136,8 +158,21 @@ function App() {
                 onLogin={handleLogin}
                 onLogout={handleLogout}
               />
-              <ProtectedRoute user={user} loading={loadingUser}>
+              <ProtectedRoute user={user} requireAuth loading={loadingUser}>
                 <Profile user={user} onUserUpdate={setUser} />
+              </ProtectedRoute>
+              <Footer />
+            </>
+          }
+        />
+
+        <Route
+          path="/compras"
+          element={
+            <>
+              <Header user={user} onLogin={handleLogin} onLogout={handleLogout} />
+              <ProtectedRoute user={user} requireAuth loading={loadingUser}>
+                <MisCompras />
               </ProtectedRoute>
               <Footer />
             </>
@@ -183,7 +218,48 @@ function App() {
                 onLogin={handleLogin}
                 onLogout={handleLogout}
               />
-              <Cart user={user} />
+              <ProtectedRoute user={user} requireAuth loading={loadingUser}>
+                <Cart user={user} />
+              </ProtectedRoute>
+              <Footer />
+            </>
+          }
+        />
+
+        <Route
+          path="/checkout"
+          element={
+            <>
+              <Header user={user} onLogin={handleLogin} onLogout={handleLogout} />
+              <ProtectedRoute user={user} requireAuth loading={loadingUser}>
+                <Checkout />
+              </ProtectedRoute>
+              <Footer />
+            </>
+          }
+        />
+
+        <Route
+          path="/checkout/mock"
+          element={
+            <>
+              <Header user={user} onLogin={handleLogin} onLogout={handleLogout} />
+              <ProtectedRoute user={user} requireAuth loading={loadingUser}>
+                <CheckoutMock />
+              </ProtectedRoute>
+              <Footer />
+            </>
+          }
+        />
+
+        <Route
+          path="/checkout/resultado"
+          element={
+            <>
+              <Header user={user} onLogin={handleLogin} onLogout={handleLogout} />
+              <ProtectedRoute user={user} requireAuth loading={loadingUser}>
+                <CheckoutResult />
+              </ProtectedRoute>
               <Footer />
             </>
           }

@@ -6,7 +6,8 @@ import disenosService from "../../../services/disenosService";
 import cartService from "../../../services/cartService";
 import { configurarImagenesVistas, calcularPosicionElemento } from "../utils/disenoHelpers";
 
-export const useHerramientaDiseño = (onDisenoGuardado) => {
+export const useHerramientaDiseño = (onDisenoGuardado, options = {}) => {
+  const { editingId = null, initialElements = null, initialObjeto = null, initialNombre = '', initialElementsByView = null } = options || {};
   // Estados principales
   const [elementosPorVista, setElementosPorVista] = useState({
     frente: [],
@@ -28,6 +29,7 @@ export const useHerramientaDiseño = (onDisenoGuardado) => {
   });
   const [loading, setLoading] = useState(true);
   const [guardandoDiseno, setGuardandoDiseno] = useState(false);
+  const [nombreDiseno, setNombreDiseno] = useState(initialNombre || '');
 
   // Estados para edición
   const [textInputValue, setTextInputValue] = useState("");
@@ -58,6 +60,13 @@ export const useHerramientaDiseño = (onDisenoGuardado) => {
       ...prev,
       [vistaActual]: typeof callback === 'function' ? callback(prev[vistaActual] || []) : callback
     }));
+  };
+
+  // Reemplazar elementos de la vista actual desde fuera (p. ej., al editar)
+  const replaceElements = (elements) => {
+    setElementos(elements || []);
+    setSelectedId(null);
+    setImageEditMode(false);
   };
 
   // Cargar datos iniciales
@@ -97,6 +106,35 @@ export const useHerramientaDiseño = (onDisenoGuardado) => {
     };
     fetchInitialData();
   }, []);
+
+  // Si estamos en modo edición y recibimos datos iniciales, aplicarlos
+  useEffect(() => {
+    if (initialElements && Array.isArray(initialElements)) {
+      replaceElements(initialElements);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [Array.isArray(initialElements) ? initialElements.length : 0]);
+
+  useEffect(() => {
+    if (initialObjeto) {
+      handleObjetoSelect(initialObjeto);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialObjeto?.id]);
+
+  useEffect(() => {
+    if (initialElementsByView && typeof initialElementsByView === 'object') {
+      setElementosPorVista(prev => ({
+        frente: Array.isArray(initialElementsByView.frente) ? initialElementsByView.frente : (prev.frente || []),
+        detras: Array.isArray(initialElementsByView.detras) ? initialElementsByView.detras : (prev.detras || []),
+        izquierda: Array.isArray(initialElementsByView.izquierda) ? initialElementsByView.izquierda : (prev.izquierda || []),
+        derecha: Array.isArray(initialElementsByView.derecha) ? initialElementsByView.derecha : (prev.derecha || []),
+      }));
+      setVistaActual('frente');
+      setSelectedId(null);
+      setImageEditMode(false);
+    }
+  }, [initialElementsByView]);
 
   // Manejo de teclas
   useEffect(() => {
@@ -290,21 +328,78 @@ export const useHerramientaDiseño = (onDisenoGuardado) => {
       }
       
       // Crear el nombre del diseño
-      const nombreDiseno = prompt("Ingresa un nombre para tu diseño:", 
-        `Diseño ${objetoSeleccionado.articulo_nombre} ${new Date().toLocaleDateString()}`);
+      const nombreDefault = nombreDiseno || `Diseño ${objetoSeleccionado.articulo_nombre} ${new Date().toLocaleDateString()}`;
+      const nombreIngresado = prompt("Ingresa un nombre para tu diseño:", nombreDefault);
       
-      if (!nombreDiseno) {
+      if (!nombreIngresado) {
         setGuardandoDiseno(false);
         return;
       }
 
+      setNombreDiseno(nombreIngresado);
+
+      // Preparar assets de imágenes por elemento como DataURL para edición futura
+      const imagenes_elementos = [];
+      for (const el of elementos) {
+        if (el?.type === 'image' && el.url) {
+          try {
+            const resp = await fetch(el.url);
+            const blob = await resp.blob();
+            const b64 = await new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result);
+              reader.onerror = reject;
+              reader.readAsDataURL(blob);
+            });
+            imagenes_elementos.push(String(b64));
+          } catch (_) {
+            // Si falla, omitimos esa imagen
+          }
+        }
+      }
+
+      // Helper: convertir a DataURL segura
+      const toDataURL = async (url) => {
+        try {
+          const resp = await fetch(url);
+          const blob = await resp.blob();
+          const b64 = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+          return String(b64);
+        } catch {
+          return null;
+        }
+      };
+
+      // Construir elementos_por_vista con imágenes como DataURL para robustez
+      const elementos_por_vista = { frente: [], detras: [], izquierda: [], derecha: [] };
+      for (const vista of ['frente', 'detras', 'izquierda', 'derecha']) {
+        const arr = Array.isArray(elementosPorVista[vista]) ? elementosPorVista[vista] : [];
+        const out = [];
+        for (const el of arr) {
+          if (el?.type === 'image' && el.url) {
+            const dataurl = await toDataURL(el.url);
+            out.push({ ...el, url: dataurl || el.url });
+          } else {
+            out.push(el);
+          }
+        }
+        elementos_por_vista[vista] = out;
+      }
+
       // Preparar datos del diseño para backend real
       const disenoData = {
-        nombre: nombreDiseno,
+        nombre: nombreIngresado,
         articulo_id: objetoSeleccionado.articulo_id,
         imagen: dataURL,
         elementos: elementos,
-        variantes: objetoSeleccionado.variantes || []
+        variantes: objetoSeleccionado.variantes || [],
+        elementos_por_vista,
+        imagenes_elementos,
       };
 
       // Validar sesión
@@ -315,8 +410,14 @@ export const useHerramientaDiseño = (onDisenoGuardado) => {
         return null;
       }
 
-      const res = await disenosService.guardarDiseno(disenoData);
-      alert(`¡Diseño "${nombreDiseno}" guardado exitosamente!`);
+      let res;
+      if (editingId) {
+        res = await disenosService.actualizarDiseno(editingId, disenoData);
+        alert(`¡Diseño "${nombreIngresado}" actualizado exitosamente!`);
+      } else {
+        res = await disenosService.guardarDiseno(disenoData);
+        alert(`¡Diseño "${nombreIngresado}" guardado exitosamente!`);
+      }
 
       // Notificar al componente padre que se guardó un diseño
       if (onDisenoGuardado) onDisenoGuardado();
@@ -480,6 +581,7 @@ export const useHerramientaDiseño = (onDisenoGuardado) => {
     imagenesVistas,
     loading,
     guardandoDiseno,
+    nombreDiseno,
     textInputValue,
     textStyle,
     setTextStyle,
@@ -503,6 +605,7 @@ export const useHerramientaDiseño = (onDisenoGuardado) => {
     cambiarVista,
     posicionarElemento,
     captureAndUploadViews,
+    replaceElements,
     saveAndAddToCart,
     actualizarElemento,
     eliminarElemento,

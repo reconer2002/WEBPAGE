@@ -11,16 +11,14 @@ const ProductosArticulosGrid = () => {
   const [seleccionado, setSeleccionado] = useState(null);
   const [modoNuevo, setModoNuevo] = useState(false);
 
-  // Usamos solo un archivo/preview para la imagen principal
+  // Usamos fotoFile (File real) y fotoPreview (string para <img/>)
   const [formData, setFormData] = useState({
     nombre: "",
     precio: "",
     descripcion: "",
     descuento: 0,
     ranking: 0,
-    // Un solo archivo
-    fotoFile: null, 
-    // Un solo preview
+    fotoFile: null,
     fotoPreview: null,
   });
 
@@ -49,9 +47,8 @@ const ProductosArticulosGrid = () => {
       descripcion: art.descripcion || "",
       descuento: art.descuento || 0,
       ranking: art.ranking || 0,
-      // Solo el archivo y preview principal
-      fotoFile: null, 
-      fotoPreview: art.foto || null,
+      fotoFile: null,               // no cambiamos la imagen hasta que el usuario suba una nueva
+      fotoPreview: art.foto || null // mostramos la actual
     });
   };
 
@@ -75,10 +72,10 @@ const ProductosArticulosGrid = () => {
   };
 
   const handleChange = (e) => {
-    const { name, value, files } = e.target;
+    const { name, value, files, type } = e.target;
 
-    // Manejo especial para el input file principal
-    if (name === "foto") { // <-- Cambiado a un solo input 'foto'
+    // Manejo especial para el input file
+    if (type === "file") {
       const file = files && files[0] ? files[0] : null;
       setFormData((prev) => ({
         ...prev,
@@ -87,16 +84,14 @@ const ProductosArticulosGrid = () => {
       }));
       return;
     }
-    
-    // Manejo normal de inputs de texto/número
+
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleActualizar = async () => {
     if (!seleccionado?.id) return;
     try {
-      // Necesitarás actualizar tu service para manejar solo un campo 'foto' si cambiaste el backend
-      await productosService.updateArticulo(seleccionado.id, formData); 
+      await productosService.updateArticulo(seleccionado.id, formData);
       alert("Artículo actualizado");
       setSeleccionado(null);
       cargarArticulos();
@@ -137,7 +132,7 @@ const ProductosArticulosGrid = () => {
   if (loading) return <p>Cargando artículos...</p>;
 
   return (
-    <div className="productos-grid-root">
+    <>
       <section className="grid-contenido">
         {/* Grid de artículos */}
         <div className={`mostrador ${seleccionado ? "reducido" : "completo"}`}>
@@ -194,7 +189,6 @@ const ProductosArticulosGrid = () => {
                 &#x2715;
               </div>
               <div className="info">
-                {/* Mostrar preview de la imagen principal */}
                 {formData.fotoPreview && (
                   <img src={formData.fotoPreview} alt={formData.nombre} />
                 )}
@@ -243,11 +237,8 @@ const ProductosArticulosGrid = () => {
                   placeholder="Ranking"
                 />
 
-                <p>Imagen Principal:</p> {/* <-- Input principal restaurado */}
+                <p>Imagen:</p>
                 <input type="file" name="foto" accept="image/*" onChange={handleChange} />
-                
-                {/* *** SE ELIMINA LA SECCIÓN DE VISTAS (div con estilos inline) ***
-                */}
               </div>
 
               <div className="botonera-panel">
@@ -274,7 +265,7 @@ const ProductosArticulosGrid = () => {
           <ProductosObjetosGrid articulo={seleccionado} />
         </>
       )}
-    </div>
+    </>
   );
 };
 

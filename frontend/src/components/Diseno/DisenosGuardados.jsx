@@ -172,10 +172,7 @@ const DisenosGuardados = () => {
               <div className="diseno-actions">
                 <button
                   className="editar-btn"
-                  onClick={() => {
-                    // TODO: Implementar edición de diseño
-                    alert("Funcionalidad de edición en desarrollo");
-                  }}
+                  onClick={() => navigate(`/disenos/${diseno.id}/editar`)}
                 >
                   Editar
                 </button>

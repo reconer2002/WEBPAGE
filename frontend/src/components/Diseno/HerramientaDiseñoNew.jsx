@@ -4,7 +4,7 @@ import { useHerramientaDiseño } from "./hooks/useHerramientaDiseño";
 import CanvasDiseño from "./components/Canvas/CanvasDiseño";
 import SidebarDiseño from "./components/Sidebar/SidebarDiseño";
 
-const HerramientaDiseño = ({ onDisenoGuardado }) => {
+const HerramientaDiseño = ({ onDisenoGuardado, editingId = null, initialElements = null, initialObjeto = null, initialNombre = '', initialElementsByView = null }) => {
   const {
     // Estados
     elementos,
@@ -52,7 +52,7 @@ const HerramientaDiseño = ({ onDisenoGuardado }) => {
     handleSelectElement,
     handleTextInputChange,
     saveAndAddToCart,
-  } = useHerramientaDiseño(onDisenoGuardado);
+  } = useHerramientaDiseño(onDisenoGuardado, { editingId, initialElements, initialObjeto, initialNombre, initialElementsByView });
 
   return (
     <div className="herramienta-diseño-container centered-layout">

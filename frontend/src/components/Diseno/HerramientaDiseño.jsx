@@ -408,12 +408,62 @@ const HerramientaDiseño = ({ onDisenoGuardado }) => {
       );
       if (!nombre) return null;
 
+      // Preparar assets de imágenes individuales
+      const imagenes_elementos = [];
+      for (const el of elementos) {
+        if (el?.type === 'image' && el.url) {
+          try {
+            const resp = await fetch(el.url);
+            const blob = await resp.blob();
+            const b64 = await new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result);
+              reader.onerror = reject;
+              reader.readAsDataURL(blob);
+            });
+            imagenes_elementos.push(String(b64));
+          } catch (_) {}
+      }
+
+      // Construir elementos_por_vista con DataURL para imágenes
+      const toDataURL = async (url) => {
+        try {
+          const resp = await fetch(url);
+          const blob = await resp.blob();
+          const b64 = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+          return String(b64);
+        } catch {
+          return null;
+        }
+      };
+      const elementos_por_vista = { frente: [], detras: [], izquierda: [], derecha: [] };
+      for (const vista of ['frente', 'detras', 'izquierda', 'derecha']) {
+        const arr = Array.isArray(elementosPorVista[vista]) ? elementosPorVista[vista] : [];
+        const out = [];
+        for (const el of arr) {
+          if (el?.type === 'image' && el.url) {
+            const dataurl = await toDataURL(el.url);
+            out.push({ ...el, url: dataurl || el.url });
+          } else {
+            out.push(el);
+          }
+        }
+        elementos_por_vista[vista] = out;
+      }
+
       const diseno = {
         nombre,
         articulo_id: objetoSeleccionado.articulo_id,
         imagen,
         elementos: elementos,
         variantes: objetoSeleccionado.variantes || [],
+        elementos_por_vista,
+        imagenes_elementos,
       };
 
       const res = await disenosService.guardarDiseno(diseno);

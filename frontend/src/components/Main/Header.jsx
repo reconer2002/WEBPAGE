@@ -17,13 +17,19 @@ const Header = ({ user, onLogin, onLogout }) => {
       const data = await paginaService.getFooterData();
       setLogoUrl(data.logo);
     };
+    fetchLogo();
+  }, []);
+
+  useEffect(() => {
     const fetchCartCount = async () => {
       if (user) {
         const count = await cartService.getCount();
         setCartCount(count);
+      } else {
+        // Limpiar el contador cuando no hay usuario
+        setCartCount(0);
       }
     };
-    fetchLogo();
     fetchCartCount();
 
     // Escuchar eventos de actualización del carrito
@@ -36,6 +42,7 @@ const Header = ({ user, onLogin, onLogout }) => {
 
   const handleLogout = () => {
     authService.logout();
+    setCartCount(0); // Limpiar el contador del carrito
     onLogout();
     navigate("/");
   };
@@ -71,6 +78,9 @@ const Header = ({ user, onLogin, onLogout }) => {
           ) : (
             <div className="login-inline">
               <LoginForm onLogin={onLogin} />
+              <Link to="/register" className="btn register-link">
+                Registrarse
+              </Link>
             </div>
           )}
         </div>

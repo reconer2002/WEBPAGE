@@ -10,16 +10,9 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // ✅ IMPORTAR dbSelector
 const dbSelector = require('./middleware/dbSelector');
-// ✅ Migraciones suaves para perfil de usuario (añade columnas si faltan)
-const { ensureUserProfileSchema } = require('./utils/schema');
 
 // ✅ Aplicarlo ANTES de las rutas
 app.use(dbSelector);
-
-// Asegurar columnas de perfil sin requerir bandera (idempotente)
-ensureUserProfileSchema().catch((err) => {
-  console.warn('No se pudo asegurar el esquema de usuarios:', err?.message);
-});
 
 // ✅ Rutas
 const authRoutes = require('./routes/auth');

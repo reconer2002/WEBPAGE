@@ -8,7 +8,11 @@ const login = async (identificador, password) => {
     
     // Si el backend llega hasta aquí, asumimos que el usuario está verificado y autenticado
     localStorage.setItem('token', data.token);
-    return { success: true, token: data.token };
+    
+    // Obtener los datos del usuario después de guardar el token
+    const user = await getCurrentUser();
+    
+    return { success: true, token: data.token, user };
   } catch (err) {
     // Manejo de error para verificar si la cuenta no está activa (403/401)
     const responseData = err.response?.data || {};
@@ -30,15 +34,22 @@ const logout = () => {
 };
 
 const getCurrentUser = async () => {
+  // Si no hay token, no hacer la petición
+  const token = localStorage.getItem('token');
+  if (!token) {
+    return null;
+  }
+
   try {
     const { data } = await api.get('/auth/me');
     return data;
   } catch (err) {
-    console.error('Error al obtener usuario actual:', err);
+    // Solo loguear errores que no sean 401 (no autorizado es esperado)
     if (err.response?.status === 401) {
       localStorage.removeItem('token');
       return null;
     }
+    console.error('Error al obtener usuario actual:', err);
     throw err;
   }
 };

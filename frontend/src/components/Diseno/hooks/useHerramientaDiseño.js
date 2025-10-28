@@ -7,8 +7,9 @@ import disenosService from "../../../services/disenosService";
 import cartService from "../../../services/cartService";
 import { configurarImagenesVistas, calcularPosicionElemento } from "../utils/disenoHelpers";
 
-export const useHerramientaDiseño = (onDisenoGuardado) => {
-  // Estados principales
+export const useHerramientaDiseño = (onDisenoGuardado, disenoIdParaEditar = null) => {
+  const navigate = useNavigate();
+  
   const [elementosPorVista, setElementosPorVista] = useState({
     frente: [],
     izquierda: [],
@@ -29,6 +30,7 @@ export const useHerramientaDiseño = (onDisenoGuardado) => {
   });
   const [loading, setLoading] = useState(true);
   const [guardandoDiseno, setGuardandoDiseno] = useState(false);
+  const [agregandoAlCarrito, setAgregandoAlCarrito] = useState(false);
 
   // Estados para edición
   const [textInputValue, setTextInputValue] = useState("");
@@ -106,36 +108,42 @@ export const useHerramientaDiseño = (onDisenoGuardado) => {
     fetchInitialData();
   }, []);
 
-  // Si estamos en modo edición y recibimos datos iniciales, aplicarlos
   useEffect(() => {
-    if (initialElements && Array.isArray(initialElements)) {
-      replaceElements(initialElements);
+    if (disenoIdParaEditar && todosLosObjetos.length > 0 && diseniosBase.length > 0 && articulos.length > 0) {
+      const cargarDiseno = async () => {
+        try {
+          setLoading(true);
+          const diseno = await disenosService.getDiseno(disenoIdParaEditar);
+          
+          if (diseno.elementos_por_vista) {
+            setElementosPorVista(diseno.elementos_por_vista);
+          }
+          
+          if (diseno.vista_actual) {
+            setVistaActual(diseno.vista_actual);
+          }
+          
+          if (diseno.objeto_id) {
+            const objeto = todosLosObjetos.find(o => o.id === diseno.objeto_id);
+            if (objeto) {
+              setObjetoSeleccionado(objeto);
+              const imagenesConfiguradas = configurarImagenesVistas(objeto, diseniosBase, articulos);
+              setImagenesVistas(imagenesConfiguradas);
+            }
+          }
+          
+          setSelectedId(null);
+          setImageEditMode(false);
+        } catch (error) {
+          console.error('Error cargando diseño:', error);
+        } finally {
+          setLoading(false);
+        }
+      };
+      cargarDiseno();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [Array.isArray(initialElements) ? initialElements.length : 0]);
+  }, [disenoIdParaEditar, todosLosObjetos.length, diseniosBase.length, articulos.length]);
 
-  useEffect(() => {
-    if (initialObjeto) {
-      handleObjetoSelect(initialObjeto);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialObjeto?.id]);
-
-  useEffect(() => {
-    if (initialElementsByView && typeof initialElementsByView === 'object') {
-      setElementosPorVista(prev => ({
-        frente: Array.isArray(initialElementsByView.frente) ? initialElementsByView.frente : (prev.frente || []),
-        detras: Array.isArray(initialElementsByView.detras) ? initialElementsByView.detras : (prev.detras || []),
-        izquierda: Array.isArray(initialElementsByView.izquierda) ? initialElementsByView.izquierda : (prev.izquierda || []),
-        derecha: Array.isArray(initialElementsByView.derecha) ? initialElementsByView.derecha : (prev.derecha || []),
-      }));
-      setVistaActual('frente');
-      setSelectedId(null);
-      setImageEditMode(false);
-    }
-  }, [initialElementsByView]);
-
-  // Manejo de teclas
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (!selectedId) return;
@@ -295,65 +303,67 @@ export const useHerramientaDiseño = (onDisenoGuardado) => {
   };
 
   const captureAndUploadViews = async () => {
-    if (!objetoSeleccionado) {
-      alert("Primero selecciona un objeto para personalizar");
-      return;
-    }
-
     try {
       setGuardandoDiseno(true);
+
+      if (!stageRef.current || !objetoSeleccionado) {
+        alert('Selecciona un objeto antes de guardar');
+        return null;
+      }
+
+      const nombreIngresado = prompt("Ingresa un nombre para tu diseño:", 
+        `Diseño ${objetoSeleccionado.articulo_nombre} ${new Date().toLocaleDateString()}`);
       
-      // Guardar el ID del elemento seleccionado actual
+      if (!nombreIngresado) {
+        setGuardandoDiseno(false);
+        return null;
+      }
+
       const elementoSeleccionadoAntes = selectedId;
-      
-      // Deseleccionar temporalmente para que no aparezcan los controles
       setSelectedId(null);
       setImageEditMode(false);
       
-      // Esperar un frame para que se actualice la UI
       await new Promise(resolve => requestAnimationFrame(resolve));
-      
-      // Convertir URLs blob a base64 en todos los elementos
-      const convertirImagenesABase64 = async (elementosVista) => {
-        const elementosConvertidos = [];
-        for (const el of elementosVista) {
-          if (el.type === 'image' && el.url && el.url.startsWith('blob:')) {
-            try {
-              // Convertir blob URL a base64
-              const response = await fetch(el.url);
-              const blob = await response.blob();
-              const base64 = await new Promise((resolve) => {
-                const reader = new FileReader();
-                reader.onloadend = () => resolve(reader.result);
-                reader.readAsDataURL(blob);
-              });
-              elementosConvertidos.push({ ...el, url: base64 });
-              console.log("Imagen convertida de blob a base64");
-            } catch (error) {
-              console.error("Error convirtiendo imagen a base64:", error);
-              elementosConvertidos.push(el); // Mantener original si falla
-            }
-          } else {
-            elementosConvertidos.push(el);
-          }
+
+      const toDataURL = async (url) => {
+        try {
+          const resp = await fetch(url);
+          const blob = await resp.blob();
+          return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+        } catch {
+          return null;
         }
-        return elementosConvertidos;
       };
 
-      // Convertir todas las imágenes en todas las vistas
-      console.log("Convirtiendo imágenes blob a base64...");
-      const elementosConvertidos = {
-        frente: await convertirImagenesABase64(elementosPorVista.frente || []),
-        izquierda: await convertirImagenesABase64(elementosPorVista.izquierda || []),
-        derecha: await convertirImagenesABase64(elementosPorVista.derecha || []),
-        detras: await convertirImagenesABase64(elementosPorVista.detras || [])
+      const procesarElementosPorVista = async () => {
+        const resultado = {};
+        for (const vista of ['frente', 'detras', 'izquierda', 'derecha']) {
+          const elementosVista = elementosPorVista[vista] || [];
+          const procesados = [];
+          
+          for (const el of elementosVista) {
+            if (el?.type === 'image' && el.url && !el.url.startsWith('data:')) {
+              const dataurl = await toDataURL(el.url);
+              procesados.push({ ...el, url: dataurl || el.url });
+            } else {
+              procesados.push(el);
+            }
+          }
+          resultado[vista] = procesados;
+        }
+        return resultado;
       };
-      
-      // Capturar imagen de la vista actual del canvas
+
+      const elementosProcesados = await procesarElementosPorVista();
+
       const stage = stageRef.current;
-      const dataURL = stage.toDataURL({ mimeType: 'image/png', quality: 1 });
-      
-      // Restaurar la selección después de la captura
+      const dataURL = stage.toDataURL({ pixelRatio: 2 });
+
       setSelectedId(elementoSeleccionadoAntes);
       if (elementoSeleccionadoAntes) {
         const elemento = elementos.find(el => el.id === elementoSeleccionadoAntes);
@@ -361,81 +371,7 @@ export const useHerramientaDiseño = (onDisenoGuardado) => {
           setImageEditMode(true);
         }
       }
-      
-      // Crear el nombre del diseño
-      const nombreDiseno = prompt("Ingresa un nombre para tu diseño:", 
-        `Diseño ${objetoSeleccionado.articulo_nombre} ${new Date().toLocaleDateString()}`);
-      
-      if (!nombreDiseno) {
-        setGuardandoDiseno(false);
-        return;
-      }
 
-      setNombreDiseno(nombreIngresado);
-
-      // Preparar assets de imágenes por elemento como DataURL para edición futura
-      const imagenes_elementos = [];
-      for (const el of elementos) {
-        if (el?.type === 'image' && el.url) {
-          try {
-            const resp = await fetch(el.url);
-            const blob = await resp.blob();
-            const b64 = await new Promise((resolve, reject) => {
-              const reader = new FileReader();
-              reader.onloadend = () => resolve(reader.result);
-              reader.onerror = reject;
-              reader.readAsDataURL(blob);
-            });
-            imagenes_elementos.push(String(b64));
-          } catch (_) {
-            // Si falla, omitimos esa imagen
-          }
-        }
-      }
-
-      // Helper: convertir a DataURL segura
-      const toDataURL = async (url) => {
-        try {
-          const resp = await fetch(url);
-          const blob = await resp.blob();
-          const b64 = await new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result);
-            reader.onerror = reject;
-            reader.readAsDataURL(blob);
-          });
-          return String(b64);
-        } catch {
-          return null;
-        }
-      };
-
-      // Construir elementos_por_vista con imágenes como DataURL para robustez
-      const elementos_por_vista = { frente: [], detras: [], izquierda: [], derecha: [] };
-      for (const vista of ['frente', 'detras', 'izquierda', 'derecha']) {
-        const arr = Array.isArray(elementosPorVista[vista]) ? elementosPorVista[vista] : [];
-        const out = [];
-        for (const el of arr) {
-          if (el?.type === 'image' && el.url) {
-            const dataurl = await toDataURL(el.url);
-            out.push({ ...el, url: dataurl || el.url });
-          } else {
-            out.push(el);
-          }
-        }
-        elementos_por_vista[vista] = out;
-      }
-
-      // Preparar datos completos del diseño para backend
-      const disenoData = {
-        nombre: nombreIngresado,
-        articulo_id: objetoSeleccionado.articulo_id,
-        imagen: dataURL,
-        elementos: elementos,
-        variantes: objetoSeleccionado.variantes || []
-      };
-
-      // Validar sesión
       const token = localStorage.getItem('token');
       if (!token) {
         alert('Debes iniciar sesión para guardar tus diseños');
@@ -443,27 +379,45 @@ export const useHerramientaDiseño = (onDisenoGuardado) => {
         return null;
       }
 
-      const res = await disenosService.guardarDiseno(disenoData);
-      alert(`¡Diseño "${nombreDiseno}" guardado exitosamente!`);
+      const disenoData = {
+        nombre: nombreIngresado,
+        objeto_id: objetoSeleccionado.id,
+        elementos_por_vista: elementosProcesados,
+        vista_actual: vistaActual,
+        imagen_preview: dataURL,
+        costo: objetoSeleccionado.precio || 0
+      };
 
-      // Notificar al componente padre que se guardó un diseño
-      if (onDisenoGuardado) onDisenoGuardado();
-      return res?.id ?? null;
+      let response;
+      if (disenoIdParaEditar) {
+        response = await disenosService.actualizarDiseno(disenoIdParaEditar, disenoData);
+      } else {
+        response = await disenosService.guardarDiseno(disenoData);
+      }
 
+      if (onDisenoGuardado) {
+        onDisenoGuardado();
+      }
+
+      alert(disenoIdParaEditar ? 'Diseño actualizado correctamente' : 'Diseño guardado correctamente');
+      navigate('/disenos');
+
+      return response?.id || disenoIdParaEditar;
     } catch (error) {
-      console.error("Error al guardar el diseño:", error);
-      const msg = error?.response?.data?.error || error?.message || 'Fallo desconocido';
-      alert("Error al guardar el diseño: " + msg);
+      console.error('Error al guardar:', error);
+      alert('Error al guardar el diseño');
+      return null;
     } finally {
       setGuardandoDiseno(false);
     }
   };
 
-  // Guardar y agregar al carrito (backend)
   const saveAndAddToCart = async () => {
-    const designId = await captureAndUploadViews();
-    if (!designId) return;
+    setAgregandoAlCarrito(true);
     try {
+      const designId = await captureAndUploadViews();
+      if (!designId) return;
+      
       await cartService.addItem({ id: objetoSeleccionado.articulo_id }, 1, { designId });
       alert('Diseño agregado al carrito');
       // Navegar al carrito
@@ -471,6 +425,8 @@ export const useHerramientaDiseño = (onDisenoGuardado) => {
     } catch (e) {
       console.error('Error al agregar al carrito', e);
       alert('No se pudo agregar al carrito');
+    } finally {
+      setAgregandoAlCarrito(false);
     }
   };
 
@@ -737,6 +693,7 @@ export const useHerramientaDiseño = (onDisenoGuardado) => {
     imagenesVistas,
     loading,
     guardandoDiseno,
+    agregandoAlCarrito,
     textInputValue,
     textStyle,
     setTextStyle,

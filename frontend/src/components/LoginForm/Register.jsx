@@ -50,11 +50,14 @@ export default function Register({ onRegister }) {
       });
 
       if (res.success) {
-        setOk(res.message || "Registro exitoso");
-        onRegister?.(res.user || null);
+        setOk(res.message || "Registro exitoso. Por favor verifica tu correo para activar tu cuenta.");
+        // No llamar onRegister porque el usuario aún no puede iniciar sesión (debe verificar email)
+        // onRegister?.(res.user || null);
         
-        // Redirección a la verificación pendiente (tomado de la Versión 2)
-        navigate('/verify-pending', { state: { email: form.email } });
+        // Mostrar mensaje y permitir que el usuario vea las instrucciones
+        setTimeout(() => {
+          navigate('/');
+        }, 5000); // Redirigir a home después de 5 segundos
       } else {
         setError(res.message || "No se pudo registrar");
       }
@@ -202,13 +205,20 @@ export default function Register({ onRegister }) {
           </label>
         </div>
 
-        <button type="submit" className="btn primary" disabled={loading}>
+        <button type="submit" className="register-button" disabled={loading}>
           {loading ? "Creando..." : "Crear cuenta"}
         </button>
       </form>
 
-      {error && <div style={{ marginTop: 12, color: "#c62828" }}>{error}</div>}
-      {ok && <div style={{ marginTop: 12, color: "#2e7d32" }}>{ok}</div>}
+      {error && <div style={{ marginTop: 12, padding: 12, background: '#fee', border: '1px solid #fcc', borderRadius: 8, color: "#c62828" }}>{error}</div>}
+      {ok && (
+        <div style={{ marginTop: 12, padding: 12, background: '#e8f5e9', border: '1px solid #4caf50', borderRadius: 8, color: "#2e7d32" }}>
+          {ok}
+          <p style={{ marginTop: 8, fontSize: '0.9em' }}>
+            📧 Revisa tu correo electrónico y haz clic en el enlace de verificación para activar tu cuenta.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

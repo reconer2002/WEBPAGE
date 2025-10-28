@@ -56,13 +56,13 @@ async function computeCartSummary(userId) {
        ${hasQty ? 'cd.cantidad' : '1'} AS quantity,
        a.id                AS product_id,
        a.nombre            AS name,
+       d.nombre            AS design_name,
        COALESCE(o.precio, a.precio) AS price,
-       COALESCE(JSON_UNQUOTE(JSON_EXTRACT(d.imagenes, '$[0]')), a.foto) AS image,
+       COALESCE(d.imagen_preview, a.foto) AS image,
        a.descuento         AS discount_percent,
        IFNULL(inv.stock, 0) AS stock,
        d.objeto_id         AS objeto_id,
-       CAST(d.imagenes AS CHAR) AS imagenes_raw,
-       CAST(d.textos   AS CHAR) AS textos_raw
+       CAST(d.elementos_por_vista AS CHAR) AS elementos_por_vista_raw
      FROM carrito_disenos cd
      JOIN disenos d  ON d.id = cd.diseno_id
      JOIN objetos o  ON o.id = d.objeto_id
@@ -76,11 +76,12 @@ async function computeCartSummary(userId) {
   );
   const groups = new Map();
   for (const r of rows) {
-    const key = [r.product_id, r.objeto_id, r.imagenes_raw || 'null', r.textos_raw || 'null'].join('|');
+    const key = [r.product_id, r.objeto_id, r.elementos_por_vista_raw || 'null'].join('|');
     if (!groups.has(key)) {
       groups.set(key, {
         product_id: r.product_id,
         name: r.name,
+        design_name: r.design_name,
         price: Number(r.price || 0),
         image: r.image,
         discount_percent: r.discount_percent,

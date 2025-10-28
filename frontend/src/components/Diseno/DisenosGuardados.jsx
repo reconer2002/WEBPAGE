@@ -144,8 +144,7 @@ const DisenosGuardados = () => {
                 <button
                   className="editar-btn"
                   onClick={() => {
-                    // TODO: Implementar edición de diseño
-                    alert("Funcionalidad de edición en desarrollo");
+                    navigate(`/disenos/editar/${diseno.id}`);
                   }}
                 >
                   Editar
@@ -174,9 +173,7 @@ const DisenosGuardados = () => {
                   }}
                   disabled={addingId === diseno.id}
                 >
-                  {addingId === diseno.id
-                    ? "Agregando..."
-                    : "Agregar al carrito"}
+                  Agregar al carrito
                 </button>
                 <button
                   className="eliminar-btn"

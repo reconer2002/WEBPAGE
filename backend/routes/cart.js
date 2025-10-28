@@ -118,6 +118,7 @@ router.get('/', auth, async (req, res) => {
          ${hasQty ? 'cd.cantidad' : '1'} AS quantity,
          a.id                AS product_id,
          a.nombre            AS name,
+         d.nombre            AS design_name,
          COALESCE(o.precio, a.precio) AS price,
          COALESCE(d.imagen_preview, a.foto) AS image,
          a.descuento         AS discount_percent,
@@ -147,6 +148,7 @@ router.get('/', auth, async (req, res) => {
         groups.set(key, {
           product_id: r.product_id,
           name: r.name,
+          design_name: r.design_name,
           price: Number(r.price || 0),
           image: r.image,
           discount_percent: r.discount_percent,
@@ -280,6 +282,7 @@ router.patch('/items/:productId', auth, async (req, res) => {
          ${hasQty ? 'cd.cantidad' : '1'} AS quantity,
          a.id                AS product_id,
          a.nombre            AS name,
+         d.nombre            AS design_name,
          COALESCE(o.precio, a.precio) AS price,
          COALESCE(d.imagen_preview, a.foto) AS image,
          a.descuento         AS discount_percent,
@@ -304,6 +307,7 @@ router.patch('/items/:productId', auth, async (req, res) => {
         groups.set(key, {
           product_id: r.product_id,
           name: r.name,
+          design_name: r.design_name,
           price: Number(r.price || 0),
           image: r.image,
           discount_percent: r.discount_percent,
@@ -374,6 +378,7 @@ router.delete('/items/:productId', auth, async (req, res) => {
          ${hasQty ? 'cd.cantidad' : '1'} AS quantity,
          a.id                AS product_id,
          a.nombre            AS name,
+         d.nombre            AS design_name,
          COALESCE(o.precio, a.precio) AS price,
          COALESCE(d.imagen_preview, a.foto) AS image,
          a.descuento         AS discount_percent,
@@ -397,6 +402,7 @@ router.delete('/items/:productId', auth, async (req, res) => {
         groups.set(key, {
           product_id: r.product_id,
           name: r.name,
+          design_name: r.design_name,
           price: Number(r.price || 0),
           image: r.image,
           discount_percent: r.discount_percent,

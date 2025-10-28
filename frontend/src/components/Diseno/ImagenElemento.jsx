@@ -13,7 +13,7 @@ const resolveUrl = (u) => {
   return s;
 };
 
-const ImagenElemento = ({ el, onUpdate, isSelected, onSelect }) => {
+const ImagenElemento = ({ el, onUpdate, isSelected, onSelect, onTransform }) => {
   const [img] = useImage(el.url, "Anonymous");
   const shapeRef = useRef();
   const trRef = useRef();

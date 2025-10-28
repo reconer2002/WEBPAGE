@@ -21,6 +21,104 @@
 }
 
 /* Formulario en línea */
+.login-inline {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: relative;
+}
+
+.login-inline .register-link {
+  padding: 6px 14px;
+  background: var(--color-primario);
+  color: white;
+  font-weight: bold;
+  border-radius: 6px;
+  text-decoration: none;
+  font-size: 14px;
+  white-space: nowrap;
+  transition: background 0.2s ease;
+}
+
+.login-inline .register-link:hover {
+  background: var(--color-secundario);
+}
+
+.login-inline .register-container {
+  margin: 0;
+  padding: 0;
+  max-width: none;
+}
+
+.login-inline .register-container h2 {
+  display: none; /* Oculta el título "Iniciar Sesión" en el header */
+}
+
+.login-inline .register-form {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  align-items: center;
+}
+
+.login-inline .register-field {
+  margin: 0;
+  gap: 4px;
+  font-size: 0;
+}
+
+.login-inline .register-field label {
+  display: none; /* Oculta las etiquetas en el header */
+}
+
+.login-inline .register-input {
+  padding: 6px 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+  width: 150px;
+}
+
+.login-inline .register-button {
+  padding: 6px 14px;
+  background: var(--color-secundario);
+  color: white;
+  font-weight: bold;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  white-space: nowrap;
+  transition: background 0.2s ease;
+}
+
+.login-inline .register-button:hover {
+  background: var(--color-primario);
+}
+
+.login-inline .register-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.login-inline .error-message {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  background: #fee;
+  border: 1px solid #fcc;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #c00;
+  white-space: pre-line;
+  max-width: 350px;
+  z-index: 1000;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  line-height: 1.4;
+}
+
 .login-form {
   display: flex;
   gap: 8px;

@@ -45,8 +45,9 @@ function App() {
       try {
         const currentUser = await authService.getCurrentUser();
         setUser(currentUser);
-      } catch {
-        console.log("No hay usuario logueado");
+      } catch (err) {
+        // Solo loguear errores inesperados, no ausencia de sesión
+        console.error("Error inesperado al obtener usuario:", err);
       } finally {
         setLoadingUser(false);
       }
@@ -127,6 +128,36 @@ function App() {
                 onLogout={handleLogout}
               />
               <DisenosPage user={user} loading={loadingUser} />
+              <Footer />
+            </>
+          }
+        />
+
+        <Route
+          path="/disenos/crear"
+          element={
+            <>
+              <Header
+                user={user}
+                onLogin={handleLogin}
+                onLogout={handleLogout}
+              />
+              <DisenosPage user={user} loading={loadingUser} mode="crear" />
+              <Footer />
+            </>
+          }
+        />
+
+        <Route
+          path="/disenos/editar/:id"
+          element={
+            <>
+              <Header
+                user={user}
+                onLogin={handleLogin}
+                onLogout={handleLogout}
+              />
+              <DisenosPage user={user} loading={loadingUser} mode="editar" />
               <Footer />
             </>
           }

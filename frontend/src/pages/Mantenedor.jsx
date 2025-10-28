@@ -8,6 +8,7 @@ import PaginaDesactivar from "../components/Mantenedor/PaginaDesactivar";
 import PaginaColores from "../components/Mantenedor/PaginaColores";
 import Testimonios from "../components/Mantenedor/Testimonios";
 import ProductosArticulos from "../components/Mantenedor/ProductosArticulos";
+import InformesEstadisticas from "../components/Mantenedor/InformesEstadisticas";
 import "./Mantenedor.css";
 
 const Mantenedor = () => {
@@ -88,6 +89,8 @@ const Mantenedor = () => {
       setSubcategoriaActiva("Testimonios");
     } else if (catId === 4 && subId === 7) {
       setSubcategoriaActiva("Articulos");
+    } else if (catId === 5 && subId === 8) {
+      setSubcategoriaActiva("Estadisticas");
     } else {
       setSubcategoriaActiva(null);
     }
@@ -159,6 +162,7 @@ const Mantenedor = () => {
       {subcategoriaActiva === "PaginaColores" && <PaginaColores />}
       {subcategoriaActiva === "Testimonios" && <Testimonios />}
       {subcategoriaActiva === "Articulos" && <ProductosArticulos />}
+      {subcategoriaActiva === "Estadisticas" && <InformesEstadisticas />}
     </div>
   );
 };

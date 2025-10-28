@@ -6,10 +6,7 @@ const login = async (identificador, password) => {
     localStorage.setItem('token', data.token);
     return { success: true, token: data.token };
   } catch (err) {
-    return {
-      success: false,
-      message: err.response?.data?.message || 'Error al iniciar sesión',
-    };
+    return { success: false, message: err.response?.data?.message || 'Error al iniciar sesión' };
   }
 };
 
@@ -33,26 +30,38 @@ const getCurrentUser = async () => {
 
 const register = async (payload) => {
   try {
-    const { data } = await api.post('/auth/register', payload);
-    if (data?.token) localStorage.setItem('token', data.token);
-    // Intentar cargar el usuario
-    let user = null;
-    try {
-      const me = await api.get('/auth/me');
-      user = me.data;
-    } catch (_) {}
-    return { success: true, message: data?.message || 'Registro exitoso', user };
+    const { data } = await api.post('/auth/register', {
+      nombre: payload.username,
+      nombre_real: payload.nombre_real,
+      apellido: payload.apellido,
+      email: payload.email,
+      password: payload.password,
+      telefono: payload.telefono,
+      direccion: payload.direccion,
+      ciudad: payload.ciudad,
+      region: payload.region,
+      fecha_nacimiento: payload.fecha_nacimiento,
+    });
+
+    return { success: true, message: data?.message || 'Registro exitoso' };
   } catch (err) {
-    return {
-      success: false,
-      message: err.response?.data?.error || 'Error al registrar usuario',
-    };
+    return { success: false, message: err.response?.data?.error || 'Error al registrar usuario' };
   }
 };
 
 const updateProfile = async (payload) => {
   try {
-    const { data } = await api.put('/auth/me', payload);
+    const { data } = await api.put('/auth/me', {
+      nombre: payload.username,
+      email: payload.email,
+      nombre_real: payload.nombre_real,
+      apellido: payload.apellido,
+      telefono: payload.telefono,
+      direccion: payload.direccion,
+      ciudad: payload.ciudad,
+      region: payload.region,
+      fecha_nacimiento: payload.fecha_nacimiento,
+    });
     return { success: true, message: data?.message || 'Perfil actualizado' };
   } catch (err) {
     return { success: false, message: err.response?.data?.error || 'Error al actualizar perfil' };

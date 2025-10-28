@@ -1,25 +1,33 @@
 import React, { useState } from "react";
 import authService from "../../services/authService";
+import { Analytics } from '../../services/analytics'
 
 const LoginForm = ({ user, onLogin, onLogout }) => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
   const handleLogin = async (e) => {
-    e.preventDefault();
+    e.preventDefault()
 
-    const result = await authService.login(username, password);
+    const result = await authService.login(username, password)
 
     if (result.success) {
       // Obtener datos completos del usuario
-      const currentUser = await authService.getCurrentUser();
-      onLogin(currentUser); // pasar al Header
-      setUsername("");
-      setPassword("");
+      const currentUser = await authService.getCurrentUser()
+      onLogin(currentUser) // pasar al Header
+      setUsername('')
+      setPassword('')
+
+      // --- Evento Google Analytics ---
+      Analytics.trackEvent('login', {
+        method: 'form',          
+        user_id: currentUser.id,
+        username: currentUser.username,
+      })
     } else {
-      alert(result.message); // opcional, notificación
+      alert(result.message) // opcional, notificación
     }
-  };
+  }
 
   const handleLogout = () => {
     authService.logout();

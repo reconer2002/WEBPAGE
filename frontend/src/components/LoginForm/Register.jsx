@@ -4,7 +4,19 @@ import authService from "../../services/authService";
 import "./Register.css";
 
 export default function Register({ onRegister }) {
-  const [form, setForm] = useState({ nombre: "", apellido: "", email: "", password: "", telefono: "", direccion: "", ciudad: "", region: "" });
+  const [form, setForm] = useState({
+    username: "", 
+    nombre_real: "",
+    apellido: "",
+    email: "",
+    password: "",
+    telefono: "",
+    direccion: "",
+    ciudad: "",
+    region: "",
+    fecha_nacimiento: "",
+  });
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [ok, setOk] = useState(null);
@@ -22,9 +34,11 @@ export default function Register({ onRegister }) {
     setLoading(true);
     setError(null);
     setOk(null);
+
     try {
       const res = await authService.register({
-        nombre: form.nombre,
+        username: form.username,
+        nombre_real: form.nombre_real,
         apellido: form.apellido,
         email: form.email,
         password: form.password,
@@ -32,11 +46,15 @@ export default function Register({ onRegister }) {
         direccion: form.direccion,
         ciudad: form.ciudad,
         region: form.region,
+        fecha_nacimiento: form.fecha_nacimiento,
       });
+
       if (res.success) {
         setOk(res.message || "Registro exitoso");
         onRegister?.(res.user || null);
-        navigate("/");
+        
+        // Redirección a la verificación pendiente (tomado de la Versión 2)
+        navigate('/verify-pending', { state: { email: form.email } });
       } else {
         setError(res.message || "No se pudo registrar");
       }
@@ -48,7 +66,9 @@ export default function Register({ onRegister }) {
   };
 
   const REGIONES = [
-    "Arica y Parinacota","Tarapacá","Antofagasta","Atacama","Coquimbo","Valparaíso","Metropolitana","O'Higgins","Maule","Ñuble","Biobío","La Araucanía","Los Ríos","Los Lagos","Aysén","Magallanes"
+    "Arica y Parinacota","Tarapacá","Antofagasta","Atacama","Coquimbo",
+    "Valparaíso","Metropolitana","O'Higgins","Maule","Ñuble",
+    "Biobío","La Araucanía","Los Ríos","Los Lagos","Aysén","Magallanes"
   ];
 
   return (
@@ -56,67 +76,81 @@ export default function Register({ onRegister }) {
       <h2>Crear Cuenta</h2>
       <form onSubmit={onSubmit} className="register-form">
         <div className="register-row">
-        <label className="register-field">
-          Nombre
-          <input
-            name="nombre"
-            value={form.nombre}
-            onChange={onChange}
-            required
-            placeholder="Tu nombre"
-            className="register-input"
-          />
-        </label>
-        <label className="register-field">
-          Apellido
-          <input
-            name="apellido"
-            value={form.apellido}
-            onChange={onChange}
-            placeholder="Tu apellido"
-            className="register-input"
-          />
-        </label>
+          <label className="register-field">
+            Nombre de usuario
+            <input
+              name="username"
+              value={form.username}
+              onChange={onChange}
+              required
+              placeholder="Ej: reneolguin"
+              className="register-input"
+            />
+          </label>
+          <label className="register-field">
+            Nombre real
+            <input
+              name="nombre_real"
+              value={form.nombre_real}
+              onChange={onChange}
+              required
+              placeholder="Tu nombre"
+              className="register-input"
+            />
+          </label>
         </div>
 
         <div className="register-row">
-        <label className="register-field">
-          Email
-          <input
-            type="email"
-            name="email"
-            value={form.email}
-            onChange={onChange}
-            required
-            placeholder="tu@correo.cl"
-            className="register-input"
-          />
-        </label>
-        <label className="register-field">
-          Teléfono
-          <input
-            name="telefono"
-            value={form.telefono}
-            onChange={onChange}
-            placeholder="+56 9..."
-            className="register-input"
-          />
-        </label>
+          <label className="register-field">
+            Apellido
+            <input
+              name="apellido"
+              value={form.apellido}
+              onChange={onChange}
+              placeholder="Tu apellido"
+              className="register-input"
+            />
+          </label>
+          <label className="register-field">
+            Email
+            <input
+              type="email"
+              name="email"
+              value={form.email}
+              onChange={onChange}
+              required
+              placeholder="tu@correo.cl"
+              className="register-input"
+            />
+          </label>
         </div>
 
-        <label className="register-field register-full">
-          Contraseña
-          <input
-            type="password"
-            name="password"
-            value={form.password}
-            onChange={onChange}
-            minLength={6}
-            required
-            placeholder="Mínimo 6 caracteres"
-            className="register-input"
-          />
-        </label>
+        <div className="register-row">
+          <label className="register-field">
+            Teléfono
+            <input
+              name="telefono"
+              value={form.telefono}
+              onChange={onChange}
+              placeholder="+56 9..."
+              className="register-input"
+            />
+          </label>
+          <label className="register-field">
+            Contraseña
+            <input
+              type="password"
+              name="password"
+              value={form.password}
+              onChange={onChange}
+              minLength={6}
+              required
+              placeholder="Mínimo 6 caracteres"
+              className="register-input"
+            />
+          </label>
+        </div>
+
         <label className="register-field register-full">
           Dirección
           <input
@@ -127,39 +161,53 @@ export default function Register({ onRegister }) {
             className="register-input"
           />
         </label>
+
         <div className="register-row">
           <label className="register-field">
-          Ciudad
-          <input
-            name="ciudad"
-            value={form.ciudad}
-            onChange={onChange}
-            placeholder="Ciudad"
-            className="register-input"
-          />
-        </label>
-        <label className="register-field">
-          Región
-          <select
-            name="region"
-            value={form.region}
-            onChange={onChange}
-            className="register-input"
-          >
-            <option value="">Selecciona una región</option>
-            {REGIONES.map(r => (
-              <option key={r} value={r}>{r}</option>
-            ))}
-          </select>
-        </label>
+            Ciudad
+            <input
+              name="ciudad"
+              value={form.ciudad}
+              onChange={onChange}
+              placeholder="Ciudad"
+              className="register-input"
+            />
+          </label>
+          <label className="register-field">
+            Región
+            <select
+              name="region"
+              value={form.region}
+              onChange={onChange}
+              className="register-input"
+            >
+              <option value="">Selecciona una región</option>
+              {REGIONES.map((r) => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+            </select>
+          </label>
         </div>
+
+        <div className="register-row">
+          <label className="register-field">
+            Fecha de nacimiento
+            <input
+              type="date"
+              name="fecha_nacimiento"
+              value={form.fecha_nacimiento}
+              onChange={onChange}
+              className="register-input"
+            />
+          </label>
+        </div>
+
         <button type="submit" className="btn primary" disabled={loading}>
           {loading ? "Creando..." : "Crear cuenta"}
         </button>
       </form>
-      {error && (
-        <div style={{ marginTop: 12, color: "#c62828" }}>{error}</div>
-      )}
+
+      {error && <div style={{ marginTop: 12, color: "#c62828" }}>{error}</div>}
       {ok && <div style={{ marginTop: 12, color: "#2e7d32" }}>{ok}</div>}
     </div>
   );

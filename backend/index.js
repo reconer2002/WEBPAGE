@@ -62,6 +62,9 @@ app.use('/api/cart', cartRouter);
 const productsRouter = require('./routes/products');
 app.use('/api/products', productsRouter);
 
+const estadisticasRouter = require('./routes/estadisticas');
+app.use('/api/estadisticas', estadisticasRouter);
+
 // ✅ Archivos estáticos con CORS para permitir captura del canvas
 app.use(
   '/img',

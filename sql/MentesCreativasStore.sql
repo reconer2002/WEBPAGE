@@ -812,6 +812,32 @@ CREATE TABLE `envio_reviews` (
 -- Example (commented out):
 -- INSERT INTO `envio_reviews` (`envio_id`,`usuario_id`,`estrellas`,`comentario`) VALUES (1,1,5,'Entrega rápida y en buen estado');
 
+--
+-- Table structure for table `envio_item_reviews`
+--
+
+DROP TABLE IF EXISTS `envio_item_reviews`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `envio_item_reviews` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `envio_id` bigint NOT NULL,
+  `pedido_item_id` bigint NOT NULL,
+  `usuario_id` int NOT NULL,
+  `estrellas` tinyint NOT NULL,
+  `comentario` text,
+  `creado_en` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uniq_envio_item_usuario` (`envio_id`,`pedido_item_id`,`usuario_id`),
+  KEY `envio_id` (`envio_id`),
+  KEY `pedido_item_id` (`pedido_item_id`),
+  KEY `usuario_id` (`usuario_id`),
+  CONSTRAINT `fk_envio_item_review_envio` FOREIGN KEY (`envio_id`) REFERENCES `envios` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_envio_item_review_item` FOREIGN KEY (`pedido_item_id`) REFERENCES `disenos_pedido` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_envio_item_review_usuario` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
 /*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;

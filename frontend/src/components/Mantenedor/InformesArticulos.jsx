@@ -55,6 +55,7 @@ const InformesArticulos = () => {
     totalVariantes: 0,
     totalDisenos: 0,
     listaArticulos: [],
+    rankingTopArticulos: []
   });
   const [loading, setLoading] = useState(true);
   const [articuloSeleccionado, setArticuloSeleccionado] = useState(null);
@@ -68,8 +69,10 @@ const InformesArticulos = () => {
     const fetchResumen = async () => {
       try {
         setLoading(true);
-        const data = await getArticulosEstadisticas(); 
-        setResumen(data);
+  const data = await getArticulosEstadisticas(); 
+  // Asegurar campo rankingTopArticulos
+  data.rankingTopArticulos = data.rankingTopArticulos || [];
+  setResumen(data);
       } catch (err) {
         console.error("Error cargando resumen de artículos:", err);
       } finally {
@@ -138,6 +141,29 @@ const InformesArticulos = () => {
       </div>
 
       <hr />
+
+      <section style={{ marginBottom: 18 }}>
+        <h4>Top artículos por calificación</h4>
+        {resumen.rankingTopArticulos && resumen.rankingTopArticulos.length > 0 ? (
+          <div className="top-articulos-list">
+            {resumen.rankingTopArticulos.map((a, idx) => (
+              <div key={a.articulo_id} className="top-articulo-card">
+                <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                  <div style={{ width: 64, height: 64 }}>
+                    {a.foto && <img src={a.foto} alt={a.nombre} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 700 }}>{idx + 1}. {a.nombre}</div>
+                    <div style={{ color: '#6b7280' }}>{a.reviews_count} reseñas · {a.avg_stars} ★</div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p>No hay reseñas por artículo aún.</p>
+        )}
+      </section>
 
       <section className="grid-contenido">
         {/* GRID DE ARTÍCULOS (Mostrador) - Tarjeta General */}

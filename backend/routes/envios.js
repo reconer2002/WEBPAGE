@@ -221,4 +221,121 @@ router.get('/:id/review', auth, async (req, res) => {
   }
 });
 
+// GET /api/envios/:id/items - obtener items (disenos_pedido) del envío/pedido
+router.get('/:id/items', auth, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const [[row]] = await req.db.query(
+      `SELECT e.id, p.id AS pedido_id, p.usuario_id FROM envios e JOIN pedidos p ON p.id = e.pedido_id WHERE e.id = ?`,
+      [id]
+    );
+    if (!row) return res.status(404).json({ error: 'Envío no encontrado' });
+    if (row.usuario_id !== req.user.id) return res.status(403).json({ error: 'No autorizado' });
+
+    // Obtener items del pedido (disenos_pedido) con info del objeto/articulo
+    const [items] = await req.db.query(
+      `SELECT dp.id AS pedido_item_id, dp.usuario_id AS diseno_usuario_id, dp.nombre_diseno, dp.datos, dp.costo, o.id AS objeto_id, o.articulo_id, a.nombre AS articulo_nombre, a.foto AS articulo_foto
+         FROM disenos_pedido dp
+         JOIN objetos o ON o.id = dp.objeto_id
+         JOIN articulos a ON a.id = o.articulo_id
+        WHERE dp.pedido_id = ?`,
+      [row.pedido_id]
+    );
+
+    res.json(items || []);
+  } catch (err) {
+    console.error('Error obteniendo items del envio:', err);
+    res.status(500).json({ error: 'Error al obtener items' });
+  }
+});
+
+// POST /api/envios/:envioId/items/:itemId/review - reseña por item del pedido
+router.post('/:envioId/items/:itemId/review', auth, async (req, res) => {
+  try {
+    const envioId = parseInt(req.params.envioId, 10);
+    const itemId = parseInt(req.params.itemId, 10);
+    const { estrellas, comentario } = req.body || {};
+    if (typeof estrellas !== 'number' || estrellas < 1 || estrellas > 5) {
+      return res.status(400).json({ error: 'Estrellas inválidas (1-5)' });
+    }
+
+    // verificar que el envio y el item pertenecen al usuario
+    const [[row]] = await req.db.query(
+      `SELECT e.id, p.id AS pedido_id, p.usuario_id, e.estado_envio FROM envios e JOIN pedidos p ON p.id = e.pedido_id WHERE e.id = ?`,
+      [envioId]
+    );
+    if (!row) return res.status(404).json({ error: 'Envío no encontrado' });
+    if (row.usuario_id !== req.user.id) return res.status(403).json({ error: 'No autorizado' });
+
+    const [[item]] = await req.db.query('SELECT id, pedido_id FROM disenos_pedido WHERE id = ? AND pedido_id = ?', [itemId, row.pedido_id]);
+    if (!item) return res.status(404).json({ error: 'Item no encontrado en este pedido' });
+
+    const allowed = ['en_transito', 'entregado'];
+    if (!allowed.includes(String(row.estado_envio || '').toLowerCase())) {
+      return res.status(400).json({ error: 'No se puede reseñar hasta que el pedido esté en curso o entregado' });
+    }
+
+    // Asegurar tabla de reseñas por item
+    await req.db.query(`
+      CREATE TABLE IF NOT EXISTS envio_item_reviews (
+        id BIGINT NOT NULL AUTO_INCREMENT,
+        envio_id BIGINT NOT NULL,
+        pedido_item_id BIGINT NOT NULL,
+        usuario_id BIGINT NOT NULL,
+        estrellas TINYINT NOT NULL,
+        comentario TEXT NULL,
+        creado_en TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        UNIQUE KEY envio_item_usuario_unique (envio_id, pedido_item_id, usuario_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+
+    // Upsert
+    await req.db.query(
+      `INSERT INTO envio_item_reviews (envio_id, pedido_item_id, usuario_id, estrellas, comentario)
+       VALUES (?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE estrellas = VALUES(estrellas), comentario = VALUES(comentario), creado_en = CURRENT_TIMESTAMP`,
+      [envioId, itemId, req.user.id, estrellas, comentario || null]
+    );
+
+    res.json({ message: 'Reseña por item guardada' });
+  } catch (err) {
+    console.error('Error guardando reseña por item:', err);
+    res.status(500).json({ error: 'Error al guardar reseña' });
+  }
+});
+
+// GET /api/envios/:envioId/items/:itemId/review - obtener reseña del item por el usuario
+router.get('/:envioId/items/:itemId/review', auth, async (req, res) => {
+  try {
+    const envioId = parseInt(req.params.envioId, 10);
+    const itemId = parseInt(req.params.itemId, 10);
+    const [[row]] = await req.db.query(
+      `SELECT e.id, p.id AS pedido_id, p.usuario_id FROM envios e JOIN pedidos p ON p.id = e.pedido_id WHERE e.id = ?`,
+      [envioId]
+    );
+    if (!row) return res.status(404).json({ error: 'Envío no encontrado' });
+    if (row.usuario_id !== req.user.id) return res.status(403).json({ error: 'No autorizado' });
+
+    await req.db.query(`CREATE TABLE IF NOT EXISTS envio_item_reviews (
+      id BIGINT NOT NULL AUTO_INCREMENT,
+      envio_id BIGINT NOT NULL,
+      pedido_item_id BIGINT NOT NULL,
+      usuario_id BIGINT NOT NULL,
+      estrellas TINYINT NOT NULL,
+      comentario TEXT NULL,
+      creado_en TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      UNIQUE KEY envio_item_usuario_unique (envio_id, pedido_item_id, usuario_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;`);
+
+    const [rows] = await req.db.query('SELECT estrellas, comentario, creado_en FROM envio_item_reviews WHERE envio_id = ? AND pedido_item_id = ? AND usuario_id = ? LIMIT 1', [envioId, itemId, req.user.id]);
+    if (!rows || rows.length === 0) return res.status(404).json({ error: 'No hay reseña' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('Error obteniendo reseña por item:', err);
+    res.status(500).json({ error: 'Error al obtener reseña' });
+  }
+});
+
 module.exports = router;

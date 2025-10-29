@@ -7,18 +7,44 @@ const Star = ({ filled, onClick }) => (
   </button>
 );
 
-const ReviewForm = ({ envioId, onSaved }) => {
+const ReviewForm = ({ envioId, itemId, onSaved }) => {
   const [stars, setStars] = useState(5);
   const [comentario, setComentario] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [saved, setSaved] = useState(false);
 
+  // Cargar reseña existente si itemId está presente
+  React.useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      if (!envioId || !itemId) return;
+      try {
+        setLoading(true);
+        const existing = await enviosService.getItemReview(envioId, itemId);
+        if (!mounted) return;
+        setStars(existing.estrellas || 5);
+        setComentario(existing.comentario || '');
+        setSaved(true);
+      } catch (_) {
+        // no existe reseña aún
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+    load();
+    return () => { mounted = false; };
+  }, [envioId, itemId]);
+
   const submit = async () => {
     setError(null);
     setLoading(true);
     try {
-      await enviosService.submitReview(envioId, { estrellas: Number(stars), comentario: comentario || null });
+      if (itemId) {
+        await enviosService.submitItemReview(envioId, itemId, { estrellas: Number(stars), comentario: comentario || null });
+      } else {
+        await enviosService.submitReview(envioId, { estrellas: Number(stars), comentario: comentario || null });
+      }
       setSaved(true);
       if (onSaved) onSaved();
     } catch (err) {

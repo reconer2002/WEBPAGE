@@ -31,6 +31,9 @@ export const getArticulosEstadisticas = async () => {
   // 💡 APLICAR NORMALIZACIÓN A LA LISTA DE ARTÍCULOS
   const data = res.data;
   data.listaArticulos = data.listaArticulos.map(normalizarArticulo);
+  if (Array.isArray(data.rankingTopArticulos)) {
+    data.rankingTopArticulos = data.rankingTopArticulos.map((a) => normalizarArticulo(a));
+  }
 
   return data;
 };

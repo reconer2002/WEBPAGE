@@ -49,18 +49,26 @@ const MisCompras = () => {
     // Cargar historial al expandir por primera vez
     const h = historial[id];
     if (!h || (!h.items && !h.loading)) {
-      try {
+        try {
         setHistorial((prev) => ({ ...prev, [id]: { loading: true, error: null, items: [] } }));
         const items = await enviosService.getEnvioHistorial(id);
         setHistorial((prev) => ({ ...prev, [id]: { loading: false, error: null, items: Array.isArray(items) ? items : [] } }));
-        // Try to load existing review (if any)
+        // Cargar items del envio y sus reseñas por item
         try {
-          const existing = await enviosService.getReview(id);
-          if (existing) {
-            setReviews((prev) => ({ ...prev, [id]: { loading: false, error: null, exists: true, estrellas: existing.estrellas, comentario: existing.comentario } }));
-          }
-        } catch (_) {
-          // ignore - no review yet or not allowed
+          const envioItems = await enviosService.getEnvioItems(id);
+          // Para cada item, intentar cargar reseña del usuario
+          const itemsWithReviews = await Promise.all((envioItems || []).map(async (it) => {
+            try {
+              const r = await enviosService.getItemReview(id, it.pedido_item_id);
+              return { ...it, review: r };
+            } catch (_) {
+              return { ...it, review: null };
+            }
+          }));
+          setHistorial((prev) => ({ ...prev, [id]: { loading: false, error: null, items: itemsWithReviews } }));
+        } catch (eItems) {
+          // If items endpoint fails, ignore and keep previous historial
+          console.warn('No se pudieron cargar items del envio:', eItems);
         }
       } catch (e) {
         setHistorial((prev) => ({ ...prev, [id]: { loading: false, error: e?.response?.data?.error || e?.message || 'No se pudo cargar el historial', items: [] } }));
@@ -215,14 +223,32 @@ const MisCompras = () => {
                             </ul>
                           );
                         })()}
-                      {/* Reseña y calificación: solo cuando en curso o entregado */}
+                      {/* Reseñas por artículo: solo cuando en curso o entregado */}
                       {['en_transito','entregado'].includes(String(e.estado_envio || '').toLowerCase()) && (
                         <div className="review-area" style={{ marginTop: 14 }}>
-                          <h4>Deja tu calificación y reseña</h4>
-                          <ReviewForm envioId={e.id} onSaved={() => {
-                            // marcar como revisado localmente
-                            setReviews((prev) => ({ ...prev, [e.id]: { ...prev[e.id], exists: true } }));
-                          }} />
+                          <h4>Deja tu calificación y reseña por artículo</h4>
+                          {historial[e.id]?.items && historial[e.id].items.length > 0 ? (
+                            historial[e.id].items.map((it) => (
+                              <div key={it.pedido_item_id} style={{ border: '1px solid #e6e6e6', padding: 8, marginBottom: 8, borderRadius: 6 }}>
+                                <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                                  <div style={{ width: 60, height: 60 }}>
+                                    {it.articulo_foto ? <img src={it.articulo_foto} alt={it.articulo_nombre} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : null}
+                                  </div>
+                                  <div style={{ flex: 1 }}>
+                                    <div style={{ fontWeight: 700 }}>{it.nombre_diseno || it.articulo_nombre}</div>
+                                    <div style={{ color: '#6b7280', fontSize: 13 }}>{it.articulo_nombre}</div>
+                                  </div>
+                                </div>
+                                <div style={{ marginTop: 8 }}>
+                                  <ReviewForm envioId={e.id} itemId={it.pedido_item_id} onSaved={() => {
+                                    // opcional: actualizar estado local
+                                  }} />
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="track-empty">No hay items listados para este pedido.</div>
+                          )}
                         </div>
                       )}
                       </div>

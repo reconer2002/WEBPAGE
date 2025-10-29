@@ -128,11 +128,42 @@ router.get("/articulos", async (req, res) => {
       'SELECT id, nombre, precio, foto FROM articulos ORDER BY id ASC'
     );
 
+    // Asegurar tabla de reseñas por item (por si no existe en DB antigua)
+    await req.db.execute(`
+      CREATE TABLE IF NOT EXISTS envio_item_reviews (
+        id BIGINT NOT NULL AUTO_INCREMENT,
+        envio_id BIGINT NOT NULL,
+        pedido_item_id BIGINT NOT NULL,
+        usuario_id BIGINT NOT NULL,
+        estrellas TINYINT NOT NULL,
+        comentario TEXT NULL,
+        creado_en TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        UNIQUE KEY envio_item_usuario_unique (envio_id, pedido_item_id, usuario_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+
+    // Ranking de artículos por calificación promedio (basado en envio_item_reviews)
+    const [ranking] = await req.db.execute(`
+      SELECT a.id AS articulo_id, a.nombre, a.foto, a.precio,
+             ROUND(AVG(eir.estrellas),2) AS avg_stars,
+             COUNT(eir.id) AS reviews_count
+      FROM envio_item_reviews eir
+      JOIN disenos_pedido dp ON dp.id = eir.pedido_item_id
+      JOIN objetos o ON o.id = dp.objeto_id
+      JOIN articulos a ON a.id = o.articulo_id
+      GROUP BY a.id, a.nombre, a.foto, a.precio
+      HAVING reviews_count > 0
+      ORDER BY avg_stars DESC, reviews_count DESC
+      LIMIT 50
+    `);
+
     const estadisticasArticulos = {
       totalArticulos: totalArticulos,
       totalVariantes: totalVariantes,
       totalDisenos: totalDisenos,
       listaArticulos: listaArticulos,
+      rankingTopArticulos: ranking
     };
 
     res.json(estadisticasArticulos);

@@ -3,41 +3,43 @@ require('dotenv').config();
 const https = require('https');
 const { URL } = require('url');
 
-const { FRONTEND_URL, MAILEROO_API_KEY, MAILEROO_API_URL, SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_SECURE, SMTP_FROM, MAILER_SEND_METHOD } = process.env;
+const { 
+  FRONTEND_URL, 
+  RESEND_API_KEY,
+  SMTP_FROM, 
+  MAIL_FROM_NAME 
+} = process.env;
 
 const getFrontendUrl = () => FRONTEND_URL || 'http://localhost:5173';
 
-// Maileroo HTTP sender (simple wrapper). Requires MAILEROO_API_KEY and MAILEROO_API_URL
-const sendViaMaileroo = async ({ to, from, subject, html }) => {
+// Resend API sender
+const sendViaResend = async ({ to, from, subject, html, text }) => {
   return new Promise((resolve, reject) => {
-    if (!MAILEROO_API_KEY) return reject(new Error('MAILEROO_API_KEY no configurada'));
-    const apiUrl = MAILEROO_API_URL || 'https://smtp.maileroo.com/api/v2/emails';
-    let parsed;
-    try {
-      parsed = new URL(apiUrl);
-    } catch (e) {
-      return reject(new Error('MAILEROO_API_URL inválida'));
+    if (!RESEND_API_KEY) {
+      return reject(new Error('RESEND_API_KEY no configurada. Por favor agrega tu API key en el archivo .env'));
     }
+
     const payload = JSON.stringify({
-      from: typeof from === 'string' ? { address: from, name: 'TuSitio' } : from,
-      to: Array.isArray(to) ? to : [{ address: to, name: 'Usuario' }],
+      from,
+      to: Array.isArray(to) ? to : [to],
       subject,
-      html
+      html,
+      text
     });
 
     const opts = {
-      hostname: parsed.hostname,
-      path: parsed.pathname + (parsed.search || ''),
+      hostname: 'api.resend.com',
+      path: '/emails',
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Content-Length': Buffer.byteLength(payload),
-        Authorization: `Bearer ${MAILEROO_API_KEY}`,
+        'Authorization': `Bearer ${RESEND_API_KEY}`,
       },
       timeout: 10000,
     };
-    console.log('DEBUG: Maileroo request ->', `${parsed.protocol}//${parsed.hostname}${parsed.pathname}${parsed.search || ''}`);
-    console.log('DEBUG: Maileroo payload (truncated) ->', payload.slice(0, 200));
+
+    console.log('[Resend] Enviando email a:', Array.isArray(to) ? to.join(', ') : to);
 
     const req = https.request(opts, (res) => {
       let body = '';
@@ -46,12 +48,14 @@ const sendViaMaileroo = async ({ to, from, subject, html }) => {
         if (res.statusCode >= 200 && res.statusCode < 300) {
           try {
             const parsedBody = body ? JSON.parse(body) : {};
+            console.log('[Resend] Email enviado exitosamente:', parsedBody.id || 'OK');
             resolve(parsedBody);
           } catch (e) {
             resolve({ raw: body });
           }
         } else {
-          const err = new Error(`Maileroo error ${res.statusCode}: ${body}`);
+          console.error('[Resend] Error al enviar email:', body);
+          const err = new Error(`Resend error ${res.statusCode}: ${body}`);
           err.statusCode = res.statusCode;
           err.body = body;
           reject(err);
@@ -59,9 +63,12 @@ const sendViaMaileroo = async ({ to, from, subject, html }) => {
       });
     });
 
-    req.on('error', (err) => reject(err));
+    req.on('error', (err) => {
+      console.error('[Resend] Error de conexión:', err.message);
+      reject(err);
+    });
     req.on('timeout', () => {
-      req.destroy(new Error('Maileroo request timeout'));
+      req.destroy(new Error('Resend request timeout'));
     });
     req.write(payload);
     req.end();
@@ -71,110 +78,94 @@ const sendViaMaileroo = async ({ to, from, subject, html }) => {
 
 
 const sendVerificationEmail = async ({ to, nombre, token }) => {
-  const method = (MAILER_SEND_METHOD || 'maileroo').toLowerCase();
-  if (method === 'maileroo' && !MAILEROO_API_KEY) {
-    throw new Error('MAILEROO_API_KEY no configurada. Configura la variable de entorno para enviar correos o cambia MAILER_SEND_METHOD a "smtp".');
+  if (!RESEND_API_KEY) {
+    throw new Error('RESEND_API_KEY no configurada. Por favor agrega tu API key de Resend en el archivo .env');
   }
 
-  // Construir el cuerpo exactamente como el ejemplo
-  const FRONT = process.env.FRONTEND_URL || 'http://localhost:5173';
+  // Construir URL de verificación
+  const FRONT = FRONTEND_URL || 'http://localhost:5173';
   const url = `${FRONT.replace(/\/$/, '')}/verificar-cuenta?token=${token}`;
-  const fromAddress = process.env.SMTP_FROM || 'sandbox@de8b045bddd81511.maileroo.org';
-  const fromName = process.env.MAIL_FROM_NAME || 'TuSitio';
-  // Personalizar saludo con el nombre proporcionado
+  
+  // Configurar remitente
+  const fromAddress = SMTP_FROM || 'onboarding@resend.dev';
+  const fromName = MAIL_FROM_NAME || 'Mentes Creativas Store';
+  const from = `${fromName} <${fromAddress}>`;
+  
+  // Personalizar mensaje
   const displayName = nombre || 'Usuario';
-  const plainText = `Hola ${displayName},\n\nGracias por registrarte.\n\nVisita el siguiente enlace para verificar tu cuenta:\n${url}\n\nSi no solicitaste esto, ignora este mensaje.`;
+  
+  // Texto plano (fallback)
+  const plainText = `Hola ${displayName},
 
-  const body = {
-    from: {
-      address: fromAddress,
-      name: fromName
-    },
-    to: [
-      {
-        address: typeof to === 'string' ? to : (to[0]?.address || ''),
-        name: displayName
-      }
-    ],
-    subject: 'Verifica tu cuenta',
-    html: `<p>Hola ${displayName},</p><p>Gracias por registrarte.</p><p>Haz clic en el siguiente enlace para verificar tu cuenta:</p><p><a href='${url}'>Verificar cuenta</a></p>`,
-    text: plainText,
-    // Maileroo rejects some custom headers (e.g. Reply-To), so only include safe custom headers.
-    headers: {
-      'X-Mailer': 'TuSitio Mailer'
-    }
-  };
-  // If method is smtp, use nodemailer
-  if (method === 'smtp') {
-    if (!SMTP_HOST || !SMTP_PORT) throw new Error('SMTP_HOST/SMTP_PORT no configurados para envío por SMTP');
-    const nodemailer = require('nodemailer');
-    const transporter = nodemailer.createTransport({
-      host: SMTP_HOST,
-      port: Number(SMTP_PORT),
-      secure: SMTP_SECURE === 'true',
-      auth: SMTP_USER && SMTP_PASS ? { user: SMTP_USER, pass: SMTP_PASS } : undefined,
-    });
-    const mailOptions = {
-      from: `${fromName} <${fromAddress}>`,
-      to: Array.isArray(body.to) ? body.to.map(t => `${t.name} <${t.address}>`).join(',') : body.to,
-      subject: body.subject,
-      html: body.html,
-      text: body.text,
-      headers: body.headers,
-      replyTo: fromAddress,
-    };
-    try {
-      const info = await transporter.sendMail(mailOptions);
-      console.log('[SMTP] Email enviado correctamente:', info);
-      return { provider: 'smtp', info };
-    } catch (smtpErr) {
-      console.error('[SMTP] Error al enviar email:', smtpErr && smtpErr.message ? smtpErr.message : smtpErr);
-      throw smtpErr;
-    }
-  }
+Gracias por registrarte en ${fromName}.
 
-  // Default: use Maileroo
-  return new Promise((resolve, reject) => {
-    const apiUrl = MAILEROO_API_URL || 'https://smtp.maileroo.com/api/v2/emails';
-    const { URL } = require('url');
-    const parsed = new URL(apiUrl);
-    const payload = JSON.stringify(body);
-    const opts = {
-      hostname: parsed.hostname,
-      path: parsed.pathname + (parsed.search || ''),
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(payload),
-        Authorization: `Bearer ${MAILEROO_API_KEY}`,
-      },
-      timeout: 10000,
-    };
-    const https = require('https');
-    const req = https.request(opts, (res) => {
-      let bodyResp = '';
-      res.on('data', (d) => (bodyResp += d));
-      res.on('end', () => {
-        if (res.statusCode >= 200 && res.statusCode < 300) {
-          try {
-            const parsedBody = bodyResp ? JSON.parse(bodyResp) : {};
-            console.log('[Maileroo] Email enviado correctamente:', parsedBody);
-            resolve({ provider: 'maileroo', resp: parsedBody });
-          } catch (e) {
-            resolve({ provider: 'maileroo', raw: bodyResp });
-          }
-        } else {
-          console.error('[Maileroo] Error al enviar email:', bodyResp);
-          reject(new Error(`Maileroo error ${res.statusCode}: ${bodyResp}`));
-        }
-      });
-    });
-    req.on('error', (err) => reject(err));
-    req.on('timeout', () => {
-      req.destroy(new Error('Maileroo request timeout'));
-    });
-    req.write(payload);
-    req.end();
+Para completar tu registro y verificar tu cuenta, por favor visita el siguiente enlace:
+
+${url}
+
+Este enlace expirará en 24 horas.
+
+Si no solicitaste esta verificación, puedes ignorar este mensaje.
+
+Saludos,
+El equipo de ${fromName}`;
+
+  // HTML (versión con estilos)
+  const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+    <h1 style="color: white; margin: 0; font-size: 24px;">¡Bienvenido a ${fromName}!</h1>
+  </div>
+  
+  <div style="background: #ffffff; padding: 40px 30px; border: 1px solid #e0e0e0; border-top: none; border-radius: 0 0 10px 10px;">
+    <p style="font-size: 16px; margin-bottom: 20px;">Hola <strong>${displayName}</strong>,</p>
+    
+    <p style="font-size: 16px; margin-bottom: 20px;">
+      Gracias por registrarte. Para completar tu registro y verificar tu cuenta, haz clic en el botón de abajo:
+    </p>
+    
+    <div style="text-align: center; margin: 35px 0;">
+      <a href="${url}" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 14px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: 600; font-size: 16px;">
+        Verificar mi cuenta
+      </a>
+    </div>
+    
+    <p style="font-size: 14px; color: #666; margin-top: 30px;">
+      O copia y pega este enlace en tu navegador:
+    </p>
+    <p style="font-size: 14px; color: #667eea; word-break: break-all;">
+      ${url}
+    </p>
+    
+    <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
+      <p style="font-size: 13px; color: #999; margin: 5px 0;">
+        Este enlace expirará en 24 horas.
+      </p>
+      <p style="font-size: 13px; color: #999; margin: 5px 0;">
+        Si no solicitaste esta verificación, puedes ignorar este mensaje.
+      </p>
+    </div>
+  </div>
+  
+  <div style="text-align: center; margin-top: 20px; color: #999; font-size: 12px;">
+    <p>© ${new Date().getFullYear()} ${fromName}. Todos los derechos reservados.</p>
+  </div>
+</body>
+</html>`;
+
+  // Enviar email usando Resend
+  return await sendViaResend({
+    from,
+    to,
+    subject: `Verifica tu cuenta - ${fromName}`,
+    html: htmlContent,
+    text: plainText
   });
 };
 

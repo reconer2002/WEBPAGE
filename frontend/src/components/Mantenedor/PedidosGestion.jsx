@@ -104,7 +104,7 @@ const PedidosGestion = () => {
                     {ESTADOS.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </td>
-                <td>
+                  <td>
                   {it.envio_id ? (
                     <div style={{ display: 'grid', gap: 6 }}>
                       <small style={{ color: '#64748b' }}>Método: {it.envio_metodo || '-'}</small>
@@ -113,6 +113,23 @@ const PedidosGestion = () => {
                           {DELIVERY_ESTADOS.map(s => <option key={s} value={s}>{s}</option>)}
                         </select>
                       </div>
+                      {/* Mostrar reseña si existe */}
+                      {typeof it.envio_estrellas !== 'undefined' && it.envio_estrellas !== null && (
+                        <div style={{ marginTop: 8, padding: 8, background: '#fff8e6', borderRadius: 6 }}>
+                          <div style={{ color: '#92400e', fontWeight: 600, marginBottom: 4 }}>Reseña del usuario</div>
+                          <div style={{ color: '#f59e0b', fontSize: 16, marginBottom: 6 }}>
+                            {Array.from({ length: 5 }).map((_, i) => (
+                              <span key={i}>{i < Number(it.envio_estrellas) ? '★' : '☆'}</span>
+                            ))}
+                            <span style={{ marginLeft: 8, color: '#374151', fontWeight: 600 }}>{it.envio_estrellas}/5</span>
+                          </div>
+                          {it.envio_comentario ? (
+                            <div style={{ color: '#374151', fontSize: 14 }}>{it.envio_comentario}</div>
+                          ) : (
+                            <div style={{ color: '#6b7280', fontSize: 13, fontStyle: 'italic' }}>Sin comentario</div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <span>-</span>

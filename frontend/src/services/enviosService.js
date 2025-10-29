@@ -20,4 +20,14 @@ const getEnvioHistorial = async (id) => {
   return data;
 };
 
-export default { getMyEnvios, listEnvios, updateEnvio, getEnvioHistorial };
+const submitReview = async (id, payload) => {
+  const { data } = await api.post(`/envios/${id}/review`, payload);
+  return data;
+};
+
+const getReview = async (id) => {
+  const { data } = await api.get(`/envios/${id}/review`);
+  return data;
+};
+
+export default { getMyEnvios, listEnvios, updateEnvio, getEnvioHistorial, submitReview, getReview };

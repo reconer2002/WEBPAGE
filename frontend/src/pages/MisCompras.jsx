@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import enviosService from '../services/enviosService';
 import './Checkout.css';
 import './MisCompras.css';
+import ReviewForm from '../components/ReviewForm/ReviewForm';
 
 const statusLabel = (s) => {
   const map = {
@@ -16,6 +17,7 @@ const MisCompras = () => {
   const [error, setError] = useState(null);
   const [expanded, setExpanded] = useState({});
   const [historial, setHistorial] = useState({}); // { envioId: { loading, error, items: [] } }
+  const [reviews, setReviews] = useState({}); // { envioId: { loading, error, exists, estrellas, comentario } }
 
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
   const resolveImage = (u) => {
@@ -51,6 +53,15 @@ const MisCompras = () => {
         setHistorial((prev) => ({ ...prev, [id]: { loading: true, error: null, items: [] } }));
         const items = await enviosService.getEnvioHistorial(id);
         setHistorial((prev) => ({ ...prev, [id]: { loading: false, error: null, items: Array.isArray(items) ? items : [] } }));
+        // Try to load existing review (if any)
+        try {
+          const existing = await enviosService.getReview(id);
+          if (existing) {
+            setReviews((prev) => ({ ...prev, [id]: { loading: false, error: null, exists: true, estrellas: existing.estrellas, comentario: existing.comentario } }));
+          }
+        } catch (_) {
+          // ignore - no review yet or not allowed
+        }
       } catch (e) {
         setHistorial((prev) => ({ ...prev, [id]: { loading: false, error: e?.response?.data?.error || e?.message || 'No se pudo cargar el historial', items: [] } }));
       }
@@ -204,6 +215,16 @@ const MisCompras = () => {
                             </ul>
                           );
                         })()}
+                      {/* Reseña y calificación: solo cuando en curso o entregado */}
+                      {['en_transito','entregado'].includes(String(e.estado_envio || '').toLowerCase()) && (
+                        <div className="review-area" style={{ marginTop: 14 }}>
+                          <h4>Deja tu calificación y reseña</h4>
+                          <ReviewForm envioId={e.id} onSaved={() => {
+                            // marcar como revisado localmente
+                            setReviews((prev) => ({ ...prev, [e.id]: { ...prev[e.id], exists: true } }));
+                          }} />
+                        </div>
+                      )}
                       </div>
                     </div>
                   )}

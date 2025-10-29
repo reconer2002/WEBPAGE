@@ -77,3 +77,13 @@
 @media (max-width: 720px) {
   .purchase-track { --timeline-text-offset: 60px; }
 }
+
+/* Review form styles */
+.review-area { border-top: 1px dashed #e6edf3; padding-top: 12px; }
+.review-form { display: flex; flex-direction: column; gap: 8px; }
+.review-form .stars { display: flex; gap: 6px; }
+.review-form .star { background: transparent; border: none; font-size: 1.6rem; cursor: pointer; color: #cbd5e1; padding: 2px; }
+.review-form .star:hover { transform: scale(1.05); }
+.review-form .star.filled { color: #f59e0b; /* amber-500 */ text-shadow: 0 1px 0 rgba(0,0,0,0.1); }
+.review-form textarea { min-height: 72px; resize: vertical; padding: 8px; border-radius: 6px; border: 1px solid #e6edf3; background: #fff; }
+.review-saved { color: #065f46; font-weight: 600; }

@@ -322,6 +322,7 @@ CREATE TABLE `disenos_pedido` (
 LOCK TABLES `disenos_pedido` WRITE;
 /*!40000 ALTER TABLE `disenos_pedido` DISABLE KEYS */;
 INSERT INTO `disenos_pedido` VALUES (1,1,1,3,'Polera','{\"name\": \"Polera\", \"image\": \"/img/disenos/diseno-1-img1.png\", \"product_id\": 2}',5000.00);
+INSERT INTO `disenos_pedido` VALUES (2,2,3,3,'Polera Cliente','{\"name\": \"Polera Cliente\", \"image\": \"/img/disenos/diseno-2-img1.png\", \"product_id\": 2}',7000.00);
 /*!40000 ALTER TABLE `disenos_pedido` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -349,7 +350,7 @@ CREATE TABLE `envio_eventos` (
 
 LOCK TABLES `envio_eventos` WRITE;
 /*!40000 ALTER TABLE `envio_eventos` DISABLE KEYS */;
-INSERT INTO `envio_eventos` VALUES (1,1,'pendiente','Envío registrado','2025-10-28 00:18:07'),(2,1,'entregado','Actualizado por mantenedor','2025-10-28 00:18:48');
+INSERT INTO `envio_eventos` VALUES (1,1,'pendiente','Envío registrado','2025-10-28 00:18:07'),(2,1,'entregado','Actualizado por mantenedor','2025-10-28 00:18:48'),(3,2,'pendiente','Envío registrado','2025-10-28 01:00:30'),(4,2,'entregado','Actualizado por mantenedor','2025-10-28 01:05:12');
 /*!40000 ALTER TABLE `envio_eventos` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -388,7 +389,7 @@ CREATE TABLE `envios` (
 
 LOCK TABLES `envios` WRITE;
 /*!40000 ALTER TABLE `envios` DISABLE KEYS */;
-INSERT INTO `envios` VALUES (1,1,'delivery','Valentina','+56 9 9882 8958','Av. Central 123, Santiago','Santiago','Santiago','Tarapacá','A42',2990.00,NULL,NULL,NULL,'entregado','2025-10-28 00:18:07');
+INSERT INTO `envios` VALUES (1,1,'delivery','Valentina','+56 9 9882 8958','Av. Central 123, Santiago','Santiago','Santiago','Tarapacá','A42',2990.00,NULL,NULL,NULL,'entregado','2025-10-28 00:18:07'),(2,2,'delivery','Cliente Prueba','+56 9 1111 2222','Calle Falsa 123, Santiago','Providencia','Santiago','Metropolitana','B7',2990.00,NULL,NULL,NULL,'entregado','2025-10-28 01:05:00');
 /*!40000 ALTER TABLE `envios` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -547,7 +548,7 @@ CREATE TABLE `pedidos` (
 
 LOCK TABLES `pedidos` WRITE;
 /*!40000 ALTER TABLE `pedidos` DISABLE KEYS */;
-INSERT INTO `pedidos` VALUES (1,1,1,7990.00,'2025-10-27 21:18:04','pagado');
+INSERT INTO `pedidos` VALUES (1,1,1,7990.00,'2025-10-27 21:18:04','pagado'),(2,3,NULL,12000.00,'2025-10-28 01:00:00','pagado');
 /*!40000 ALTER TABLE `pedidos` ENABLE KEYS */;
 UNLOCK TABLES;
 

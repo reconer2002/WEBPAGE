@@ -23,7 +23,8 @@ const login = async (identificador, password) => {
       success: false,
       message,
       canResend: responseData.canResend || false,
-      resendEndpoint: responseData.resendEndpoint || null,
+      email: responseData.email || null,
+      userId: responseData.userId || null,
       status: err.response?.status || null,
     };
   }
@@ -101,6 +102,15 @@ const sendVerificationEmail = async () => {
   }
 };
 
+const resendVerificationEmail = async (email) => {
+  try {
+    const { data } = await api.post('/auth/verify/resend', { email });
+    return { success: true, message: data?.message || 'Correo de verificación enviado' };
+  } catch (err) {
+    return { success: false, message: err.response?.data?.error || 'Error al reenviar correo' };
+  }
+};
+
 const verifyEmail = async (token) => {
   try {
     const { data } = await api.post('/auth/verify', { token });
@@ -126,6 +136,7 @@ export default {
   register,
   updateProfile,
   sendVerificationEmail,
+  resendVerificationEmail,
   verifyEmail,
   changePassword,
 };

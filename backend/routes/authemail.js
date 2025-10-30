@@ -118,29 +118,12 @@ router.post('/login', async (req, res) => {
     // BLOQUEAR LOGIN SI NO ESTÁ VERIFICADO
     // ========================================
     if (!user.verificado) {
-      try {
-        const token = crypto.randomBytes(32).toString('hex');
-        await req.db.query(
-          'UPDATE usuarios SET verificacion_token = ?, verificacion_expira = DATE_ADD(NOW(), INTERVAL 24 HOUR) WHERE id = ?',
-          [token, user.id]
-        );
-
-        res.status(403).json({
-          error: 'Cuenta no verificada. Te hemos enviado un correo de verificación.',
-          canResend: true,
-          resendEndpoint: '/api/auth/verify/resend'
-        });
-
-        // Enviar correo en background
-        sendVerificationEmail({ to: user.email, nombre: user.nombre, token })
-          .then(() => console.log(`[Login] Enviado enlace de verificación a ${user.email}`))
-          .catch((mailErr) => console.warn('[Login] Error al enviar email:', mailErr && mailErr.message ? mailErr.message : mailErr));
-
-        return;
-      } catch (errToken) {
-        console.error('[Login] Error al generar token de verificación:', errToken);
-        return res.status(500).json({ error: 'Error al procesar verificación de cuenta' });
-      }
+      return res.status(403).json({
+        error: 'Tu cuenta no ha sido verificada',
+        email: user.email,
+        canResend: true,
+        userId: user.id
+      });
     }
 
     const token = jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, {

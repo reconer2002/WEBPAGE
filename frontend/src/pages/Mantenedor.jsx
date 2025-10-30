@@ -13,6 +13,10 @@ import InformesArticulos from "../components/Mantenedor/InformesArticulos";
 import PedidosGestion from "../components/Mantenedor/PedidosGestion";
 import "./Mantenedor.css";
 
+// --- 🛑 1. IMPORTA TU ARCHIVO DE ANALYTICS ---
+// (Asegúrate de que la ruta sea correcta desde este archivo)
+import { Analytics } from "../services/analytics";
+
 const Mantenedor = () => {
   const [categorias, setCategorias] = useState([]);
   const [subcategorias, setSubcategorias] = useState({});
@@ -24,6 +28,16 @@ const Mantenedor = () => {
   const [entorno, setEntorno] = useState(
     localStorage.getItem("entorno") || "prod"
   );
+
+  // --- 🛑 2. AÑADE ESTE USEEFFECT PARA GOOGLE ANALYTICS ---
+  useEffect(() => {
+    // Este efecto se ejecuta solo una vez cuando el componente se monta
+    Analytics.trackEvent("access_maintainer", {
+      category: "Navigation",
+      label: "Maintainer Page View",
+    });
+  }, []); // El array vacío [] asegura que se ejecute solo al montar
+  // --- FIN DE GOOGLE ANALYTICS ---
 
   // ✅ Cambiar entorno y guardarlo
   const toggleEntorno = () => {
@@ -92,13 +106,13 @@ const Mantenedor = () => {
     } else if (catId === 4 && subId === 7) {
       setSubcategoriaActiva("Articulos");
     } else if (catId === 5 && subId === 8) {
-        setSubcategoriaActiva("InformesEstadisticas");
+      setSubcategoriaActiva("InformesEstadisticas");
     } else if (catId === 5 && subId === 9) {
-        setSubcategoriaActiva("InformesArticulos");
+      setSubcategoriaActiva("InformesArticulos");
     } else if (catId === 4 && subId === 10) {
-        setSubcategoriaActiva("PedidosGestion");
+      setSubcategoriaActiva("PedidosGestion");
     } else {
-        setSubcategoriaActiva(null);
+      setSubcategoriaActiva(null);
     }
   };
 
@@ -168,7 +182,9 @@ const Mantenedor = () => {
       {subcategoriaActiva === "PaginaColores" && <PaginaColores />}
       {subcategoriaActiva === "Testimonios" && <Testimonios />}
       {subcategoriaActiva === "Articulos" && <ProductosArticulos />}
-      {subcategoriaActiva === "InformesEstadisticas" && <InformesEstadisticas />}
+      {subcategoriaActiva === "InformesEstadisticas" && (
+        <InformesEstadisticas />
+      )}
       {subcategoriaActiva === "InformesArticulos" && <InformesArticulos />}
       {subcategoriaActiva === "PedidosGestion" && <PedidosGestion />}
     </div>

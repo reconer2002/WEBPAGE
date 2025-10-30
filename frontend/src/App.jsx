@@ -21,6 +21,7 @@ import Profile from "./pages/Profile";
 import VerifyAccount from "./pages/VerifyAccount";
 import SearchResults from "./pages/SearchResults";
 import { CartProvider } from "./context/CartContext";
+import TerminosYCondiciones from "./pages/TerminosYCondiciones"; // ✅ nueva importación
 
 function App() {
   const [user, setUser] = useState(null);
@@ -46,7 +47,6 @@ function App() {
         const currentUser = await authService.getCurrentUser();
         setUser(currentUser);
       } catch (err) {
-        // Solo loguear errores inesperados, no ausencia de sesión
         console.error("Error inesperado al obtener usuario:", err);
       } finally {
         setLoadingUser(false);
@@ -93,223 +93,199 @@ function App() {
   return (
     <Router>
       <CartProvider>
-      <Routes>
-        <Route
-          path="/mantenedor"
-          element={
-            <>
-              <Header
-                user={user}
-                onLogin={handleLogin}
-                onLogout={handleLogout}
-              />
-              <ProtectedRoute
-                user={user}
-                requiredPermission="ver_mantenedor"
-                loading={loadingUser}
-              >
-                <MantenedorPage
+        <Routes>
+          <Route
+            path="/mantenedor"
+            element={
+              <>
+                <Header user={user} onLogin={handleLogin} onLogout={handleLogout} />
+                <ProtectedRoute
+                  user={user}
+                  requiredPermission="ver_mantenedor"
+                  loading={loadingUser}
+                >
+                  <MantenedorPage
+                    colores={colores}
+                    onActualizarColores={handleActualizarColores}
+                  />
+                </ProtectedRoute>
+                <Footer />
+              </>
+            }
+          />
+
+          <Route
+            path="/disenos"
+            element={
+              <>
+                <Header user={user} onLogin={handleLogin} onLogout={handleLogout} />
+                <DisenosPage user={user} loading={loadingUser} />
+                <Footer />
+              </>
+            }
+          />
+
+          <Route
+            path="/disenos/crear"
+            element={
+              <>
+                <Header user={user} onLogin={handleLogin} onLogout={handleLogout} />
+                <DisenosPage user={user} loading={loadingUser} mode="crear" />
+                <Footer />
+              </>
+            }
+          />
+
+          <Route
+            path="/disenos/editar/:id"
+            element={
+              <>
+                <Header user={user} onLogin={handleLogin} onLogout={handleLogout} />
+                <DisenosPage user={user} loading={loadingUser} mode="editar" />
+                <Footer />
+              </>
+            }
+          />
+
+          <Route
+            path="/perfil"
+            element={
+              <>
+                <Header user={user} onLogin={handleLogin} onLogout={handleLogout} />
+                <ProtectedRoute user={user} requireAuth loading={loadingUser}>
+                  <Profile user={user} onUserUpdate={setUser} />
+                </ProtectedRoute>
+                <Footer />
+              </>
+            }
+          />
+
+          <Route
+            path="/compras"
+            element={
+              <>
+                <Header user={user} onLogin={handleLogin} onLogout={handleLogout} />
+                <ProtectedRoute user={user} requireAuth loading={loadingUser}>
+                  <MisCompras />
+                </ProtectedRoute>
+                <Footer />
+              </>
+            }
+          />
+
+          <Route
+            path="/buscar"
+            element={
+              <>
+                <Header user={user} onLogin={handleLogin} onLogout={handleLogout} />
+                <SearchResults />
+                <Footer />
+              </>
+            }
+          />
+
+          <Route
+            path="/verificar-cuenta"
+            element={
+              <>
+                <Header user={user} onLogin={handleLogin} onLogout={handleLogout} />
+                <VerifyAccount onVerified={setUser} />
+                <Footer />
+              </>
+            }
+          />
+
+          <Route
+            path="/cart"
+            element={
+              <>
+                <Header user={user} onLogin={handleLogin} onLogout={handleLogout} />
+                <ProtectedRoute user={user} requireAuth loading={loadingUser}>
+                  <Cart user={user} />
+                </ProtectedRoute>
+                <Footer />
+              </>
+            }
+          />
+
+          <Route
+            path="/checkout"
+            element={
+              <>
+                <Header user={user} onLogin={handleLogin} onLogout={handleLogout} />
+                <ProtectedRoute user={user} requireAuth loading={loadingUser}>
+                  <Checkout />
+                </ProtectedRoute>
+                <Footer />
+              </>
+            }
+          />
+
+          <Route
+            path="/checkout/mock"
+            element={
+              <>
+                <Header user={user} onLogin={handleLogin} onLogout={handleLogout} />
+                <ProtectedRoute user={user} requireAuth loading={loadingUser}>
+                  <CheckoutMock />
+                </ProtectedRoute>
+                <Footer />
+              </>
+            }
+          />
+
+          <Route
+            path="/checkout/resultado"
+            element={
+              <>
+                <Header user={user} onLogin={handleLogin} onLogout={handleLogout} />
+                <ProtectedRoute user={user} requireAuth loading={loadingUser}>
+                  <CheckoutResult />
+                </ProtectedRoute>
+                <Footer />
+              </>
+            }
+          />
+
+          <Route
+            path="/register"
+            element={
+              <>
+                <Header user={user} onLogin={handleLogin} onLogout={handleLogout} />
+                <Register onRegister={handleLogin} />
+                <Footer />
+              </>
+            }
+          />
+
+          {/* ✅ Nueva ruta: Términos y Condiciones */}
+          <Route
+            path="/terminos-y-condiciones"
+            element={
+              <>
+                <Header user={user} onLogin={handleLogin} onLogout={handleLogout} />
+                <TerminosYCondiciones />
+                <Footer />
+              </>
+            }
+          />
+
+          <Route
+            path="*"
+            element={
+              estadoPagina ? (
+                <HomePage
+                  user={user}
+                  onLogin={handleLogin}
+                  onLogout={handleLogout}
                   colores={colores}
-                  onActualizarColores={handleActualizarColores}
                 />
-              </ProtectedRoute>
-              <Footer />
-            </>
-          }
-        />
-
-        <Route
-          path="/disenos"
-          element={
-            <>
-              <Header
-                user={user}
-                onLogin={handleLogin}
-                onLogout={handleLogout}
-              />
-              <DisenosPage user={user} loading={loadingUser} />
-              <Footer />
-            </>
-          }
-        />
-
-        <Route
-          path="/disenos/crear"
-          element={
-            <>
-              <Header
-                user={user}
-                onLogin={handleLogin}
-                onLogout={handleLogout}
-              />
-              <DisenosPage user={user} loading={loadingUser} mode="crear" />
-              <Footer />
-            </>
-          }
-        />
-
-        <Route
-          path="/disenos/editar/:id"
-          element={
-            <>
-              <Header
-                user={user}
-                onLogin={handleLogin}
-                onLogout={handleLogout}
-              />
-              <DisenosPage user={user} loading={loadingUser} mode="editar" />
-              <Footer />
-            </>
-          }
-        />
-
-        <Route
-          path="/perfil"
-          element={
-            <>
-              <Header
-                user={user}
-                onLogin={handleLogin}
-                onLogout={handleLogout}
-              />
-              <ProtectedRoute user={user} requireAuth loading={loadingUser}>
-                <Profile user={user} onUserUpdate={setUser} />
-              </ProtectedRoute>
-              <Footer />
-            </>
-          }
-        />
-
-        <Route
-          path="/compras"
-          element={
-            <>
-              <Header user={user} onLogin={handleLogin} onLogout={handleLogout} />
-              <ProtectedRoute user={user} requireAuth loading={loadingUser}>
-                <MisCompras />
-              </ProtectedRoute>
-              <Footer />
-            </>
-          }
-        />
-
-        <Route
-          path="/buscar"
-          element={
-            <>
-              <Header
-                user={user}
-                onLogin={handleLogin}
-                onLogout={handleLogout}
-              />
-              <SearchResults />
-              <Footer />
-            </>
-          }
-        />
-
-        <Route
-          path="/verificar-cuenta"
-          element={
-            <>
-              <Header
-                user={user}
-                onLogin={handleLogin}
-                onLogout={handleLogout}
-              />
-              <VerifyAccount onVerified={setUser} />
-              <Footer />
-            </>
-          }
-        />
-
-        <Route
-          path="/cart"
-          element={
-            <>
-              <Header
-                user={user}
-                onLogin={handleLogin}
-                onLogout={handleLogout}
-              />
-              <ProtectedRoute user={user} requireAuth loading={loadingUser}>
-                <Cart user={user} />
-              </ProtectedRoute>
-              <Footer />
-            </>
-          }
-        />
-
-        <Route
-          path="/checkout"
-          element={
-            <>
-              <Header user={user} onLogin={handleLogin} onLogout={handleLogout} />
-              <ProtectedRoute user={user} requireAuth loading={loadingUser}>
-                <Checkout />
-              </ProtectedRoute>
-              <Footer />
-            </>
-          }
-        />
-
-        <Route
-          path="/checkout/mock"
-          element={
-            <>
-              <Header user={user} onLogin={handleLogin} onLogout={handleLogout} />
-              <ProtectedRoute user={user} requireAuth loading={loadingUser}>
-                <CheckoutMock />
-              </ProtectedRoute>
-              <Footer />
-            </>
-          }
-        />
-
-        <Route
-          path="/checkout/resultado"
-          element={
-            <>
-              <Header user={user} onLogin={handleLogin} onLogout={handleLogout} />
-              <ProtectedRoute user={user} requireAuth loading={loadingUser}>
-                <CheckoutResult />
-              </ProtectedRoute>
-              <Footer />
-            </>
-          }
-        />
-
-        <Route
-          path="/register"
-          element={
-            <>
-              <Header
-                user={user}
-                onLogin={handleLogin}
-                onLogout={handleLogout}
-              />
-              <Register onRegister={handleLogin} />
-              <Footer />
-            </>
-          }
-        />
-
-        <Route
-          path="*"
-          element={
-            estadoPagina ? (
-              <HomePage
-                user={user}
-                onLogin={handleLogin}
-                onLogout={handleLogout}
-                colores={colores}
-              />
-            ) : (
-              <PaginaDeshabilitada onLogin={handleLogin} />
-            )
-          }
-        />
-      </Routes>
+              ) : (
+                <PaginaDeshabilitada onLogin={handleLogin} />
+              )
+            }
+          />
+        </Routes>
       </CartProvider>
     </Router>
   );

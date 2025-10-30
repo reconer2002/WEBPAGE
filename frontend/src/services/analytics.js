@@ -11,6 +11,22 @@ function sendEvent(name, params = {}) {
 
 // Eventos predefinidos para e-commerce
 export const Analytics = {
+
+  // --- 🛑 NUEVA FUNCIÓN AÑADIDA ---
+  /**
+   * Asigna un User-ID anónimo a la sesión de Google Analytics.
+   * @param {string} userId - El ID de usuario (ej: de tu base de datos)
+   */
+  setUserId: (userId) => {
+    if (window.gtag) {
+      // Esta es la función nativa para asignar el 'user_id'
+      window.gtag('set', { 'user_id': userId });
+    } else {
+      console.warn('GA no está inicializado. User-ID no asignado.');
+    }
+  },
+  // --- FIN DE LA FUNCIÓN AÑADIDA ---
+
   // Usuario ve un producto
   viewProduct: ({ id, name, category, price, currency = 'USD' }) => {
     sendEvent('view_item', {

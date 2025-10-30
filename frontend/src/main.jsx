@@ -4,7 +4,7 @@ import './index.css'
 import App from './App.jsx'
 
 // --- Google Analytics ---
-const GA_MEASUREMENT_ID = 'G-22W3B2H1HD' // 🔁 Pon tu ID de medición real
+const GA_MEASUREMENT_ID = 'G-22W3B2H1HD'
 
 // Insertar script gtag.js
 const script = document.createElement('script')
@@ -21,7 +21,7 @@ gtag('config', GA_MEASUREMENT_ID)
 
 // --- Render principal ---
 createRoot(document.getElementById('root')).render(
-  <StrictMode>
+  //<StrictMode>
     <App />
-  </StrictMode>,
+  //</StrictMode>,
 )

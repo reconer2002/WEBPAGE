@@ -6,6 +6,8 @@ import authService from '../services/authService';
 import './Checkout.css';
 import { estimateShippingFront, getRMComunas, getChileRegions } from '../utils/shippingCL';
 
+import { Analytics } from "../services/analytics";
+
 const Checkout = () => {
   const navigate = useNavigate();
   const [summary, setSummary] = useState(null);
@@ -23,7 +25,7 @@ const Checkout = () => {
   const [shipping, setShipping] = useState({ metodo: 'delivery', instrucciones: '' });
   const onShipChange = (e) => setShipping((p) => ({ ...p, [e.target.name]: e.target.value }));
 
-  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
+  const BACKEND_URL = (typeof import.meta.env !== 'undefined' ? import.meta.env.VITE_BACKEND_URL : "") || "";
   const resolveImage = (u) => {
     const s = (u && String(u).trim()) || '';
     if (!s) return '';
@@ -190,6 +192,37 @@ const Checkout = () => {
       const session = await checkoutService.createSession({ ...payload, shipping: shipPayload });
       // Redireccionar a mock provider (o a la URL del gateway real)
       if (session?.redirectUrl) {
+        // --- 🛑 GUARDAR DATOS PARA ANALYTICS 'PURCHASE' ---
+        let orderId = null;
+        try {
+            // Usamos window.location.origin como base para URLs relativas (ej: /checkout/mock?...)
+            const url = new URL(session.redirectUrl, window.location.origin);
+            orderId = url.searchParams.get("orderId");
+        } catch (e) {
+            console.warn(
+            "No se pudo parsear orderId desde redirectUrl para GA"
+            );
+        }
+
+        // Mapeamos los items del resumen al formato de GA
+        // Asegúrate que 'summary.items' tenga 'product_id', 'design_id', 'name', 'design_name', 'price', 'quantity'
+        const analyticsItems = (summary?.items || []).map((item) => ({
+            item_id: `${item.product_id}-${item.design_id || 0}`,
+            item_name: `${item.name || 'Producto desconocido'} - ${item.design_name || 'N/A'}`,
+            price: item.price || 0,
+            quantity: item.quantity || 1,
+        }));
+
+        const purchaseData = {
+            transaction_id: orderId, // El ID de la orden
+            value: grandTotal, // El total final pagado (incl. envío)
+            currency: "CLP", // Asegúrate que sea tu moneda correcta
+            items: analyticsItems,
+        };
+
+        // Guardar en sessionStorage para usar en la página de resultado
+        sessionStorage.setItem("ga_purchase_data", JSON.stringify(purchaseData));
+        console.log("GA: Datos de 'purchase' guardados en sessionStorage", purchaseData); // Log para depuración
         window.location.href = session.redirectUrl;
       } else {
         setError('No se pudo iniciar el pago');

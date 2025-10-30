@@ -2,6 +2,8 @@ import React, { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import cartService from '../services/cartService';
 
+import { Analytics } from '../services/analytics';
+
 function useQuery() {
   const { search } = useLocation();
   return React.useMemo(() => new URLSearchParams(search), [search]);
@@ -17,8 +19,48 @@ const CheckoutResult = () => {
     if (status === 'success') {
       // Asegurar actualización de icono incluso si el usuario llega directo aquí
       cartService.broadcast([]);
+      try {
+        // Recuperar los datos guardados en sessionStorage
+        const dataStr = sessionStorage.getItem('ga_purchase_data');
+
+        if (dataStr) {
+          const purchaseData = JSON.parse(dataStr);
+
+          // Verificamos que el transaction_id coincida (o usamos el de la URL si falta)
+          if (!purchaseData.transaction_id && orderId) {
+             purchaseData.transaction_id = orderId;
+          }
+
+          // ¡Disparar el evento de compra!
+          if (purchaseData.transaction_id && purchaseData.items) { // Asegurarse que hay datos mínimos
+             Analytics.purchase(purchaseData);
+             console.log("GA: Evento 'purchase' enviado", purchaseData); // Log para depuración
+          } else {
+             console.warn("GA: Faltan datos esenciales (transaction_id o items) para enviar 'purchase'.", purchaseData);
+          }
+
+
+          // Limpiar sessionStorage para que no se dispare de nuevo
+          sessionStorage.removeItem('ga_purchase_data');
+
+        } else {
+          // Fallback por si el usuario recargó y perdió sessionStorage
+          // Enviar solo el ID (menos ideal, pero mejor que nada)
+          console.warn("GA: No se encontraron datos de 'purchase' en sessionStorage. Enviando solo transaction_id.");
+          // Verifica si tu función Analytics.purchase puede manejar un objeto parcial
+          if (orderId) {
+              Analytics.purchase({ transaction_id: orderId, value: 0, items: [] });
+              console.log("GA: Evento 'purchase' (fallback) enviado solo con transaction_id:", orderId);
+          } else {
+              console.error("GA: No se pudo enviar 'purchase' (fallback) porque no hay orderId.");
+          }
+        }
+
+      } catch (gaError) {
+        console.error("Error al procesar o enviar evento 'purchase' a GA:", gaError);
+      }
     }
-  }, [status]);
+  }, [status, orderId]);
 
   let title = 'Resultado del pago';
   let msg = 'Estado desconocido';

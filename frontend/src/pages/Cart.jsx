@@ -3,67 +3,30 @@ import cartService from "../services/cartService";
 import "./Cart.css";
 import { ShoppingCart, Trash2, Plus, Minus } from "lucide-react";
 
-const QtyControl = ({ value, onDec, onInc, onChange }) => {
-  const [inputValue, setInputValue] = useState(String(value));
+import { Analytics } from "../services/analytics";
 
-  useEffect(() => {
-    setInputValue(String(value));
-  }, [value]);
-
-  const handleInputChange = (e) => {
-    const val = e.target.value;
-    // Permitir solo números
-    if (val === '' || /^\d+$/.test(val)) {
-      setInputValue(val);
-    }
-  };
-
-  const handleBlur = () => {
-    const num = parseInt(inputValue, 10);
-    if (isNaN(num) || num < 1) {
-      setInputValue(String(value)); // Revertir a valor anterior si es inválido
-    } else if (num !== value) {
-      onChange?.(num); // Llamar onChange solo si el valor cambió
-    }
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter') {
-      e.target.blur(); // Trigger blur para aplicar el cambio
-    }
-  };
-
-  return (
-    <div className="qty-control">
-      <button type="button" onClick={onDec} aria-label="Disminuir">
-        <Minus size={16} />
-      </button>
-      <input
-        type="text"
-        inputMode="numeric"
-        value={inputValue}
-        onChange={handleInputChange}
-        onBlur={handleBlur}
-        onKeyDown={handleKeyDown}
-        className="qty-input"
-      />
-      <button type="button" onClick={onInc} aria-label="Aumentar">
-        <Plus size={16} />
-      </button>
-    </div>
-  );
-};
+const QtyControl = ({ value, onDec, onInc }) => (
+  <div className="qty-control">
+    <button type="button" onClick={onDec} aria-label="Disminuir">
+      <Minus size={16} />
+    </button>
+    <span>{value}</span>
+    <button type="button" onClick={onInc} aria-label="Aumentar">
+      <Plus size={16} />
+    </button>
+  </div>
+);
 
 const Cart = ({ user }) => {
   const [items, setItems] = useState([]);
   const [inventory, setInventory] = useState({});
-  const [message, setMessage] = useState("");
 
   useEffect(() => {
     const fetchCart = async () => {
       try {
         const cartItems = await cartService.getCart();
         setItems(cartItems || []);
+        // Inicializa inventario a partir de los items (stock por producto)
         const inv = {};
         (cartItems || []).forEach((it) => {
           if (typeof it.stock !== "undefined") inv[it.product_id] = it.stock;
@@ -76,13 +39,16 @@ const Cart = ({ user }) => {
     };
     if (user) {
       fetchCart();
-    } else {
-      // Limpiar el carrito cuando no hay usuario
-      setItems([]);
-      setInventory({});
     }
   }, [user]);
+  const [search, setSearch] = useState("");
+  const [catalogQuery, setCatalogQuery] = useState("");
+  const [catalog, setCatalog] = useState([]);
+  const [loadingCatalog, setLoadingCatalog] = useState(false);
+  const [message, setMessage] = useState("");
+  const [checking, setChecking] = useState(false);
 
+  // Mantener inventario actualizado basado en items
   useEffect(() => {
     const inv = {};
     (items || []).forEach((it) => {
@@ -91,7 +57,13 @@ const Cart = ({ user }) => {
     setInventory((prev) => ({ ...prev, ...inv }));
   }, [items]);
 
-  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "";
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return items;
+    return items.filter((i) => i.name.toLowerCase().includes(q));
+  }, [items, search]);
+
+  const BACKEND_URL = (typeof import.meta.env !== 'undefined' ? import.meta.env.VITE_BACKEND_URL : "") || "";
   const resolveImage = (u) => {
     const s = (u && String(u).trim()) || "";
     if (!s) return "";
@@ -101,9 +73,29 @@ const Cart = ({ user }) => {
   };
 
   const totals = useMemo(
-    () => cartService.computeCartTotals(items),
-    [items]
+    () => cartService.computeCartTotals(filtered),
+    [filtered]
   );
+
+  // Cargar catálogo (articulos) una sola vez cuando el usuario enfoca o escribe
+  const ensureCatalog = async () => {
+    if (catalog.length || loadingCatalog) return;
+    try {
+      setLoadingCatalog(true);
+      const list = await (await import("../services/articulosService")).default.getArticulos();
+      setCatalog(list || []);
+    } finally {
+      setLoadingCatalog(false);
+    }
+  };
+
+  const catalogResults = useMemo(() => {
+    const q = catalogQuery.trim().toLowerCase();
+    if (!q) return [];
+    return (catalog || [])
+      .filter((p) => String(p.nombre || "").toLowerCase().includes(q))
+      .slice(0, 6);
+  }, [catalog, catalogQuery]);
 
   const dec = async (productId, designId = 0) => {
     const it = items.find((i) => i.product_id === productId && (i.design_id ?? 0) === (designId ?? 0));
@@ -127,46 +119,157 @@ const Cart = ({ user }) => {
     if (Array.isArray(updated)) setItems(updated);
   };
 
-  const setQty = async (productId, newQty, designId = 0) => {
-    if (newQty < 1) return; // No permitir cantidades menores a 1
-    const updated = await cartService.setQuantity(productId, newQty, designId ?? 0);
-    if (Array.isArray(updated)) setItems(updated);
-  };
-
   const remove = async (productId, designId = 0) => {
     const updated = await cartService.removeItem(productId, designId ?? 0);
     if (Array.isArray(updated)) setItems(updated);
   };
 
-  const checkout = async () => {
+  const checkAvailabilityAll = async () => {
+    setChecking(true);
     setMessage("");
     try {
       const res = await cartService.checkAvailability();
-      
+      // Actualiza inventario local con lo que sabemos del carrito
       const local = { ...inventory };
       (items || []).forEach((it) => {
         const p = res?.problems?.find((x) => x.product_id === it.product_id);
-        if (p) local[it.product_id] = p.stock ?? 0;
+        if (p) local[it.product_id] = p.stock ?? 0; // stock insuficiente reportado
       });
       setInventory(local);
-      
-      if (!res?.ok) {
-        setMessage("⚠️ Algunos artículos superan el stock disponible. Por favor, ajusta las cantidades.");
-        return;
+      if (res?.ok) {
+        setMessage("Todos los artículos están disponibles.");
+      } else {
+        setMessage("Algunos artículos superan el stock disponible.");
       }
-      
-      window.location.href = '/checkout';
     } catch (err) {
       console.error("Error comprobando disponibilidad:", err);
-      setMessage("No se pudo comprobar disponibilidad. Intenta nuevamente.");
+      setMessage("No se pudo comprobar disponibilidad");
     }
+    setChecking(false);
   };
+
+  const goToCheckout = async () => {
+      setMessage(""); // Limpiar mensajes
+      setChecking(true); // Usar el mismo estado de carga que 'checkAvailabilityAll'
+      try {
+        const res = await cartService.checkAvailability(); // Siempre verificar antes de ir
+
+        // Actualizar inventario local como en checkAvailabilityAll
+        const local = { ...inventory };
+        (items || []).forEach((it) => {
+          const p = res?.problems?.find((x) => x.product_id === it.product_id);
+          if (p) local[it.product_id] = p.stock ?? 0;
+          else if (res?.ok && typeof it.stock !== 'undefined') local[it.product_id] = it.stock;
+        });
+        setInventory(local);
+
+        if (!res?.ok) {
+          setMessage("⚠️ Algunos artículos superan el stock disponible. Por favor, ajusta las cantidades antes de continuar.");
+          setChecking(false); // Detener carga
+          return; // No continuar si hay problemas
+        }
+
+        // --- 🛑 IMPLEMENTACIÓN GOOGLE ANALYTICS (BEGIN_CHECKOUT) ---
+        try {
+          const analyticsItems = items.map((item) => ({ // Usar 'items' originales, no 'filtered'
+            item_id: `${item.product_id}-${item.design_id || 0}`,
+            item_name: `${item.name || 'Producto desconocido'} - ${item.design_name || 'N/A'}`, // Asegurar que name y design_name existan
+            price: item.price || 0, // Asegurar que price exista
+            quantity: item.quantity || 1, // Asegurar que quantity exista
+          }));
+          Analytics.beginCheckout({ items: analyticsItems });
+          console.log("GA: Evento begin_checkout enviado", analyticsItems); // Log para depuración
+        } catch (gaError) {
+          console.error("Error al enviar evento beginCheckout a GA:", gaError);
+        }
+        // --- FIN DE GOOGLE ANALYTICS ---
+
+        // Si todo está OK, redirigir a la página de checkout
+        window.location.href = '/checkout';
+
+      } catch (err) {
+        console.error("Error al ir a checkout:", err);
+        setMessage("❌ Error al verificar disponibilidad antes de ir al pago. Intenta nuevamente.");
+        setChecking(false); // Detener carga en caso de error
+      }
+      // No ponemos setChecking(false) aquí porque la redirección ocurrirá si todo va bien
+    };
 
   return (
     <div className="cart-page">
       <div className="cart-header">
         <ShoppingCart size={24} />
         <h2>Carrito de compras</h2>
+      </div>
+
+      <div className="cart-tools">
+        <div className="cart-searches">
+          <input
+            type="text"
+            placeholder="Buscar en el carrito..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <div className="catalog-search">
+            <input
+              type="search"
+              placeholder="Buscar producto para agregar..."
+              value={catalogQuery}
+              onFocus={ensureCatalog}
+              onChange={(e) => setCatalogQuery(e.target.value)}
+            />
+            {catalogQuery && (
+              <div className="catalog-results">
+                {loadingCatalog ? (
+                  <div className="catalog-empty">Cargando…</div>
+                ) : catalogResults.length === 0 ? (
+                  <div className="catalog-empty">Sin resultados</div>
+                ) : (
+                  catalogResults.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      className="catalog-item"
+                      onClick={async () => {
+                        const updated = await cartService.addItemFromArticulo(p.id, 1);
+                        if (Array.isArray(updated)) {
+                          setItems(updated);
+                          setMessage("");
+                        } else {
+                          setMessage("No se pudo agregar el producto al carrito.");
+                        }
+                        setCatalogQuery("");
+                      }}
+                    >
+                      <img src={resolveImage(p.foto) || `${BACKEND_URL}/img/Logo.png`} alt="" />
+                      <span>{p.nombre}</span>
+                      <small>{p.precio != null ? `$${Number(p.precio).toLocaleString('es-CL')}` : ''}</small>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="tool-actions">
+          <button
+            type="button"
+            className="btn"
+            onClick={checkAvailabilityAll}
+            disabled={checking}
+          >
+            {checking ? "Comprobando..." : "Comprobar disponibilidad"}
+          </button>
+          <button
+            type="button"
+            className="btn primary"
+            onClick={goToCheckout} // <-- CAMBIADO A LA NUEVA FUNCIÓN
+            disabled={checking || !items.length} // <-- ACTUALIZADO DISABLED
+          >
+            {/* Opcional: Cambiar texto si está cargando */}
+            {checking ? 'Verificando...' : 'Ir a Pagar'}
+          </button>
+        </div>
       </div>
 
       {message && <div className="cart-message">{message}</div>}
@@ -181,7 +284,7 @@ const Cart = ({ user }) => {
           <div>Total</div>
           <div>Acciones</div>
         </div>
-        {items.map((item) => {
+        {filtered.map((item) => {
           const { base, discount, total } = cartService.computeLineTotals(item);
           const stock = inventory[item.product_id] ?? 0;
           const ok = stock >= item.quantity;
@@ -196,7 +299,7 @@ const Cart = ({ user }) => {
                     if (e.currentTarget.src !== fb) e.currentTarget.src = fb;
                   }}
                 />
-                <span>{item.name} - {item.design_name}</span>
+                <span>{item.name}</span>
               </div>
               <div className="cell price">
                 ${item.price.toLocaleString("es-CL")}
@@ -206,7 +309,6 @@ const Cart = ({ user }) => {
                   value={item.quantity}
                   onDec={() => dec(item.product_id, item.design_id ?? 0)}
                   onInc={() => inc(item.product_id, item.design_id ?? 0)}
-                  onChange={(newQty) => setQty(item.product_id, newQty, item.design_id ?? 0)}
                 />
               </div>
               <div className={`cell stock ${ok ? "ok" : "low"}`}>
@@ -229,7 +331,7 @@ const Cart = ({ user }) => {
             </div>
           );
         })}
-        {!items.length && (
+        {!filtered.length && (
           <div className="cart-empty">No hay diseños en el carrito.</div>
         )}
       </div>
@@ -249,9 +351,6 @@ const Cart = ({ user }) => {
           <span>Total</span>
           <strong>${totals.total.toLocaleString("es-CL")}</strong>
         </div>
-        <button className="btn-checkout" onClick={checkout}>
-          Finalizar Compra
-        </button>
       </div>
     </div>
   );

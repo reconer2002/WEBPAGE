@@ -2,6 +2,10 @@ import React, { useState } from "react";
 import authService from "../../services/authService";
 import "./Register.css";
 
+// --- 🛑 1. IMPORTA TU ARCHIVO DE ANALYTICS ---
+// (Asegúrate de que esta ruta sea la correcta para tu proyecto)
+import { Analytics } from "../../services/analytics";
+
 export default function LoginForm({ onLogin }) {
   const [form, setForm] = useState({
     username: "",
@@ -26,7 +30,28 @@ export default function LoginForm({ onLogin }) {
       const res = await authService.login(form.username, form.password);
 
       if (res.success) {
+
+        // --- 🛑 2. IMPLEMENTACIÓN DE GOOGLE ANALYTICS ---
+        
+        // Asigna el User-ID (anónimo) para rastrear al usuario
+        // Asumimos que `res.user.id` existe y es un ID de tu BD
+        if (res.user && res.user.id) {
+          Analytics.setUserId(res.user.id);
+        } else {
+          console.warn("GA: No se encontró res.user.id para asignar el User-ID.");
+        }
+
+        // Envía el evento de 'login'
+        Analytics.trackEvent("login", {
+          category: "Authentication",
+          label: "standard-login",
+        });
+        
+        // --- FIN DE GOOGLE ANALYTICS ---
+
+        // Tu lógica original
         onLogin?.(res.user);
+
       } else {
         // Manejar error de cuenta no verificada
         if (res.status === 403 && res.canResend) {

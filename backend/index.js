@@ -67,6 +67,9 @@ app.use('/api/pedidos', pedidosRouter);
 const enviosRouter = require('./routes/envios');
 app.use('/api/envios', enviosRouter);
 
+const terminosRouter = require('./routes/terminos');
+app.use("/api/terminos", terminosRouter);
+
 // ✅ Archivos estáticos con CORS para permitir captura del canvas
 app.use(
   '/img',

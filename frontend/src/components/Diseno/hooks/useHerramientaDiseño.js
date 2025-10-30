@@ -7,6 +7,9 @@ import disenosService from "../../../services/disenosService";
 import cartService from "../../../services/cartService";
 import { configurarImagenesVistas, calcularPosicionElemento } from "../utils/disenoHelpers";
 
+
+import { Analytics } from "../../../services/analytics";
+
 export const useHerramientaDiseño = (onDisenoGuardado, disenoIdParaEditar = null) => {
   const navigate = useNavigate();
   
@@ -398,6 +401,23 @@ export const useHerramientaDiseño = (onDisenoGuardado, disenoIdParaEditar = nul
       if (onDisenoGuardado) {
         onDisenoGuardado();
       }
+
+      // --- 🛑 2. AÑADE EL EVENTO DE GOOGLE ANALYTICS AQUÍ ---
+      // Lo ponemos ANTES del 'alert', ya que el alert pausa el navegador
+      // y nos da tiempo de sobra para enviar el evento.
+      try {
+        console.log("--- 🛑 ENVIANDO EVENTO 'save_design' A GA ---");
+        Analytics.trackEvent("save_design", {
+          category: "Design",
+          label: nombreIngresado, // ¡Usamos el nombre que el usuario ingresó!
+          // (Opcional) puedes enviar más datos si quieres
+          item_id: objetoSeleccionado.id, 
+          item_name: objetoSeleccionado.articulo_nombre,
+        });
+      } catch (gaError) {
+        console.error("Error al enviar evento a GA:", gaError);
+      }
+      // --- FIN DE GOOGLE ANALYTICS ---
 
       alert(disenoIdParaEditar ? 'Diseño actualizado correctamente' : 'Diseño guardado correctamente');
       navigate('/disenos');

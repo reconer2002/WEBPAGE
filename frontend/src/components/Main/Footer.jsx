@@ -59,7 +59,7 @@ const Footer = () => {
 
         {/* Enlaces legales */}
         <div className="footer-links">
-          <a href="#">Términos y condiciones</a>
+          <a href="/terminos-y-condiciones">Términos y condiciones</a>
           <a href="#">Política de privacidad</a>
         </div>
       </div>

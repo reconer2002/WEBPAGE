@@ -1,6 +1,7 @@
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs').promises;
 const authMiddleware = require('../middleware/auth');
 const verifyPermiso = require('../middleware/permisos');
 const dbSelector = require('../middleware/dbSelector');
@@ -35,6 +36,26 @@ router.get('/', async (req, res) => {
 router.patch('/logo', authMiddleware, verifyPermiso('configurar_pagina'), upload.single('logo'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ message: 'No se envió ningún archivo' });
+
+    // Obtener el logo actual antes de reemplazarlo
+    const [rows] = await req.db.execute('SELECT logo_url FROM configuracion_pagina WHERE id = 1');
+    const oldLogoUrl = rows[0]?.logo_url;
+
+    // Eliminar el archivo antiguo si existe
+    if (oldLogoUrl) {
+      try {
+        // Extraer el nombre del archivo de la ruta (ej: "/img/logo-123456.png" -> "logo-123456.png")
+        const oldFilename = oldLogoUrl.replace(/^\/img\//, '');
+        const oldFilePath = path.join(__dirname, '../img', oldFilename);
+        
+        // Intentar eliminar el archivo
+        await fs.unlink(oldFilePath);
+        console.log(`Logo anterior eliminado: ${oldFilename}`);
+      } catch (unlinkErr) {
+        // Si el archivo no existe o hay un error, solo registrarlo sin detener la operación
+        console.warn(`No se pudo eliminar el logo anterior: ${unlinkErr.message}`);
+      }
+    }
 
     const logoUrl = `/img/${req.file.filename}`;
     await req.db.execute('UPDATE configuracion_pagina SET logo_url = ? WHERE id = 1', [logoUrl]);

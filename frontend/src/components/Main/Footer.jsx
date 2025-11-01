@@ -18,6 +18,18 @@ const Footer = () => {
       setFooterData(data);
     };
     fetchData();
+    // Escuchar actualizaciones globales de la página
+    const handlePaginaUpdated = (e) => {
+      if (e?.detail && Object.keys(e.detail).length > 0) {
+        // Si viene el objeto completo con los datos, usarlo directamente
+        setFooterData(e.detail);
+      } else {
+        // Si no viene detail o está vacío, recargar desde el servidor
+        fetchData();
+      }
+    };
+    window.addEventListener('pagina:updated', handlePaginaUpdated);
+    return () => window.removeEventListener('pagina:updated', handlePaginaUpdated);
   }, []);
 
   return (

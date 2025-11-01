@@ -1,15 +1,14 @@
 // frontend/src/components/Mantenedor/ProductosArticulosGrid.jsx
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import productosService from "../../services/articulosService";
 import ProductosVariantesGrid from "./ProductosVariantesGrid";
 import ProductosObjetosGrid from "./ProductosObjetosGrid";
 import "./ProductosArticulosGrid.css";
 
-const ProductosArticulosGrid = () => {
-  const [articulos, setArticulos] = useState([]);
-  const [loading, setLoading] = useState(false);
+const ProductosArticulosGrid = ({ articulos, setArticulos, cargarArticulos }) => {
   const [seleccionado, setSeleccionado] = useState(null);
   const [modoNuevo, setModoNuevo] = useState(false);
+  const [notificacion, setNotificacion] = useState({ mostrar: false, mensaje: "" });
 
   // Usamos solo un archivo/preview para la imagen principal
   const [formData, setFormData] = useState({
@@ -24,20 +23,11 @@ const ProductosArticulosGrid = () => {
     fotoPreview: null,
   });
 
-  useEffect(() => {
-    cargarArticulos();
-  }, []);
-
-  const cargarArticulos = async () => {
-    setLoading(true);
-    try {
-      const data = await productosService.getArticulos();
-      setArticulos(data);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+  const mostrarNotificacion = (mensaje) => {
+    setNotificacion({ mostrar: true, mensaje });
+    setTimeout(() => {
+      setNotificacion({ mostrar: false, mensaje: "" });
+    }, 3000);
   };
 
   const handleClickArticulo = (art) => {
@@ -45,9 +35,9 @@ const ProductosArticulosGrid = () => {
     setSeleccionado(art);
     setFormData({
       nombre: art.nombre || "",
-      precio: art.precio ?? "",
+      precio: art.precio ? Math.floor(art.precio) : "",
       descripcion: art.descripcion || "",
-      descuento: art.descuento || 0,
+      descuento: art.descuento ? Math.floor(art.descuento) : 0,
       ranking: art.ranking || 0,
       // Solo el archivo y preview principal
       fotoFile: null, 
@@ -88,6 +78,13 @@ const ProductosArticulosGrid = () => {
       return;
     }
     
+    // Manejo especial para precio y descuento (sin decimales)
+    if (name === "precio" || name === "descuento") {
+      const numValue = value === "" ? "" : Math.floor(Number(value));
+      setFormData((prev) => ({ ...prev, [name]: numValue }));
+      return;
+    }
+    
     // Manejo normal de inputs de texto/número
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
@@ -95,27 +92,46 @@ const ProductosArticulosGrid = () => {
   const handleActualizar = async () => {
     if (!seleccionado?.id) return;
     try {
-      // Necesitarás actualizar tu service para manejar solo un campo 'foto' si cambiaste el backend
-      await productosService.updateArticulo(seleccionado.id, formData); 
-      alert("Artículo actualizado");
+      // Actualizar en el backend
+      await productosService.updateArticulo(seleccionado.id, formData);
+      
+      // Actualizar el estado local de artículos para reflejar los cambios inmediatamente
+      setArticulos((prevArticulos) =>
+        prevArticulos.map((art) => {
+          if (art.id === seleccionado.id) {
+            // Mantener la foto original si no se cambió
+            return {
+              ...art,
+              nombre: formData.nombre,
+              precio: formData.precio,
+              descripcion: formData.descripcion,
+              descuento: formData.descuento,
+              ranking: formData.ranking,
+              foto: formData.fotoFile ? formData.fotoPreview : art.foto
+            };
+          }
+          return art;
+        })
+      );
+      
+      mostrarNotificacion("Artículo actualizado correctamente");
       setSeleccionado(null);
-      cargarArticulos();
     } catch (err) {
       console.error(err);
-      alert("Error al actualizar artículo");
+      mostrarNotificacion("Error al actualizar artículo");
     }
   };
 
   const handleCrear = async () => {
     try {
       await productosService.createArticulo(formData);
-      alert("Artículo creado");
+      mostrarNotificacion("Artículo creado correctamente");
       setSeleccionado(null);
       setModoNuevo(false);
       cargarArticulos();
     } catch (err) {
       console.error(err);
-      alert("Error al crear artículo");
+      mostrarNotificacion("Error al crear artículo");
     }
   };
 
@@ -124,20 +140,37 @@ const ProductosArticulosGrid = () => {
     if (window.confirm("¿Seguro que deseas eliminar este artículo?")) {
       try {
         await productosService.deleteArticulo(seleccionado.id);
-        alert("Artículo eliminado");
+        mostrarNotificacion("Artículo eliminado correctamente");
         setSeleccionado(null);
         cargarArticulos();
       } catch (err) {
         console.error(err);
-        alert("Error al eliminar artículo");
+        mostrarNotificacion("Error al eliminar artículo");
       }
     }
   };
 
-  if (loading) return <p>Cargando artículos...</p>;
-
   return (
     <div className="productos-grid-root">
+      {/* Notificación popup */}
+      {notificacion.mostrar && (
+        <div style={{
+          position: 'fixed',
+          top: '20px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          backgroundColor: '#4CAF50',
+          color: 'white',
+          padding: '15px 30px',
+          borderRadius: '5px',
+          boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+          zIndex: 9999,
+          animation: 'slideDown 0.3s ease-out'
+        }}>
+          {notificacion.mensaje}
+        </div>
+      )}
+
       <section className="grid-contenido">
         {/* Grid de artículos */}
         <div className={`mostrador ${seleccionado ? "reducido" : "completo"}`}>
@@ -165,7 +198,7 @@ const ProductosArticulosGrid = () => {
                         {art.foto && <img src={art.foto} alt={art.nombre} />}
                       </div>
                       <p className="descripcion">{art.nombre}</p>
-                      <span className="precio">${art.precio}</span>
+                      <span className="precio">${Math.floor(art.precio)}</span>
                     </div>
                   ))}
 
@@ -214,7 +247,10 @@ const ProductosArticulosGrid = () => {
                   name="precio"
                   value={formData.precio}
                   onChange={handleChange}
+                  onWheel={(e) => e.target.blur()}
                   placeholder="Precio"
+                  step="1"
+                  min="0"
                 />
 
                 <p>Descripción:</p>
@@ -231,7 +267,11 @@ const ProductosArticulosGrid = () => {
                   name="descuento"
                   value={formData.descuento}
                   onChange={handleChange}
+                  onWheel={(e) => e.target.blur()}
                   placeholder="Descuento"
+                  step="1"
+                  min="0"
+                  max="100"
                 />
 
                 <p>Ranking:</p>
@@ -240,6 +280,7 @@ const ProductosArticulosGrid = () => {
                   name="ranking"
                   value={formData.ranking}
                   onChange={handleChange}
+                  onWheel={(e) => e.target.blur()}
                   placeholder="Ranking"
                 />
 

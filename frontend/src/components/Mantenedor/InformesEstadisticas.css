@@ -17,6 +17,118 @@
   padding-bottom: 10px;
 }
 
+/* --- Header con botones de exportación --- */
+.estadisticas-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.export-buttons {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.export-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.export-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.export-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.export-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.export-csv {
+  background-color: #10b981;
+  color: white;
+}
+
+.export-csv:hover:not(:disabled) {
+  background-color: #059669;
+}
+
+.export-excel {
+  background-color: #217346;
+  color: white;
+}
+
+.export-excel:hover:not(:disabled) {
+  background-color: #1a5a35;
+}
+
+.export-pdf {
+  background-color: #ef4444;
+  color: white;
+}
+
+.export-pdf:hover:not(:disabled) {
+  background-color: #dc2626;
+}
+
+.export-print {
+  background-color: #6366f1;
+  color: white;
+}
+
+.export-print:hover:not(:disabled) {
+  background-color: #4f46e5;
+}
+
+/* --- Mensaje de exportación --- */
+.export-message {
+  padding: 12px 20px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  font-weight: 500;
+  animation: slideDown 0.3s ease-out;
+}
+
+.export-message.success {
+  background-color: #d1fae5;
+  color: #065f46;
+  border-left: 4px solid #10b981;
+}
+
+.export-message.error {
+  background-color: #fee2e2;
+  color: #991b1b;
+  border-left: 4px solid #ef4444;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* --- Resumen de Números --- */
 .estadisticas-resumen {
   display: flex;

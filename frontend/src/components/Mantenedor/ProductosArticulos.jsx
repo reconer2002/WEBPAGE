@@ -49,9 +49,9 @@ const ProductosArticulos = () => {
             {articulos.map((art) => (
               <tr key={art.id}>
                 <td>{art.nombre}</td>
-                <td>${art.precio}</td>
+                <td>${Math.floor(art.precio)}</td>
                 <td>{art.descripcion}</td>
-                <td>{art.descuento}%</td>
+                <td>{Math.floor(art.descuento)}%</td>
               </tr>
             ))}
           </tbody>
@@ -59,7 +59,11 @@ const ProductosArticulos = () => {
       )}
 
       {modo === "grid" && (
-        <ProductosArticulosGrid /> // <-- USAMOS EL COMPONENTE GRID AQUÍ
+        <ProductosArticulosGrid 
+          articulos={articulos}
+          setArticulos={setArticulos}
+          cargarArticulos={cargarArticulos}
+        />
       )}
     </div>
   );

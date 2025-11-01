@@ -52,7 +52,7 @@ function App() {
         setLoadingUser(false);
       }
     };
-
+    
     const fetchEstadoYColores = async () => {
       try {
         const estado = await paginaService.getEstadoPagina();
@@ -69,8 +69,29 @@ function App() {
       }
     };
 
+    const handleColoresGlobales = (e) => {
+      if (e?.detail) {
+        setColores(e.detail);
+        aplicarColores(e.detail);
+      }
+    };
+
+    // Listener para cuando se actualiza la configuración de la página
+    const handlePaginaUpdated = () => {
+      // Recargar estado y colores cuando cambia la base de datos
+      fetchEstadoYColores();
+    };
+
+    window.addEventListener('pagina:colores:updated', handleColoresGlobales);
+    window.addEventListener('pagina:updated', handlePaginaUpdated);
+
     fetchUser();
     fetchEstadoYColores();
+    
+    return () => {
+      window.removeEventListener('pagina:colores:updated', handleColoresGlobales);
+      window.removeEventListener('pagina:updated', handlePaginaUpdated);
+    };
   }, []);
 
   const handleActualizarColores = (nuevosColores) => {

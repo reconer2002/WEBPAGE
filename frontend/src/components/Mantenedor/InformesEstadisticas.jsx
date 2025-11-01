@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from "react";
 // Importar componentes de Recharts (asumiendo que se instaló la librería)
 import { PieChart, Pie, Cell, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts"; 
-import { getEstadisticas } from "../../services/estadisticasService"; 
+import { getEstadisticas } from "../../services/estadisticasService";
+import { exportToCSV, exportToExcel, exportToPDF, printReport } from "../../utils/exportUtils";
+import { FileDown, FileSpreadsheet, FileText, Printer } from "lucide-react";
 import "./InformesEstadisticas.css";
 
 // Colores para el gráfico circular (Roles)
@@ -90,6 +92,8 @@ const InformesEstadisticas = () => {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [exporting, setExporting] = useState(false);
+  const [exportMessage, setExportMessage] = useState({ type: '', text: '' });
 
   useEffect(() => {
     const fetchEstadisticas = async () => {
@@ -109,6 +113,59 @@ const InformesEstadisticas = () => {
     fetchEstadisticas();
   }, []);
 
+  // Funciones de exportación
+  const handleExport = async (format) => {
+    setExporting(true);
+    setExportMessage({ type: '', text: '' });
+
+    try {
+      const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+      const filename = `estadisticas_${timestamp}`;
+      let success = false;
+
+      switch (format) {
+        case 'csv':
+          success = exportToCSV(datos, filename);
+          break;
+        case 'excel':
+          success = exportToExcel(datos, filename);
+          break;
+        case 'pdf':
+          success = exportToPDF(datos, filename);
+          break;
+        case 'print':
+          success = printReport(datos);
+          break;
+        default:
+          success = false;
+      }
+
+      if (success) {
+        setExportMessage({ 
+          type: 'success', 
+          text: format === 'print' ? 'Impresión iniciada' : `Informe exportado correctamente en formato ${format.toUpperCase()}` 
+        });
+      } else {
+        setExportMessage({ 
+          type: 'error', 
+          text: 'Error al exportar el informe. Intenta de nuevo.' 
+        });
+      }
+    } catch (err) {
+      console.error('Error en la exportación:', err);
+      setExportMessage({ 
+        type: 'error', 
+        text: 'Error al exportar el informe. Intenta de nuevo.' 
+      });
+    } finally {
+      setExporting(false);
+      // Limpiar mensaje después de 5 segundos
+      setTimeout(() => {
+        setExportMessage({ type: '', text: '' });
+      }, 5000);
+    }
+  };
+
   // Formatear datos de roles para PieChart (no necesita ser copiado, solo mapeado)
   const dataRoles = datos.usuariosPorRol.map(item => ({
     name: item.rol,
@@ -117,7 +174,59 @@ const InformesEstadisticas = () => {
 
   return (
     <div className="informes-estadisticas-container">
-      <h3>📊 Informes - Estadísticas</h3>
+      <div className="estadisticas-header">
+        <h3>📊 Informes - Estadísticas</h3>
+        
+        {!loading && !error && (
+          <div className="export-buttons">
+            <button 
+              className="export-btn export-csv"
+              onClick={() => handleExport('csv')}
+              disabled={exporting}
+              title="Exportar a CSV"
+            >
+              <FileText size={18} />
+              <span>CSV</span>
+            </button>
+            
+            <button 
+              className="export-btn export-excel"
+              onClick={() => handleExport('excel')}
+              disabled={exporting}
+              title="Exportar a Excel"
+            >
+              <FileSpreadsheet size={18} />
+              <span>Excel</span>
+            </button>
+            
+            <button 
+              className="export-btn export-pdf"
+              onClick={() => handleExport('pdf')}
+              disabled={exporting}
+              title="Exportar a PDF"
+            >
+              <FileDown size={18} />
+              <span>PDF</span>
+            </button>
+            
+            <button 
+              className="export-btn export-print"
+              onClick={() => handleExport('print')}
+              disabled={exporting}
+              title="Imprimir"
+            >
+              <Printer size={18} />
+              <span>Imprimir</span>
+            </button>
+          </div>
+        )}
+      </div>
+
+      {exportMessage.text && (
+        <div className={`export-message ${exportMessage.type}`}>
+          {exportMessage.text}
+        </div>
+      )}
 
       {loading && <p>Cargando estadísticas...</p>}
       {error && <p className="error-message">Error: {error}</p>}

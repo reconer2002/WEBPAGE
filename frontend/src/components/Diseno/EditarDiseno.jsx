@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import disenosService from '../../services/disenosService';
 import objetosService from '../../services/objetosService';
-import HerramientaDiseño from './HerramientaDiseñoNew';
+import HerramientaDiseño from './HerramientaDiseño';
 
 const EditarDiseno = () => {
   const { id } = useParams();
@@ -54,13 +54,7 @@ const EditarDiseno = () => {
   return (
     <div className="disenos-page">
       <div className="disenos-content">
-        <HerramientaDiseño
-          editingId={parseInt(id, 10)}
-          initialElements={initialElements}
-          initialObjeto={initialObjeto}
-          initialNombre={initialNombre}
-          initialElementsByView={initialElementsByView}
-        />
+        <HerramientaDiseño editarId={parseInt(id, 10)} />
       </div>
     </div>
   );

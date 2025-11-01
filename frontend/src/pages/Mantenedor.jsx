@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Folder, FolderOpen } from "lucide-react";
 import mantenedorService from "../services/mantenedor";
+import paginaService from "../services/paginaService";
 import UsuariosCuentas from "../components/Mantenedor/UsuariosCuentas";
 import UsuariosRoles from "../components/Mantenedor/UsuariosRoles";
 import PaginaConfiguracion from "../components/Mantenedor/PaginaConfiguracion";
@@ -17,12 +18,14 @@ import "./Mantenedor.css";
 // (Asegúrate de que la ruta sea correcta desde este archivo)
 import { Analytics } from "../services/analytics";
 
-const Mantenedor = () => {
+const Mantenedor = ({ colores, onActualizarColores }) => {
   const [categorias, setCategorias] = useState([]);
   const [subcategorias, setSubcategorias] = useState({});
   const [loading, setLoading] = useState(false);
   const [loadingCatId, setLoadingCatId] = useState(null);
   const [subcategoriaActiva, setSubcategoriaActiva] = useState(null);
+  const [ultimaSubcategoria, setUltimaSubcategoria] = useState(null);
+  const [notificacion, setNotificacion] = useState({ mostrar: false, mensaje: "" });
 
   // ✅ Estado para entorno
   const [entorno, setEntorno] = useState(
@@ -39,12 +42,46 @@ const Mantenedor = () => {
   }, []); // El array vacío [] asegura que se ejecute solo al montar
   // --- FIN DE GOOGLE ANALYTICS ---
 
+  const mostrarNotificacion = (mensaje) => {
+    setNotificacion({ mostrar: true, mensaje });
+    setTimeout(() => {
+      setNotificacion({ mostrar: false, mensaje: "" });
+    }, 3000);
+  };
+
   // ✅ Cambiar entorno y guardarlo
-  const toggleEntorno = () => {
+  const toggleEntorno = async () => {
     const nuevo = entorno === "prod" ? "test" : "prod";
     localStorage.setItem("entorno", nuevo);
+    
+    // Guardar la subcategoría actual antes de resetearla
+    const subcategoriaPrevia = subcategoriaActiva;
+    
+    // Resetear la subcategoría activa para forzar desmontaje
+    setSubcategoriaActiva(null);
+    
+    // Actualizar el entorno
     setEntorno(nuevo);
-    alert(`Entorno cambiado a: ${nuevo}`);
+    
+    // Recargar los datos de la página (footer/header) para el nuevo entorno
+    try {
+      const data = await paginaService.getFooterData();
+      // Emitir evento global para notificar a Header/Footer que se actualizó la info
+      window.dispatchEvent(new CustomEvent('pagina:updated', { detail: data }));
+    } catch (err) {
+      console.warn('No se pudo obtener datos de página tras cambiar entorno:', err);
+      // Emitir evento sin detail para forzar re-fetch en Header/Footer
+      window.dispatchEvent(new CustomEvent('pagina:updated'));
+    }
+    
+    // Después de un breve delay, restaurar la subcategoría para forzar remontaje
+    setTimeout(() => {
+      if (subcategoriaPrevia) {
+        setSubcategoriaActiva(subcategoriaPrevia);
+      }
+    }, 10);
+    
+    mostrarNotificacion(`Entorno cambiado a: ${nuevo === "prod" ? "Producción" : "Test"}`);
   };
 
   // Fetch categorías al montar
@@ -91,42 +128,77 @@ const Mantenedor = () => {
 
   // Click en subcategoría
   const handleSubcategoriaClick = (catId, subId) => {
+    let nuevaSubcategoria = null;
+    
     if (catId === 1 && subId === 1) {
-      setSubcategoriaActiva("Cuentas");
+      nuevaSubcategoria = "Cuentas";
     } else if (catId === 1 && subId === 2) {
-      setSubcategoriaActiva("Roles");
+      nuevaSubcategoria = "Roles";
     } else if (catId === 2 && subId === 3) {
-      setSubcategoriaActiva("PaginaConfiguracion");
+      nuevaSubcategoria = "PaginaConfiguracion";
     } else if (catId === 2 && subId === 4) {
-      setSubcategoriaActiva("PaginaDesactivar");
+      nuevaSubcategoria = "PaginaDesactivar";
     } else if (catId === 2 && subId === 5) {
-      setSubcategoriaActiva("PaginaColores");
+      nuevaSubcategoria = "PaginaColores";
     } else if (catId === 3 && subId === 6) {
-      setSubcategoriaActiva("Testimonios");
+      nuevaSubcategoria = "Testimonios";
     } else if (catId === 4 && subId === 7) {
-      setSubcategoriaActiva("Articulos");
+      nuevaSubcategoria = "Articulos";
     } else if (catId === 5 && subId === 8) {
-      setSubcategoriaActiva("InformesEstadisticas");
+      nuevaSubcategoria = "InformesEstadisticas";
     } else if (catId === 5 && subId === 9) {
-      setSubcategoriaActiva("InformesArticulos");
+      nuevaSubcategoria = "InformesArticulos";
     } else if (catId === 4 && subId === 10) {
-      setSubcategoriaActiva("PedidosGestion");
-    } else {
-      setSubcategoriaActiva(null);
+      nuevaSubcategoria = "PedidosGestion";
     }
+    
+    setSubcategoriaActiva(nuevaSubcategoria);
+    setUltimaSubcategoria(nuevaSubcategoria);
   };
 
   return (
     <div className="mantenedor-container">
+      {/* Notificación popup */}
+      {notificacion.mostrar && (
+        <div style={{
+          position: 'fixed',
+          top: '20px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          backgroundColor: '#4CAF50',
+          color: 'white',
+          padding: '15px 30px',
+          borderRadius: '5px',
+          boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+          zIndex: 9999,
+          animation: 'slideDown 0.3s ease-out'
+        }}>
+          {notificacion.mensaje}
+        </div>
+      )}
+
       <h2>Mantenedor</h2>
 
       {/* ✅ Botón para alternar base de datos */}
-      <button
-        onClick={toggleEntorno}
-        style={{ marginBottom: "1rem", padding: "0.5rem 1rem" }}
-      >
-        Usar entorno: {entorno === "prod" ? "Producción" : "Test"}
-      </button>
+      <div style={{ marginBottom: "1rem", display: "flex", alignItems: "center", gap: "1rem" }}>
+        <button
+          onClick={toggleEntorno}
+          style={{ 
+            padding: "0.5rem 1rem",
+            backgroundColor: entorno === "prod" ? "#4CAF50" : "#FF9800",
+            color: "white",
+            border: "none",
+            borderRadius: "4px",
+            cursor: "pointer",
+            fontWeight: "bold"
+          }}
+        >
+          {entorno === "prod" ? "🟢 Producción" : "🟠 Test"}
+        </button>
+        <span style={{ fontSize: "0.9rem", color: "#666" }}>
+          (Click para cambiar a {entorno === "prod" ? "Test" : "Producción"})
+        </span>
+      </div>
 
       {loading && <p>Cargando categorías...</p>}
 
@@ -175,18 +247,18 @@ const Mantenedor = () => {
       </div>
 
       {/* Renderizar subcategorías */}
-      {subcategoriaActiva === "Cuentas" && <UsuariosCuentas />}
-      {subcategoriaActiva === "Roles" && <UsuariosRoles />}
-      {subcategoriaActiva === "PaginaConfiguracion" && <PaginaConfiguracion />}
-      {subcategoriaActiva === "PaginaDesactivar" && <PaginaDesactivar />}
-      {subcategoriaActiva === "PaginaColores" && <PaginaColores />}
-      {subcategoriaActiva === "Testimonios" && <Testimonios />}
-      {subcategoriaActiva === "Articulos" && <ProductosArticulos />}
+      {subcategoriaActiva === "Cuentas" && <UsuariosCuentas key={entorno} />}
+      {subcategoriaActiva === "Roles" && <UsuariosRoles key={entorno} />}
+      {subcategoriaActiva === "PaginaConfiguracion" && <PaginaConfiguracion key={entorno} />}
+      {subcategoriaActiva === "PaginaDesactivar" && <PaginaDesactivar key={entorno} />}
+  {subcategoriaActiva === "PaginaColores" && <PaginaColores key={entorno} onActualizarColores={onActualizarColores} />}
+      {subcategoriaActiva === "Testimonios" && <Testimonios key={entorno} />}
+      {subcategoriaActiva === "Articulos" && <ProductosArticulos key={entorno} />}
       {subcategoriaActiva === "InformesEstadisticas" && (
-        <InformesEstadisticas />
+        <InformesEstadisticas key={entorno} />
       )}
-      {subcategoriaActiva === "InformesArticulos" && <InformesArticulos />}
-      {subcategoriaActiva === "PedidosGestion" && <PedidosGestion />}
+      {subcategoriaActiva === "InformesArticulos" && <InformesArticulos key={entorno} />}
+      {subcategoriaActiva === "PedidosGestion" && <PedidosGestion key={entorno} />}
     </div>
   );
 };

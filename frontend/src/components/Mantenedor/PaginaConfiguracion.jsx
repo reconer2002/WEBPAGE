@@ -58,6 +58,15 @@ const PaginaConfiguracion = () => {
         setLogoPreview(newLogoUrl);
       }
 
+      // Obtener los datos actualizados del footer y notificar al resto de la app
+      try {
+        const updated = await paginaService.getFooterData();
+        // Emitir evento global para que Header/Footer u otras partes escuchen
+        window.dispatchEvent(new CustomEvent('pagina:updated', { detail: updated }));
+      } catch (err) {
+        console.warn('No se pudo obtener datos actualizados del footer tras guardar:', err);
+      }
+
       setMessage("Configuración actualizada correctamente.");
     } catch (err) {
         console.log(err);

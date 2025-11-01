@@ -18,6 +18,20 @@ const Header = ({ user, onLogin, onLogout }) => {
       setLogoUrl(data.logo);
     };
     fetchLogo();
+
+    const handlePaginaUpdated = (e) => {
+      if (e?.detail) {
+        // Si viene el objeto completo con los datos, usar el logo de ahí
+        if (e.detail.logo !== undefined) {
+          setLogoUrl(e.detail.logo);
+        }
+      } else {
+        // Si no viene detail, recargar desde el servidor
+        fetchLogo();
+      }
+    };
+    window.addEventListener('pagina:updated', handlePaginaUpdated);
+    return () => window.removeEventListener('pagina:updated', handlePaginaUpdated);
   }, []);
 
   useEffect(() => {

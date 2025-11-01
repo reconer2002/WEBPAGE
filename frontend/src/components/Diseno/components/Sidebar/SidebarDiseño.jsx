@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo, useState } from "react";
 import { generarNombreObjeto } from "../../utils/disenoHelpers";
 
 const SidebarDiseño = ({
@@ -21,6 +21,25 @@ const SidebarDiseño = ({
   onCaptureAndUploadViews,
   onSaveAndAddToCart
 }) => {
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const filteredObjetos = useMemo(() => {
+    if (!searchTerm || !todosLosObjetos) return todosLosObjetos || [];
+    const q = searchTerm.trim().toLowerCase();
+    return todosLosObjetos.filter((objeto) => {
+      const disenioBase = diseniosBase.find((d) => d.id === objeto.disenio_base_id);
+      const nombreObjeto = generarNombreObjeto(objeto).toLowerCase();
+      const articuloNombre = (objeto.articulo_nombre || "").toLowerCase();
+      const disenioNombre = (disenioBase?.nombre || "").toLowerCase();
+      return (
+        nombreObjeto.includes(q) ||
+        articuloNombre.includes(q) ||
+        disenioNombre.includes(q) ||
+        String(objeto.id).includes(q)
+      );
+    });
+  }, [searchTerm, todosLosObjetos, diseniosBase]);
+
   const handleAgregarAlCarrito = () => {
     // Delegar al manejador provisto por el hook (guardado + cart backend)
     if (typeof onSaveAndAddToCart === 'function') {
@@ -58,7 +77,7 @@ const SidebarDiseño = ({
 
         {loading ? (
           <div className="sidebar-section"><div className="loading-state"><p>Cargando objetos...</p></div></div>
-        ) : todosLosObjetos.length === 0 ? (
+        ) : (todosLosObjetos?.length === 0) ? (
           <div className="sidebar-section"><div className="loading-state"><p>No hay objetos disponibles</p></div></div>
         ) : (
           <>
@@ -137,8 +156,25 @@ const SidebarDiseño = ({
 
             <div className="sidebar-section">
               <strong>Objetos Disponibles</strong>
+
+              <div className="object-search" style={{ margin: "8px 0 12px 0", display: "flex", gap: 8 }}>
+                <input
+                  placeholder="Buscar objetos (nombre, artículo, diseño)..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  style={{ flex: 1, padding: "8px 10px", borderRadius: 8, border: "1px solid #d1d5db" }}
+                />
+                {searchTerm && (
+                  <button onClick={() => setSearchTerm("")} className="action-button" style={{ padding: "8px 10px" }}>
+                    Limpiar
+                  </button>
+                )}
+              </div>
+
+              <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 8 }}>{filteredObjetos.length} resultado(s)</div>
+
               <div className="objects-grid">
-                {todosLosObjetos.map((objeto) => {
+                {filteredObjetos.map((objeto) => {
                   const selected = objetoSeleccionado?.id === objeto.id;
                   const disenioBase = diseniosBase.find(d => d.id === objeto.disenio_base_id);
                   

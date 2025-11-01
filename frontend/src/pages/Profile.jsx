@@ -76,8 +76,10 @@ const ProfilePage = ({ user, onUserUpdate }) => {
         ? profile.fecha_nacimiento.split("T")[0]
         : "",
     });
-    setVerificado(Boolean(profile.verificado));
-    setVerificationExpiry(profile.verificacion_expira || null);
+  // Aceptar 1 (number), '1' (string) o true como verificado
+  const isVerified = profile.verificado === 1 || profile.verificado === '1' || profile.verificado === true;
+  setVerificado(Boolean(isVerified));
+  setVerificationExpiry(profile.verificacion_expira || null);
   };
 
   const loadProfile = async (silent = false) => {

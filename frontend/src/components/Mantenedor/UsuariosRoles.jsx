@@ -50,9 +50,10 @@ const UsuariosRoles = () => {
     e.preventDefault();
     if (!nuevoRolNombre.trim()) return;
     try {
-      const data = await crearRol(nuevoRolNombre);
-      setRoles((prev) => [...prev, { ...data, permisos: [], cantidad_usuarios: 0 }]);
+      await crearRol(nuevoRolNombre);
       setNuevoRolNombre("");
+      // Refrescar la lista desde el servidor para mantener consistencia (cantidad_usuarios, permisos, orden)
+      fetchRoles();
     } catch (err) {
       console.error("Error al agregar rol:", err);
       alert(err.response?.data?.message || "Error al agregar rol");

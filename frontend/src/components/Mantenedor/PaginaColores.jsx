@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import paginaService from '../../services/paginaService';
 import './PaginaColores.css';
 
-const PaginaColores = () => {
+const PaginaColores = ({ onActualizarColores }) => {
   const [colores, setColores] = useState({
     color1: '#ffffff',
     color2: '#000000',
@@ -37,9 +37,24 @@ const PaginaColores = () => {
     setSaving(true);
     try {
       await paginaService.updateColoresPagina(colores);
+
+      // Notificar al App (si nos pasaron la función) para que aplique colores globalmente
+      if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+        window.dispatchEvent(new CustomEvent('pagina:colores:updated', { detail: colores }));
+      }
+
+      if (typeof onActualizarColores === 'function') {
+        try {
+          onActualizarColores(colores);
+        } catch (e) {
+          // no bloquear si la prop falla
+          console.warn('onActualizarColores falló:', e);
+        }
+      }
+
       alert('Colores actualizados correctamente');
     } catch (err) {
-        console.log("Error al actualizar colores: ",err)
+      console.log("Error al actualizar colores: ", err);
       alert('Error al actualizar colores');
     } finally {
       setSaving(false);

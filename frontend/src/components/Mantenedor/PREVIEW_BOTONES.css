@@ -1,0 +1,177 @@
+/* 
+   PREVIEW VISUAL DE LOS BOTONES DE EXPORTACIÓN
+   ============================================
+   
+   Así se verán los botones en la interfaz:
+*/
+
+/*
+┌─────────────────────────────────────────────────────────────────────┐
+│  📊 Informes - Estadísticas                                          │
+│                                                                       │
+│  ┌─────────┐ ┌──────────┐ ┌────────┐ ┌──────────┐                  │
+│  │ 📄 CSV  │ │ 📊 Excel │ │ 📕 PDF │ │ 🖨️ Print │                  │
+│  └─────────┘ └──────────┘ └────────┘ └──────────┘                  │
+│   Verde        Verde         Rojo        Azul                        │
+│   #10b981      #217346       #ef4444     #6366f1                    │
+└─────────────────────────────────────────────────────────────────────┘
+
+Efectos Hover:
+──────────────
+- Elevación: translateY(-2px)
+- Sombra: box-shadow 0 4px 8px
+- Color más oscuro
+- Transición suave (0.3s)
+
+Estado Disabled (Exportando):
+─────────────────────────────
+- Opacidad: 60%
+- Cursor: not-allowed
+- Sin efectos hover
+
+Mensaje de Éxito:
+─────────────────
+┌─────────────────────────────────────────────────────┐
+│  ✓ Informe exportado correctamente en formato PDF  │
+│  (Fondo verde claro, texto verde oscuro)            │
+└─────────────────────────────────────────────────────┘
+
+Mensaje de Error:
+─────────────────
+┌─────────────────────────────────────────────────────┐
+│  ✗ Error al exportar el informe. Intenta de nuevo. │
+│  (Fondo rojo claro, texto rojo oscuro)              │
+└─────────────────────────────────────────────────────┘
+
+Layout Responsive:
+──────────────────
+Desktop:
+  [Título]                    [CSV] [Excel] [PDF] [Print]
+
+Tablet:
+  [Título]
+  [CSV] [Excel] [PDF] [Print]
+
+Móvil:
+  [Título]
+  [CSV] [Excel]
+  [PDF] [Print]
+
+
+ESTRUCTURA HTML GENERADA:
+═════════════════════════
+
+<div class="estadisticas-header">
+  <h3>📊 Informes - Estadísticas</h3>
+  
+  <div class="export-buttons">
+    <button class="export-btn export-csv">
+      <FileText size={18} />
+      <span>CSV</span>
+    </button>
+    
+    <button class="export-btn export-excel">
+      <FileSpreadsheet size={18} />
+      <span>Excel</span>
+    </button>
+    
+    <button class="export-btn export-pdf">
+      <FileDown size={18} />
+      <span>PDF</span>
+    </button>
+    
+    <button class="export-btn export-print">
+      <Printer size={18} />
+      <span>Imprimir</span>
+    </button>
+  </div>
+</div>
+
+
+ICONOS UTILIZADOS (Lucide React):
+══════════════════════════════════
+- FileText: Documento de texto (CSV)
+- FileSpreadsheet: Hoja de cálculo (Excel)
+- FileDown: Descarga de archivo (PDF)
+- Printer: Impresora (Imprimir)
+
+
+COLORES CORPORATIVOS:
+══════════════════════
+Primario: #006a71 (Verde azulado)
+Secundario: #ffffff (Blanco)
+Fondo: #f8f8f8 (Gris claro)
+
+Botones Export:
+- CSV: #10b981 (Verde esmeralda)
+- Excel: #217346 (Verde Excel oficial)
+- PDF: #ef4444 (Rojo Adobe)
+- Print: #6366f1 (Azul índigo)
+
+
+ANIMACIONES:
+════════════
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+Duración: 0.3s
+Timing: ease-out
+Aplicada a: Mensajes de confirmación
+
+
+ESTADOS INTERACTIVOS:
+══════════════════════
+
+Normal:
+  background-color: color-base
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1)
+  cursor: pointer
+
+Hover:
+  background-color: color-oscuro
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15)
+  transform: translateY(-2px)
+  cursor: pointer
+
+Active (Click):
+  transform: translateY(0)
+  
+Disabled:
+  opacity: 0.6
+  cursor: not-allowed
+  (sin efectos hover)
+
+
+ACCESIBILIDAD:
+══════════════
+- Tooltip con title en cada botón
+- Texto descriptivo para lectores de pantalla
+- Contraste de color cumple WCAG AA
+- Tamaño mínimo de botón: 44x44px (táctil)
+- Focus outline para navegación por teclado
+
+
+RESPONSIVE BREAKPOINTS:
+═══════════════════════
+Desktop (>1024px):
+  - Botones en línea horizontal
+  - Header con justify-content: space-between
+
+Tablet (768px - 1024px):
+  - Botones en línea, con wrap
+  - Header con flex-wrap: wrap
+
+Móvil (<768px):
+  - Botones en 2x2 grid
+  - Título en línea completa
+  - Gap reducido entre botones
+
+*/

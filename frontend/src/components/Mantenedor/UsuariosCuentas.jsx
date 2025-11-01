@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { getUsuarios, updateRolUsuario, updateRolesMasivo } from "../../services/usuariosService";
+import { getRoles } from "../../services/rolesService";
 import "./UsuariosCuentas.css";
-
-const ROLES = ["cliente", "admin", "superadmin", "baneado"]; // Lista de roles posibles
 
 const UsuariosCuentas = () => {
   const [usuarios, setUsuarios] = useState([]);
   const [seleccionados, setSeleccionados] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [rolesDisponibles, setRolesDisponibles] = useState([]);
 
   const [filtroRol, setFiltroRol] = useState("Todos");
   const [filtroBaneado, setFiltroBaneado] = useState("Todos");
@@ -27,6 +27,17 @@ const UsuariosCuentas = () => {
       }
     };
     fetchUsuarios();
+    // También cargar roles disponibles desde el backend para poblar los selects
+    const fetchRoles = async () => {
+      try {
+        const data = await getRoles([]); // trae todos los roles
+        // data viene como array de objetos { id_rol, nombre_rol, ... }
+        setRolesDisponibles(Array.isArray(data) ? data.map(r => r.nombre_rol) : []);
+      } catch (err) {
+        console.error('Error cargando roles disponibles:', err);
+      }
+    };
+    fetchRoles();
   }, []);
 
   const toggleSeleccionado = (id) => {
@@ -124,12 +135,12 @@ const UsuariosCuentas = () => {
         <span className="filtros-label">Filtros:</span>
         <div className="filtros">
             <select value={filtroRol} onChange={(e) => setFiltroRol(e.target.value)}>
-                <option value="Todos">Todos los roles</option>
-                {ROLES.map((rol) => (
-                    <option key={rol} value={rol}>
-                    {rol}
-                    </option>
-                ))}
+        <option value="Todos">Todos los roles</option>
+        {(rolesDisponibles.length > 0 ? rolesDisponibles : ["cliente", "admin", "superadmin", "baneado"]).map((rol) => (
+          <option key={rol} value={rol}>
+          {rol}
+          </option>
+        ))}
             </select>
 
             <select value={filtroBaneado} onChange={(e) => setFiltroBaneado(e.target.value)}>
@@ -187,7 +198,7 @@ const UsuariosCuentas = () => {
                     value={u.rol}
                     onChange={(e) => handleRolChange(u.id, e.target.value)}
                   >
-                    {ROLES.map((rol) => (
+                    {(rolesDisponibles.length > 0 ? rolesDisponibles : ["cliente", "admin", "superadmin", "baneado"]).map((rol) => (
                       <option key={rol} value={rol}>
                         {rol}
                       </option>

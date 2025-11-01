@@ -142,7 +142,7 @@ router.post('/login', async (req, res) => {
 router.get('/me', verifyToken, async (req, res) => {
   try {
     const [[usuario]] = await req.db.query(
-      `SELECT u.id, u.nombre AS nombre_usuario, u.email, u.creado_en, u.rol_id, r.nombre AS rol
+      `SELECT u.id, u.nombre AS nombre_usuario, u.email, u.creado_en, u.rol_id, u.verificado, u.verificacion_expira, r.nombre AS rol
        FROM usuarios u
        JOIN roles r ON u.rol_id = r.id
        WHERE u.id = ?`,
@@ -168,6 +168,8 @@ router.get('/me', verifyToken, async (req, res) => {
       nombre_usuario: usuario.nombre_usuario,
       email: usuario.email,
       rol: usuario.rol,
+      verificado: usuario.verificado,
+      verificacion_expira: usuario.verificacion_expira,
       ...persona,
       permisos: permisos.map((p) => p.nombre),
     });

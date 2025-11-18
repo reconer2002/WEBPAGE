@@ -35,6 +35,8 @@ const ImagenElemento = ({ el, onUpdate, isSelected, onSelect, onTransform }) => 
         y={el.y}
         width={el.width}
         height={el.height}
+        offsetX={0}
+        offsetY={0}
         rotation={el.rotation || 0}
         draggable
         onClick={() => onSelect && onSelect()}

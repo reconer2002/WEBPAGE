@@ -18,6 +18,15 @@ const HerramientaDiseño = ({ editarId }) => {
     loading,
     guardandoDiseno,
     agregandoAlCarrito,
+    showSaveModal,
+    setShowSaveModal,
+    saveModalMessage,
+    saveModalType,
+    nombreDisenoPendiente,
+    setNombreDisenoPendiente,
+    confirmarGuardadoDesdeModal,
+    disenoIdParaEditar,
+    nombreDisenoActual,
     textInputValue,
     textStyle,
     setTextStyle,
@@ -283,6 +292,8 @@ const HerramientaDiseño = ({ editarId }) => {
         elementos={elementos}
         guardandoDiseno={guardandoDiseno}
         agregandoAlCarrito={agregandoAlCarrito}
+        disenoIdParaEditar={disenoIdParaEditar}
+        nombreDisenoActual={nombreDisenoActual}
         onObjetoSelect={handleObjetoSelect}
         onCambiarVista={cambiarVista}
         onAgregarTexto={agregarTexto}
@@ -293,6 +304,99 @@ const HerramientaDiseño = ({ editarId }) => {
         onCaptureAndUploadViews={captureAndUploadViews}
         onSaveAndAddToCart={saveAndAddToCart}
       />
+
+      {/* Modal para guardar diseño */}
+      {showSaveModal && (
+        <div className="modal-backdrop" onClick={() => {
+          if (saveModalType !== 'input') {
+            setShowSaveModal(false);
+          }
+        }}>
+          <div className="modal-card save-design-modal" onClick={(e) => e.stopPropagation()}>
+            {saveModalType === 'input' && (
+              <>
+                <div className="modal-header">
+                  <h3>💾 Guardar Diseño</h3>
+                  <button 
+                    className="modal-close-btn" 
+                    onClick={() => setShowSaveModal(false)}
+                    title="Cerrar"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="modal-body">
+                  <label htmlFor="design-name-input" className="modal-label">
+                    Nombre del diseño:
+                  </label>
+                  <input
+                    id="design-name-input"
+                    type="text"
+                    className="modal-input"
+                    value={nombreDisenoPendiente}
+                    onChange={(e) => setNombreDisenoPendiente(e.target.value)}
+                    placeholder="Ej: Mi diseño personalizado"
+                    autoFocus
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        confirmarGuardadoDesdeModal();
+                      }
+                    }}
+                  />
+                  {saveModalMessage && (
+                    <div className="modal-error-message">{saveModalMessage}</div>
+                  )}
+                </div>
+                <div className="modal-footer">
+                  <button 
+                    className="modal-btn modal-btn-secondary" 
+                    onClick={() => setShowSaveModal(false)}
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    className="modal-btn modal-btn-primary" 
+                    onClick={confirmarGuardadoDesdeModal}
+                    disabled={guardandoDiseno}
+                  >
+                    {guardandoDiseno ? '🔄 Guardando...' : '✓ Guardar'}
+                  </button>
+                </div>
+              </>
+            )}
+            {saveModalType === 'success' && (
+              <>
+                <div className="modal-header success">
+                  <div className="modal-icon">✓</div>
+                  <h3>¡Éxito!</h3>
+                </div>
+                <div className="modal-body">
+                  <p className="modal-message">{saveModalMessage}</p>
+                </div>
+              </>
+            )}
+            {saveModalType === 'error' && (
+              <>
+                <div className="modal-header error">
+                  <div className="modal-icon">⚠</div>
+                  <h3>Error</h3>
+                </div>
+                <div className="modal-body">
+                  <p className="modal-message">{saveModalMessage}</p>
+                </div>
+                <div className="modal-footer">
+                  <button 
+                    className="modal-btn modal-btn-primary" 
+                    onClick={() => setShowSaveModal(false)}
+                  >
+                    Cerrar
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

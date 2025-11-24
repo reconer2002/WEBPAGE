@@ -27,6 +27,8 @@ const ImagenElementoVisualizacion = ({ el }) => {
       width={el.width}
       height={el.height}
       rotation={el.rotation || 0}
+      offsetX={0}
+      offsetY={0}
     />
   );
 };
@@ -97,7 +99,6 @@ const CanvasVisualizacion = ({
                   fontFamily={el.fuente || el.fontFamily || "Arial"}
                   fontStyle={el.fontStyle || "normal"}
                   rotation={el.rotacion || el.rotation || 0}
-                  scale={{ x: 1, y: 1 }}
                   offsetX={0}
                   offsetY={0}
                 />

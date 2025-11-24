@@ -34,11 +34,6 @@ export const useHerramientaDiseño = (onDisenoGuardado, disenoIdParaEditar = nul
   const [loading, setLoading] = useState(true);
   const [guardandoDiseno, setGuardandoDiseno] = useState(false);
   const [agregandoAlCarrito, setAgregandoAlCarrito] = useState(false);
-  const [showSaveModal, setShowSaveModal] = useState(false);
-  const [saveModalMessage, setSaveModalMessage] = useState('');
-  const [saveModalType, setSaveModalType] = useState('input'); // 'input', 'success', 'error'
-  const [nombreDisenoPendiente, setNombreDisenoPendiente] = useState('');
-  const [nombreDisenoActual, setNombreDisenoActual] = useState('');
 
   // Estados para edición
   const [textInputValue, setTextInputValue] = useState("");
@@ -337,7 +332,7 @@ export const useHerramientaDiseño = (onDisenoGuardado, disenoIdParaEditar = nul
     actualizarElemento(selectedId, { x: newX, y: newY });
   };
 
-  const captureAndUploadViews = async (nombreIngresadoDirecto = null) => {
+  const captureAndUploadViews = async () => {
     try {
       // Si está editando, usar el nombre actual y guardar directamente
       if (disenoIdParaEditar && !nombreIngresadoDirecto) {
@@ -495,15 +490,8 @@ export const useHerramientaDiseño = (onDisenoGuardado, disenoIdParaEditar = nul
       }
       // --- FIN DE GOOGLE ANALYTICS ---
 
-      setSaveModalMessage(disenoIdParaEditar ? 'Diseño actualizado correctamente' : 'Diseño guardado correctamente');
-      setSaveModalType('success');
-      setShowSaveModal(true);
-      
-      // Navegar después de un breve delay para que el usuario vea el mensaje
-      setTimeout(() => {
-        setShowSaveModal(false);
-        navigate('/disenos');
-      }, 1500);
+      alert(disenoIdParaEditar ? 'Diseño actualizado correctamente' : 'Diseño guardado correctamente');
+      navigate('/disenos');
 
       return response?.id || disenoIdParaEditar;
     } catch (error) {
@@ -524,25 +512,71 @@ export const useHerramientaDiseño = (onDisenoGuardado, disenoIdParaEditar = nul
     }
     setSaveModalMessage('');
     setShowSaveModal(false);
-    await captureAndUploadViews(nombreDisenoPendiente);
+    
+    if (modoAgregarAlCarrito) {
+      // Modo agregar al carrito
+      await saveAndAddToCartConNombre(nombreDisenoPendiente);
+      setModoAgregarAlCarrito(false);
+    } else {
+      // Modo solo guardar
+      await captureAndUploadViews(nombreDisenoPendiente);
+    }
   };
 
-  const saveAndAddToCart = async () => {
+  const saveAndAddToCartConNombre = async (nombreDiseno) => {
     setAgregandoAlCarrito(true);
     try {
-      const designId = await captureAndUploadViews();
-      if (!designId) return;
+      // Guardar el diseño sin navegar
+      const designId = await captureAndUploadViews(nombreDiseno, true);
+      if (!designId) {
+        setAgregandoAlCarrito(false);
+        return;
+      }
       
+      // Agregar al carrito
       await cartService.addItem({ id: objetoSeleccionado.articulo_id }, 1, { designId });
-      alert('Diseño agregado al carrito');
-      // Navegar al carrito
-      navigate('/cart');
+      
+      // Mostrar mensaje de éxito
+      setSaveModalMessage('Diseño guardado y agregado al carrito');
+      setSaveModalType('success');
+      setShowSaveModal(true);
+      
+      // Navegar al carrito después de un breve delay
+      setTimeout(() => {
+        setShowSaveModal(false);
+        navigate('/cart');
+      }, 1500);
     } catch (e) {
       console.error('Error al agregar al carrito', e);
-      alert('No se pudo agregar al carrito');
+      setSaveModalMessage('No se pudo agregar al carrito. Por favor, intenta nuevamente.');
+      setSaveModalType('error');
+      setShowSaveModal(true);
     } finally {
       setAgregandoAlCarrito(false);
     }
+  };
+
+  const saveAndAddToCart = async () => {
+    // Si está editando un diseño existente, tiene nombre
+    if (disenoIdParaEditar) {
+      await saveAndAddToCartConNombre(nombreDisenoActual);
+      return;
+    }
+    
+    // Si no tiene nombre, mostrar modal para pedirlo
+    if (!stageRef.current || !objetoSeleccionado) {
+      setSaveModalMessage('Selecciona un objeto antes de agregar al carrito');
+      setSaveModalType('error');
+      setShowSaveModal(true);
+      return;
+    }
+    
+    const nombreSugerido = `Diseño ${objetoSeleccionado.articulo_nombre} ${new Date().toLocaleDateString()}`;
+    setNombreDisenoPendiente(nombreSugerido);
+    setSaveModalType('input');
+    setSaveModalMessage('Dale un nombre a tu diseño antes de agregarlo al carrito');
+    setModoAgregarAlCarrito(true);
+    setShowSaveModal(true);
   };
 
   const actualizarElemento = (id, cambios) => {

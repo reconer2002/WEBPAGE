@@ -7,6 +7,7 @@ import MantenedorPage from "./pages/Mantenedor";
 import ProtectedRoute from "./components/ProtectedRoute";
 import FeatureRoute from "./components/FeatureRoute";
 import PaginaDeshabilitada from "./components/Main/PaginaDeshabilitada";
+import MaintenancePage from "./components/MaintenancePage";
 import HomePage from "./pages/HomePage";
 import authService from "./services/authService";
 import paginaService from "./services/paginaService";
@@ -23,7 +24,7 @@ import Profile from "./pages/Profile";
 import VerifyAccount from "./pages/VerifyAccount";
 import SearchResults from "./pages/SearchResults";
 import { CartProvider } from "./context/CartContext";
-import { FeaturesProvider } from "./context/FeaturesContext";
+import { FeaturesProvider, useFeatures } from "./context/FeaturesContext";
 import TerminosYCondiciones from "./pages/TerminosYCondiciones"; // ✅ nueva importación
 
 function App() {
@@ -118,7 +119,79 @@ function App() {
     <Router>
       <FeaturesProvider>
         <CartProvider>
-          <Routes>
+          <AppContent 
+            user={user} 
+            setUser={setUser}
+            handleLogin={handleLogin} 
+            handleLogout={handleLogout}
+            colores={colores}
+            handleActualizarColores={handleActualizarColores}
+            loadingUser={loadingUser}
+            estadoPagina={estadoPagina}
+          />
+        </CartProvider>
+      </FeaturesProvider>
+    </Router>
+  );
+}
+
+// Componente interno que tiene acceso al contexto de Features
+const AppContent = ({ user, setUser, handleLogin, handleLogout, colores, handleActualizarColores, loadingUser, estadoPagina }) => {
+  const { maintenanceMode, loading: loadingFeatures } = useFeatures();
+  
+  // Verificar si el usuario es administrador
+  const isAdmin = user?.permisos?.some(p => 
+    p === 'ver_mantenedor' || 
+    p === 'configurar_pagina' ||
+    p === 'gestionar_sistema'
+  );
+
+  return (
+    <Routes>
+      {/* Rutas que siempre deben estar disponibles (incluso en mantenimiento) */}
+      <Route
+        path="/"
+        element={
+          estadoPagina ? (
+            <HomePage
+              user={user}
+              onLogin={handleLogin}
+              onLogout={handleLogout}
+              colores={colores}
+            />
+          ) : (
+            <PaginaDeshabilitada onLogin={handleLogin} />
+          )
+        }
+      />
+      
+      <Route
+        path="/verificar-cuenta"
+        element={
+          <>
+            <Header user={user} onLogin={handleLogin} onLogout={handleLogout} />
+            <VerifyAccount onVerified={setUser} />
+            <Footer />
+          </>
+        }
+      />
+      
+      <Route
+        path="/register"
+        element={
+          <>
+            <Header user={user} onLogin={handleLogin} onLogout={handleLogout} />
+            <Register onRegister={handleLogin} />
+            <Footer />
+          </>
+        }
+      />
+
+      {/* Si está en modo mantenimiento, NO es admin y NO está en una ruta pública */}
+      {maintenanceMode && !isAdmin && !loadingFeatures ? (
+        <Route path="*" element={<MaintenancePage />} />
+      ) : (
+        <>
           <Route
             path="/mantenedor"
             element={
@@ -231,17 +304,6 @@ function App() {
           />
 
           <Route
-            path="/verificar-cuenta"
-            element={
-              <>
-                <Header user={user} onLogin={handleLogin} onLogout={handleLogout} />
-                <VerifyAccount onVerified={setUser} />
-                <Footer />
-              </>
-            }
-          />
-
-          <Route
             path="/cart"
             element={
               <>
@@ -301,17 +363,6 @@ function App() {
             }
           />
 
-          <Route
-            path="/register"
-            element={
-              <>
-                <Header user={user} onLogin={handleLogin} onLogout={handleLogout} />
-                <Register onRegister={handleLogin} />
-                <Footer />
-              </>
-            }
-          />
-
           {/* ✅ Nueva ruta: Términos y Condiciones */}
           <Route
             path="/terminos-y-condiciones"
@@ -339,11 +390,10 @@ function App() {
               )
             }
           />
-        </Routes>
-      </CartProvider>
-      </FeaturesProvider>
-    </Router>
+        </>
+      )}
+    </Routes>
   );
-}
+};
 
 export default App;

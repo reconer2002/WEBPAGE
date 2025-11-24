@@ -14,6 +14,7 @@ export const useFeatures = () => {
 export const FeaturesProvider = ({ children }) => {
   const [features, setFeatures] = useState({});
   const [loading, setLoading] = useState(true);
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
 
   useEffect(() => {
     loadFeatures();
@@ -24,6 +25,7 @@ export const FeaturesProvider = ({ children }) => {
       setLoading(true);
       const enabledFeatures = await featuresService.getEnabledFeatures();
       setFeatures(enabledFeatures);
+      setMaintenanceMode(enabledFeatures.site_maintenance === true);
     } catch (error) {
       console.error('Error cargando funcionalidades:', error);
       // En caso de error, habilitar todo por defecto
@@ -35,8 +37,10 @@ export const FeaturesProvider = ({ children }) => {
         user_profile: true,
         order_history: true,
         product_catalog: true,
-        testimonials: true
+        testimonials: true,
+        site_maintenance: false
       });
+      setMaintenanceMode(false);
     } finally {
       setLoading(false);
     }
@@ -51,7 +55,7 @@ export const FeaturesProvider = ({ children }) => {
   };
 
   return (
-    <FeaturesContext.Provider value={{ features, loading, isFeatureEnabled, refreshFeatures }}>
+    <FeaturesContext.Provider value={{ features, loading, isFeatureEnabled, refreshFeatures, maintenanceMode }}>
       {children}
     </FeaturesContext.Provider>
   );

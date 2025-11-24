@@ -860,7 +860,8 @@ INSERT INTO `features_config` (`feature_key`, `feature_name`, `description`, `is
 ('user_profile', 'Perfil de Usuario', 'Permite a los usuarios ver y editar su perfil', 1, 'account'),
 ('order_history', 'Historial de Pedidos', 'Permite a los usuarios ver sus compras anteriores', 1, 'account'),
 ('product_catalog', 'Catálogo de Productos', 'Muestra el catálogo de productos disponibles', 1, 'commerce'),
-('testimonials', 'Testimonios', 'Muestra testimonios de clientes en la página principal', 1, 'content');
+('testimonials', 'Testimonios', 'Muestra testimonios de clientes en la página principal', 1, 'content'),
+('site_maintenance', 'Modo Mantenimiento', 'Suspende el acceso a toda la página para usuarios regulares. Solo administradores pueden acceder.', 0, 'general');
 /*!40000 ALTER TABLE `features_config` ENABLE KEYS */;
 UNLOCK TABLES;
 

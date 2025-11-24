@@ -39,8 +39,6 @@ const sendViaResend = async ({ to, from, subject, html, text }) => {
       timeout: 10000,
     };
 
-    console.log('[Resend] Enviando email a:', Array.isArray(to) ? to.join(', ') : to);
-
     const req = https.request(opts, (res) => {
       let body = '';
       res.on('data', (d) => (body += d));
@@ -48,7 +46,6 @@ const sendViaResend = async ({ to, from, subject, html, text }) => {
         if (res.statusCode >= 200 && res.statusCode < 300) {
           try {
             const parsedBody = body ? JSON.parse(body) : {};
-            console.log('[Resend] Email enviado exitosamente:', parsedBody.id || 'OK');
             resolve(parsedBody);
           } catch (e) {
             resolve({ raw: body });

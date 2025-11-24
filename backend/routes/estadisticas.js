@@ -183,4 +183,182 @@ router.get("/articulos/:articuloId/variantes-disenos", async (req, res) => {
   }
 });
 
+// ===================================================================
+// 4. ENDPOINT DE RANKING DE PRODUCTOS: /api/estadisticas/productos/ranking
+//    (Objetos más vendidos y sus métricas)
+// ===================================================================
+
+router.get("/productos/ranking", async (req, res) => {
+  try {
+    // Ranking de objetos más vendidos
+    const [rankingVentas] = await req.db.execute(`
+      SELECT 
+        o.id,
+        a.nombre AS nombre_articulo,
+        a.precio,
+        a.foto,
+        GROUP_CONCAT(DISTINCT CONCAT(v.nombre_categoria, ': ', v.valor) ORDER BY v.nombre_categoria SEPARATOR ', ') AS variantes,
+        COUNT(DISTINCT dp.id) AS total_unidades_vendidas,
+        COUNT(DISTINCT dp.pedido_id) AS total_pedidos,
+        SUM(a.precio) AS ingresos_totales,
+        COUNT(DISTINCT dp.usuario_id) AS clientes_unicos
+      FROM objetos o
+      INNER JOIN articulos a ON o.articulo_id = a.id
+      INNER JOIN objeto_variante ov ON o.id = ov.objeto_id
+      INNER JOIN variantes v ON ov.variante_id = v.id
+      INNER JOIN disenos_pedido dp ON o.id = dp.objeto_id
+      INNER JOIN pedidos p ON dp.pedido_id = p.id
+      WHERE p.estado = 'pagado'
+      GROUP BY o.id, a.nombre, a.precio, a.foto
+      ORDER BY total_unidades_vendidas DESC
+      LIMIT 20
+    `);
+
+    // Objetos sin ventas (para referencia)
+    const [productosSinVentas] = await req.db.execute(`
+      SELECT 
+        o.id,
+        a.nombre AS nombre_articulo,
+        a.precio,
+        a.foto,
+        GROUP_CONCAT(DISTINCT CONCAT(v.nombre_categoria, ': ', v.valor) ORDER BY v.nombre_categoria SEPARATOR ', ') AS variantes
+      FROM objetos o
+      INNER JOIN articulos a ON o.articulo_id = a.id
+      INNER JOIN objeto_variante ov ON o.id = ov.objeto_id
+      INNER JOIN variantes v ON ov.variante_id = v.id
+      LEFT JOIN disenos_pedido dp ON o.id = dp.objeto_id AND dp.pedido_id IN (
+        SELECT id FROM pedidos WHERE estado = 'pagado'
+      )
+      WHERE dp.id IS NULL
+      GROUP BY o.id, a.nombre, a.precio, a.foto
+    `);
+
+    // Métricas generales
+    const [metricas] = await req.db.execute(`
+      SELECT 
+        COUNT(DISTINCT dp.id) AS total_productos_vendidos,
+        SUM(a.precio) AS ingresos_totales_global,
+        COUNT(DISTINCT p.id) AS total_pedidos_completados,
+        COUNT(DISTINCT dp.usuario_id) AS total_clientes
+      FROM disenos_pedido dp
+      INNER JOIN objetos o ON dp.objeto_id = o.id
+      INNER JOIN articulos a ON o.articulo_id = a.id
+      INNER JOIN pedidos p ON dp.pedido_id = p.id
+      WHERE p.estado = 'pagado'
+    `);
+
+    res.json({
+      rankingVentas,
+      productosSinVentas,
+      metricas: metricas[0] || {
+        total_productos_vendidos: 0,
+        ingresos_totales_global: 0,
+        total_pedidos_completados: 0,
+        total_clientes: 0
+      }
+    });
+  } catch (error) {
+    console.error("Error al obtener ranking de productos:", error);
+    res.status(500).json({ error: "Error al obtener ranking de productos" });
+  }
+});
+
+// ===================================================================
+// 5. ENDPOINT DE DETALLE DE PRODUCTO: /api/estadisticas/productos/:productoId/detalle
+//    (Métricas detalladas de un objeto específico)
+// ===================================================================
+
+router.get("/productos/:productoId/detalle", async (req, res) => {
+  const { productoId } = req.params;
+
+  try {
+    // Información básica del objeto
+    const [infoProducto] = await req.db.execute(`
+      SELECT 
+        o.id, 
+        a.nombre AS nombre_articulo,
+        a.precio, 
+        a.foto, 
+        a.descripcion,
+        GROUP_CONCAT(DISTINCT CONCAT(v.nombre_categoria, ': ', v.valor) ORDER BY v.nombre_categoria SEPARATOR ', ') AS variantes
+      FROM objetos o
+      INNER JOIN articulos a ON o.articulo_id = a.id
+      INNER JOIN objeto_variante ov ON o.id = ov.objeto_id
+      INNER JOIN variantes v ON ov.variante_id = v.id
+      WHERE o.id = ?
+      GROUP BY o.id, a.nombre, a.precio, a.foto, a.descripcion
+    `, [productoId]);
+
+    if (infoProducto.length === 0) {
+      return res.status(404).json({ error: "Producto no encontrado" });
+    }
+
+    // Métricas de ventas del objeto
+    const [metricasVentas] = await req.db.execute(`
+      SELECT 
+        COUNT(DISTINCT dp.id) AS unidades_vendidas,
+        COUNT(DISTINCT dp.pedido_id) AS pedidos_totales,
+        SUM(a.precio) AS ingresos_totales,
+        COUNT(DISTINCT dp.usuario_id) AS clientes_unicos,
+        AVG(a.precio) AS precio_promedio
+      FROM objetos o
+      INNER JOIN articulos a ON o.articulo_id = a.id
+      INNER JOIN disenos_pedido dp ON o.id = dp.objeto_id
+      INNER JOIN pedidos p ON dp.pedido_id = p.id
+      WHERE o.id = ? AND p.estado = 'pagado'
+    `, [productoId]);
+
+    // Distribución de ventas por mes (últimos 6 meses)
+    const [ventasPorMes] = await req.db.execute(`
+      SELECT 
+        DATE_FORMAT(p.fecha, '%Y-%m') AS mes,
+        COUNT(DISTINCT dp.id) AS unidades_vendidas,
+        SUM(a.precio) AS ingresos
+      FROM objetos o
+      INNER JOIN articulos a ON o.articulo_id = a.id
+      INNER JOIN disenos_pedido dp ON o.id = dp.objeto_id
+      INNER JOIN pedidos p ON dp.pedido_id = p.id
+      WHERE o.id = ? 
+        AND p.estado = 'pagado'
+        AND p.fecha >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
+      GROUP BY mes
+      ORDER BY mes DESC
+    `, [productoId]);
+
+    // Top clientes del objeto
+    const [topClientes] = await req.db.execute(`
+      SELECT 
+        u.nombre,
+        u.email,
+        COUNT(DISTINCT dp.id) AS cantidad_comprada,
+        SUM(a.precio) AS total_gastado
+      FROM usuarios u
+      INNER JOIN disenos_pedido dp ON u.id = dp.usuario_id
+      INNER JOIN objetos o ON dp.objeto_id = o.id
+      INNER JOIN articulos a ON o.articulo_id = a.id
+      INNER JOIN pedidos p ON dp.pedido_id = p.id
+      WHERE o.id = ? AND p.estado = 'pagado'
+      GROUP BY u.id, u.nombre, u.email
+      ORDER BY cantidad_comprada DESC
+      LIMIT 5
+    `, [productoId]);
+
+    res.json({
+      producto: infoProducto[0],
+      metricas: metricasVentas[0] || {
+        unidades_vendidas: 0,
+        pedidos_totales: 0,
+        ingresos_totales: 0,
+        clientes_unicos: 0,
+        precio_promedio: 0
+      },
+      ventasPorMes,
+      topClientes
+    });
+  } catch (error) {
+    console.error(`Error al obtener detalle del producto ${productoId}:`, error);
+    res.status(500).json({ error: "Error al obtener detalle del producto" });
+  }
+});
+
 module.exports = router;

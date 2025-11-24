@@ -96,11 +96,30 @@
 .cart-summary > div { display: flex; justify-content: space-between; }
 .cart-summary .disc { color: #c62828; }
 .sum-total { border-top: 1px solid #eee; padding-top: 8px; font-size: 1.1rem; }
-.cart-summary .btn-checkout {
+
+.cart-summary .checkout-btn {
   margin-top: 16px;
   width: 100%;
   padding: 14px 24px;
   font-size: 17px;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  background: var(--color-primario);
+  color: #fff;
+  transition: all 0.2s ease;
+}
+
+.cart-summary .checkout-btn:hover:not(:disabled) {
+  opacity: 0.9;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.cart-summary .checkout-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 @media (max-width: 900px) {

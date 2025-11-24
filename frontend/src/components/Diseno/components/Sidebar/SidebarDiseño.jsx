@@ -11,6 +11,8 @@ const SidebarDiseño = ({
   elementos,
   guardandoDiseno,
   agregandoAlCarrito,
+  disenoIdParaEditar,
+  nombreDisenoActual,
   onObjetoSelect,
   onCambiarVista,
   onAgregarTexto,
@@ -57,6 +59,20 @@ const SidebarDiseño = ({
         <div className="sidebar">
           <h3>Herramienta de Diseño</h3>
 
+          {disenoIdParaEditar && nombreDisenoActual && (
+            <div style={{
+              padding: '12px',
+              background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+              borderRadius: '8px',
+              marginBottom: '12px',
+              color: 'white',
+              boxShadow: '0 2px 8px rgba(59, 130, 246, 0.3)'
+            }}>
+              <div style={{ fontSize: '11px', opacity: 0.9, marginBottom: '4px' }}>✏️ Editando diseño:</div>
+              <div style={{ fontSize: '14px', fontWeight: 'bold' }}>{nombreDisenoActual}</div>
+            </div>
+          )}
+
           <div className="sidebar-section">
             <strong>Añadir Elementos</strong>
             <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
@@ -81,22 +97,6 @@ const SidebarDiseño = ({
           <div className="sidebar-section"><div className="loading-state"><p>No hay objetos disponibles</p></div></div>
         ) : (
           <>
-            {!objetoSeleccionado && (
-              <div style={{ 
-                fontSize: 12, 
-                color: "#6b7280", 
-                marginTop: "8px", 
-                fontStyle: "italic", 
-                textAlign: "center",
-                padding: "8px",
-                background: "#f8fafc",
-                borderRadius: "6px",
-                border: "1px solid #e2e8f0"
-              }}>
-                👆 Selecciona un objeto para comenzar a diseñar
-              </div>
-            )}
-            
             {objetoSeleccionado && (
               <div className="sidebar-section">
                 <strong>Objeto Seleccionado</strong>
@@ -210,7 +210,7 @@ const SidebarDiseño = ({
             <div className="sidebar-section">
               <button 
                 className="save-btn" 
-                onClick={onCaptureAndUploadViews} 
+                onClick={() => onCaptureAndUploadViews()} 
                 style={{ 
                   width: "100%", 
                   marginBottom: "8px",
@@ -218,7 +218,9 @@ const SidebarDiseño = ({
                 }}
                 disabled={!objetoSeleccionado || guardandoDiseno}
               >
-                {guardandoDiseno ? "🔄 Guardando..." : "💾 Guardar diseño"}
+                {guardandoDiseno 
+                  ? (disenoIdParaEditar ? "🔄 Actualizando..." : "🔄 Guardando...") 
+                  : (disenoIdParaEditar ? "✓ Actualizar diseño" : "💾 Guardar diseño")}
               </button>
               
               <button 

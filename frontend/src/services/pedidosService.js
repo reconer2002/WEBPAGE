@@ -10,4 +10,9 @@ const update = async (id, payload) => {
   return data;
 };
 
-export default { list, update };
+const getDetalles = async (id) => {
+  const { data } = await api.get(`/pedidos/${id}/detalles`);
+  return data;
+};
+
+export default { list, update, getDetalles };

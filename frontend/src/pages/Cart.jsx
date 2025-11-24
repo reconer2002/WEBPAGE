@@ -41,10 +41,7 @@ const Cart = ({ user }) => {
       fetchCart();
     }
   }, [user]);
-  const [search, setSearch] = useState("");
-  const [catalogQuery, setCatalogQuery] = useState("");
-  const [catalog, setCatalog] = useState([]);
-  const [loadingCatalog, setLoadingCatalog] = useState(false);
+  
   const [message, setMessage] = useState("");
   const [checking, setChecking] = useState(false);
 
@@ -57,12 +54,6 @@ const Cart = ({ user }) => {
     setInventory((prev) => ({ ...prev, ...inv }));
   }, [items]);
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return items;
-    return items.filter((i) => i.name.toLowerCase().includes(q));
-  }, [items, search]);
-
   const BACKEND_URL = (typeof import.meta.env !== 'undefined' ? import.meta.env.VITE_BACKEND_URL : "") || "";
   const resolveImage = (u) => {
     const s = (u && String(u).trim()) || "";
@@ -73,29 +64,9 @@ const Cart = ({ user }) => {
   };
 
   const totals = useMemo(
-    () => cartService.computeCartTotals(filtered),
-    [filtered]
+    () => cartService.computeCartTotals(items),
+    [items]
   );
-
-  // Cargar catálogo (articulos) una sola vez cuando el usuario enfoca o escribe
-  const ensureCatalog = async () => {
-    if (catalog.length || loadingCatalog) return;
-    try {
-      setLoadingCatalog(true);
-      const list = await (await import("../services/articulosService")).default.getArticulos();
-      setCatalog(list || []);
-    } finally {
-      setLoadingCatalog(false);
-    }
-  };
-
-  const catalogResults = useMemo(() => {
-    const q = catalogQuery.trim().toLowerCase();
-    if (!q) return [];
-    return (catalog || [])
-      .filter((p) => String(p.nombre || "").toLowerCase().includes(q))
-      .slice(0, 6);
-  }, [catalog, catalogQuery]);
 
   const dec = async (productId, designId = 0) => {
     const it = items.find((i) => i.product_id === productId && (i.design_id ?? 0) === (designId ?? 0));
@@ -122,30 +93,6 @@ const Cart = ({ user }) => {
   const remove = async (productId, designId = 0) => {
     const updated = await cartService.removeItem(productId, designId ?? 0);
     if (Array.isArray(updated)) setItems(updated);
-  };
-
-  const checkAvailabilityAll = async () => {
-    setChecking(true);
-    setMessage("");
-    try {
-      const res = await cartService.checkAvailability();
-      // Actualiza inventario local con lo que sabemos del carrito
-      const local = { ...inventory };
-      (items || []).forEach((it) => {
-        const p = res?.problems?.find((x) => x.product_id === it.product_id);
-        if (p) local[it.product_id] = p.stock ?? 0; // stock insuficiente reportado
-      });
-      setInventory(local);
-      if (res?.ok) {
-        setMessage("Todos los artículos están disponibles.");
-      } else {
-        setMessage("Algunos artículos superan el stock disponible.");
-      }
-    } catch (err) {
-      console.error("Error comprobando disponibilidad:", err);
-      setMessage("No se pudo comprobar disponibilidad");
-    }
-    setChecking(false);
   };
 
   const goToCheckout = async () => {
@@ -202,76 +149,6 @@ const Cart = ({ user }) => {
         <h2>Carrito de compras</h2>
       </div>
 
-      <div className="cart-tools">
-        <div className="cart-searches">
-          <input
-            type="text"
-            placeholder="Buscar en el carrito..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-          <div className="catalog-search">
-            <input
-              type="search"
-              placeholder="Buscar producto para agregar..."
-              value={catalogQuery}
-              onFocus={ensureCatalog}
-              onChange={(e) => setCatalogQuery(e.target.value)}
-            />
-            {catalogQuery && (
-              <div className="catalog-results">
-                {loadingCatalog ? (
-                  <div className="catalog-empty">Cargando…</div>
-                ) : catalogResults.length === 0 ? (
-                  <div className="catalog-empty">Sin resultados</div>
-                ) : (
-                  catalogResults.map((p) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      className="catalog-item"
-                      onClick={async () => {
-                        const updated = await cartService.addItemFromArticulo(p.id, 1);
-                        if (Array.isArray(updated)) {
-                          setItems(updated);
-                          setMessage("");
-                        } else {
-                          setMessage("No se pudo agregar el producto al carrito.");
-                        }
-                        setCatalogQuery("");
-                      }}
-                    >
-                      <img src={resolveImage(p.foto) || `${BACKEND_URL}/img/Logo.png`} alt="" />
-                      <span>{p.nombre}</span>
-                      <small>{p.precio != null ? `$${Number(p.precio).toLocaleString('es-CL')}` : ''}</small>
-                    </button>
-                  ))
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-        <div className="tool-actions">
-          <button
-            type="button"
-            className="btn"
-            onClick={checkAvailabilityAll}
-            disabled={checking}
-          >
-            {checking ? "Comprobando..." : "Comprobar disponibilidad"}
-          </button>
-          <button
-            type="button"
-            className="btn primary"
-            onClick={goToCheckout} // <-- CAMBIADO A LA NUEVA FUNCIÓN
-            disabled={checking || !items.length} // <-- ACTUALIZADO DISABLED
-          >
-            {/* Opcional: Cambiar texto si está cargando */}
-            {checking ? 'Verificando...' : 'Ir a Pagar'}
-          </button>
-        </div>
-      </div>
-
       {message && <div className="cart-message">{message}</div>}
 
       <div className="cart-table">
@@ -284,7 +161,7 @@ const Cart = ({ user }) => {
           <div>Total</div>
           <div>Acciones</div>
         </div>
-        {filtered.map((item) => {
+        {items.map((item) => {
           const { base, discount, total } = cartService.computeLineTotals(item);
           const stock = inventory[item.product_id] ?? 0;
           const ok = stock >= item.quantity;
@@ -331,7 +208,7 @@ const Cart = ({ user }) => {
             </div>
           );
         })}
-        {!filtered.length && (
+        {!items.length && (
           <div className="cart-empty">No hay diseños en el carrito.</div>
         )}
       </div>
@@ -351,6 +228,14 @@ const Cart = ({ user }) => {
           <span>Total</span>
           <strong>${totals.total.toLocaleString("es-CL")}</strong>
         </div>
+        <button
+          type="button"
+          className="btn primary checkout-btn"
+          onClick={goToCheckout}
+          disabled={checking || !items.length}
+        >
+          {checking ? 'Verificando...' : 'Finalizar Compra'}
+        </button>
       </div>
     </div>
   );

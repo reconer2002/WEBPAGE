@@ -58,6 +58,8 @@ const CanvasDiseño = ({
                         fill={el.fill}
                         fontFamily={el.fontFamily || "Arial"}
                         fontStyle={el.fontStyle || "normal"}
+                        offsetX={0}
+                        offsetY={0}
                         rotation={el.rotation || 0}
                         scale={{ x: el.scale || 1, y: el.scale || 1 }}
                         draggable

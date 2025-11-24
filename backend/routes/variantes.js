@@ -41,7 +41,7 @@ router.put('/:id', upload.single('imagen'), async (req, res) => {
       if (existingVariant[0].imagen) {
         const oldImagePath = path.join(__dirname, '..', existingVariant[0].imagen);
         try { if (fs.existsSync(oldImagePath)) fs.unlinkSync(oldImagePath); } 
-        catch (error) { console.log('No se pudo eliminar la imagen anterior:', error.message); }
+        catch (error) { /* Imagen no eliminada */ }
       }
     }
 
@@ -49,7 +49,7 @@ router.put('/:id', upload.single('imagen'), async (req, res) => {
       if (existingVariant[0].imagen) {
         const oldImagePath = path.join(__dirname, '..', existingVariant[0].imagen);
         try { if (fs.existsSync(oldImagePath)) fs.unlinkSync(oldImagePath); } 
-        catch (error) { console.log('No se pudo eliminar la imagen:', error.message); }
+        catch (error) { /* Imagen no eliminada */ }
       }
       imagenUrl = null;
     }
@@ -79,7 +79,7 @@ router.delete('/:id', async (req, res) => {
     if (existingVariant[0].imagen) {
       const imagePath = path.join(__dirname, '..', existingVariant[0].imagen);
       try { if (fs.existsSync(imagePath)) fs.unlinkSync(imagePath); } 
-      catch (error) { console.log('No se pudo eliminar la imagen:', error.message); }
+      catch (error) { /* Imagen no eliminada */ }
     }
 
     await req.db.query('DELETE FROM variantes WHERE id = ?', [id]);

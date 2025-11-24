@@ -78,7 +78,6 @@ router.post('/register', async (req, res) => {
 
       try {
         await sendVerificationEmail({ to: email, nombre: nombre, token: verificationToken });
-        console.log(`[Registro] Correo de verificación enviado a ${email}`);
       } catch (mailErr) {
         console.warn(`[Registro] Error al enviar email de verificación:`, mailErr);
       }
@@ -311,7 +310,6 @@ router.post('/verify/resend', async (req, res) => {
 
     try {
       await sendVerificationEmail({ to: email, nombre: usuario.nombre, token });
-      console.log(`[Resend] Enviado enlace de verificación a ${email}`);
       return res.json({ message: 'Hemos enviado un correo con el enlace de verificación.' });
     } catch (mailErr) {
       console.warn('Error al enviar email de verificación:', mailErr);

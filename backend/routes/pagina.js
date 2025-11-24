@@ -50,7 +50,6 @@ router.patch('/logo', authMiddleware, verifyPermiso('configurar_pagina'), upload
         
         // Intentar eliminar el archivo
         await fs.unlink(oldFilePath);
-        console.log(`Logo anterior eliminado: ${oldFilename}`);
       } catch (unlinkErr) {
         // Si el archivo no existe o hay un error, solo registrarlo sin detener la operación
         console.warn(`No se pudo eliminar el logo anterior: ${unlinkErr.message}`);

@@ -170,7 +170,7 @@ const UsuariosRoles = () => {
                       </span>
                     ))
                   ) : (
-                    "Sin permisos"
+                    <span style={{ color: '#95a5a6', fontStyle: 'italic' }}>Sin permisos</span>
                   )}
                 </td>
                 <td>{r.cantidad_usuarios}</td>

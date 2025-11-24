@@ -5,12 +5,14 @@ import Header from "./components/Main/Header";
 import Footer from "./components/Main/Footer";
 import MantenedorPage from "./pages/Mantenedor";
 import ProtectedRoute from "./components/ProtectedRoute";
+import FeatureRoute from "./components/FeatureRoute";
 import PaginaDeshabilitada from "./components/Main/PaginaDeshabilitada";
 import HomePage from "./pages/HomePage";
 import authService from "./services/authService";
 import paginaService from "./services/paginaService";
 import DisenosPage from "./components/Diseno/DisenosPage";
 import EditarDiseno from "./components/Diseno/EditarDiseno";
+import VerDiseno from "./pages/VerDiseno";
 import Cart from "./pages/Cart";
 import Checkout from "./pages/Checkout";
 import CheckoutMock from "./pages/CheckoutMock";
@@ -21,6 +23,7 @@ import Profile from "./pages/Profile";
 import VerifyAccount from "./pages/VerifyAccount";
 import SearchResults from "./pages/SearchResults";
 import { CartProvider } from "./context/CartContext";
+import { FeaturesProvider } from "./context/FeaturesContext";
 import TerminosYCondiciones from "./pages/TerminosYCondiciones"; // ✅ nueva importación
 
 function App() {
@@ -113,8 +116,9 @@ function App() {
 
   return (
     <Router>
-      <CartProvider>
-        <Routes>
+      <FeaturesProvider>
+        <CartProvider>
+          <Routes>
           <Route
             path="/mantenedor"
             element={
@@ -140,7 +144,9 @@ function App() {
             element={
               <>
                 <Header user={user} onLogin={handleLogin} onLogout={handleLogout} />
-                <DisenosPage user={user} loading={loadingUser} />
+                <FeatureRoute featureKey="design_tool" user={user}>
+                  <DisenosPage user={user} loading={loadingUser} />
+                </FeatureRoute>
                 <Footer />
               </>
             }
@@ -151,7 +157,9 @@ function App() {
             element={
               <>
                 <Header user={user} onLogin={handleLogin} onLogout={handleLogout} />
-                <DisenosPage user={user} loading={loadingUser} mode="crear" />
+                <FeatureRoute featureKey="design_tool" user={user}>
+                  <DisenosPage user={user} loading={loadingUser} mode="crear" />
+                </FeatureRoute>
                 <Footer />
               </>
             }
@@ -162,7 +170,20 @@ function App() {
             element={
               <>
                 <Header user={user} onLogin={handleLogin} onLogout={handleLogout} />
-                <DisenosPage user={user} loading={loadingUser} mode="editar" />
+                <FeatureRoute featureKey="design_tool" user={user}>
+                  <DisenosPage user={user} loading={loadingUser} mode="editar" />
+                </FeatureRoute>
+                <Footer />
+              </>
+            }
+          />
+
+          <Route
+            path="/disenos/ver/:id"
+            element={
+              <>
+                <Header user={user} onLogin={handleLogin} onLogout={handleLogout} />
+                <VerDiseno user={user} />
                 <Footer />
               </>
             }
@@ -174,7 +195,9 @@ function App() {
               <>
                 <Header user={user} onLogin={handleLogin} onLogout={handleLogout} />
                 <ProtectedRoute user={user} requireAuth loading={loadingUser}>
-                  <Profile user={user} onUserUpdate={setUser} />
+                  <FeatureRoute featureKey="user_profile" user={user}>
+                    <Profile user={user} onUserUpdate={setUser} />
+                  </FeatureRoute>
                 </ProtectedRoute>
                 <Footer />
               </>
@@ -187,7 +210,9 @@ function App() {
               <>
                 <Header user={user} onLogin={handleLogin} onLogout={handleLogout} />
                 <ProtectedRoute user={user} requireAuth loading={loadingUser}>
-                  <MisCompras />
+                  <FeatureRoute featureKey="order_history" user={user}>
+                    <MisCompras />
+                  </FeatureRoute>
                 </ProtectedRoute>
                 <Footer />
               </>
@@ -222,7 +247,9 @@ function App() {
               <>
                 <Header user={user} onLogin={handleLogin} onLogout={handleLogout} />
                 <ProtectedRoute user={user} requireAuth loading={loadingUser}>
-                  <Cart user={user} />
+                  <FeatureRoute featureKey="shopping_cart" user={user}>
+                    <Cart user={user} />
+                  </FeatureRoute>
                 </ProtectedRoute>
                 <Footer />
               </>
@@ -235,7 +262,9 @@ function App() {
               <>
                 <Header user={user} onLogin={handleLogin} onLogout={handleLogout} />
                 <ProtectedRoute user={user} requireAuth loading={loadingUser}>
-                  <Checkout />
+                  <FeatureRoute featureKey="checkout" user={user}>
+                    <Checkout />
+                  </FeatureRoute>
                 </ProtectedRoute>
                 <Footer />
               </>
@@ -248,7 +277,9 @@ function App() {
               <>
                 <Header user={user} onLogin={handleLogin} onLogout={handleLogout} />
                 <ProtectedRoute user={user} requireAuth loading={loadingUser}>
-                  <CheckoutMock />
+                  <FeatureRoute featureKey="checkout" user={user}>
+                    <CheckoutMock />
+                  </FeatureRoute>
                 </ProtectedRoute>
                 <Footer />
               </>
@@ -261,7 +292,9 @@ function App() {
               <>
                 <Header user={user} onLogin={handleLogin} onLogout={handleLogout} />
                 <ProtectedRoute user={user} requireAuth loading={loadingUser}>
-                  <CheckoutResult />
+                  <FeatureRoute featureKey="checkout" user={user}>
+                    <CheckoutResult />
+                  </FeatureRoute>
                 </ProtectedRoute>
                 <Footer />
               </>
@@ -308,6 +341,7 @@ function App() {
           />
         </Routes>
       </CartProvider>
+      </FeaturesProvider>
     </Router>
   );
 }

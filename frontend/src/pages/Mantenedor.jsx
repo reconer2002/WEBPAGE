@@ -5,13 +5,14 @@ import paginaService from "../services/paginaService";
 import UsuariosCuentas from "../components/Mantenedor/UsuariosCuentas";
 import UsuariosRoles from "../components/Mantenedor/UsuariosRoles";
 import PaginaConfiguracion from "../components/Mantenedor/PaginaConfiguracion";
-import PaginaDesactivar from "../components/Mantenedor/PaginaDesactivar";
 import PaginaColores from "../components/Mantenedor/PaginaColores";
 import Testimonios from "../components/Mantenedor/Testimonios";
 import ProductosArticulos from "../components/Mantenedor/ProductosArticulos";
+import ProductosDiseniosBase from "../components/Mantenedor/ProductosDiseniosBase";
 import InformesEstadisticas from "../components/Mantenedor/InformesEstadisticas";
 import InformesArticulos from "../components/Mantenedor/InformesArticulos";
 import PedidosGestion from "../components/Mantenedor/PedidosGestion";
+import FeaturesConfig from "../components/Mantenedor/FeaturesConfig";
 import "./Mantenedor.css";
 
 // --- 🛑 1. IMPORTA TU ARCHIVO DE ANALYTICS ---
@@ -130,26 +131,35 @@ const Mantenedor = ({ colores, onActualizarColores }) => {
   const handleSubcategoriaClick = (catId, subId) => {
     let nuevaSubcategoria = null;
     
+    // Categoría 1: Usuarios
     if (catId === 1 && subId === 1) {
       nuevaSubcategoria = "Cuentas";
     } else if (catId === 1 && subId === 2) {
       nuevaSubcategoria = "Roles";
-    } else if (catId === 2 && subId === 3) {
+    } else if (catId === 1 && subId === 3) {
+      nuevaSubcategoria = "Testimonios";
+    }
+    // Categoría 2: Página
+    else if (catId === 2 && subId === 4) {
       nuevaSubcategoria = "PaginaConfiguracion";
-    } else if (catId === 2 && subId === 4) {
-      nuevaSubcategoria = "PaginaDesactivar";
     } else if (catId === 2 && subId === 5) {
       nuevaSubcategoria = "PaginaColores";
-    } else if (catId === 3 && subId === 6) {
-      nuevaSubcategoria = "Testimonios";
-    } else if (catId === 4 && subId === 7) {
+    } else if (catId === 2 && subId === 6) {
+      nuevaSubcategoria = "FeaturesConfig";
+    }
+    // Categoría 3: Productos
+    else if (catId === 3 && subId === 7) {
       nuevaSubcategoria = "Articulos";
-    } else if (catId === 5 && subId === 8) {
-      nuevaSubcategoria = "InformesEstadisticas";
-    } else if (catId === 5 && subId === 9) {
-      nuevaSubcategoria = "InformesArticulos";
-    } else if (catId === 4 && subId === 10) {
+    } else if (catId === 3 && subId === 8) {
       nuevaSubcategoria = "PedidosGestion";
+    } else if (catId === 3 && subId === 9) {
+      nuevaSubcategoria = "DisenosBase";
+    }
+    // Categoría 4: Informes
+    else if (catId === 4 && subId === 10) {
+      nuevaSubcategoria = "InformesEstadisticas";
+    } else if (catId === 4 && subId === 11) {
+      nuevaSubcategoria = "InformesArticulos";
     }
     
     setSubcategoriaActiva(nuevaSubcategoria);
@@ -249,16 +259,17 @@ const Mantenedor = ({ colores, onActualizarColores }) => {
       {/* Renderizar subcategorías */}
       {subcategoriaActiva === "Cuentas" && <UsuariosCuentas key={entorno} />}
       {subcategoriaActiva === "Roles" && <UsuariosRoles key={entorno} />}
-      {subcategoriaActiva === "PaginaConfiguracion" && <PaginaConfiguracion key={entorno} />}
-      {subcategoriaActiva === "PaginaDesactivar" && <PaginaDesactivar key={entorno} />}
-  {subcategoriaActiva === "PaginaColores" && <PaginaColores key={entorno} onActualizarColores={onActualizarColores} />}
       {subcategoriaActiva === "Testimonios" && <Testimonios key={entorno} />}
+      {subcategoriaActiva === "PaginaConfiguracion" && <PaginaConfiguracion key={entorno} />}
+      {subcategoriaActiva === "PaginaColores" && <PaginaColores key={entorno} onActualizarColores={onActualizarColores} />}
+      {subcategoriaActiva === "FeaturesConfig" && <FeaturesConfig key={entorno} />}
       {subcategoriaActiva === "Articulos" && <ProductosArticulos key={entorno} />}
+      {subcategoriaActiva === "PedidosGestion" && <PedidosGestion key={entorno} />}
+      {subcategoriaActiva === "DisenosBase" && <ProductosDiseniosBase key={entorno} />}
       {subcategoriaActiva === "InformesEstadisticas" && (
         <InformesEstadisticas key={entorno} />
       )}
       {subcategoriaActiva === "InformesArticulos" && <InformesArticulos key={entorno} />}
-      {subcategoriaActiva === "PedidosGestion" && <PedidosGestion key={entorno} />}
     </div>
   );
 };

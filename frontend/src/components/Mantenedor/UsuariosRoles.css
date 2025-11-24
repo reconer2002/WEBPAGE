@@ -1,110 +1,294 @@
 .usuarios-roles-container {
-  padding: 20px;
-  max-width: 1000px;
+  padding: 30px;
+  max-width: 1400px;
   margin: auto;
-  font-family: Arial, sans-serif;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
+.usuarios-roles-container h3 {
+  font-size: 28px;
+  color: #333;
+  margin: 0 0 30px 0;
+  font-weight: 600;
+}
+
+/* Formulario para agregar rol modernizado */
 .agregar-rol-form {
-  margin-bottom: 15px;
+  background: white;
+  padding: 20px 24px;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  margin-bottom: 20px;
   display: flex;
-  gap: 10px;
+  gap: 12px;
+  align-items: center;
+  transition: box-shadow 0.3s ease;
+}
+
+.agregar-rol-form:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
 }
 
 .agregar-rol-form input {
-  padding: 6px 10px;
-  border-radius: 4px;
-  border: 1px solid #ccc;
+  flex: 1;
+  padding: 10px 14px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  background: white;
+}
+
+.agregar-rol-form input:focus {
+  outline: none;
+  border-color: var(--color-primario, #006a71);
 }
 
 .agregar-rol-form button {
-  padding: 6px 12px;
-  border-radius: 4px;
-  border: 1px solid #ccc;
-  background-color: #f5f5f5;
+  padding: 10px 24px;
+  border: none;
+  background: var(--color-primario, #006a71);
+  color: white;
   cursor: pointer;
-  transition: background-color 0.2s;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 106, 113, 0.2);
+  white-space: nowrap;
 }
 
 .agregar-rol-form button:hover {
-  background-color: #e0e0e0;
+  background: #005560;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 106, 113, 0.3);
 }
 
+/* Filtro de permisos modernizado */
 .filtro-permisos {
-  margin-bottom: 15px;
+  background: white;
+  padding: 20px 24px;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  margin-bottom: 25px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  font-weight: bold;
+  gap: 15px;
+  transition: box-shadow 0.3s ease;
+}
+
+.filtro-permisos:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+.filtro-permisos label {
+  font-weight: 600;
+  font-size: 14px;
+  color: #555;
 }
 
 .filtro-permisos select {
-  padding: 6px 8px;
-  border-radius: 4px;
-  border: 1px solid #ccc;
+  padding: 10px 14px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  background: white;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 200px;
 }
 
+.filtro-permisos select:focus {
+  outline: none;
+  border-color: var(--color-primario, #006a71);
+}
+
+/* Tabla modernizada */
 table {
   width: 100%;
-  border-collapse: collapse;
-  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  table-layout: auto;
 }
 
 thead {
-  background-color: #f0f0f0;
-}
-
-th,
-td {
-  border: 1px solid #ccc;
-  padding: 10px;
-  text-align: left;
-  word-wrap: break-word;
+  background: var(--color-primario, #006a71);
+  color: white;
 }
 
 th {
-  font-weight: bold;
+  padding: 16px 20px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-tbody tr:nth-child(even) {
-  background-color: #fafafa;
+/* Ajuste de anchos de columnas */
+th:nth-child(1) { /* Rol */
+  width: 15%;
+}
+
+th:nth-child(2) { /* Permisos */
+  width: 45%;
+}
+
+th:nth-child(3) { /* Usuarios */
+  width: 15%;
+}
+
+th:nth-child(4) { /* Opciones */
+  width: 25%;
+}
+
+td {
+  padding: 14px 20px;
+  border-bottom: 1px solid #f0f0f0;
+  color: #333;
+  font-size: 14px;
+  vertical-align: top;
+}
+
+tbody tr {
+  transition: background-color 0.2s ease;
 }
 
 tbody tr:hover {
-  background-color: #f1f1f1;
+  background: #f8f9fa;
 }
 
-button {
-  padding: 4px 8px;
-  cursor: pointer;
-  border-radius: 4px;
-  border: 1px solid #ccc;
-  background-color: #f5f5f5;
-  transition: background-color 0.2s;
+tbody tr:last-child td {
+  border-bottom: none;
 }
 
-button:hover {
-  background-color: #e0e0e0;
+/* Badges de permisos modernizados */
+.permiso-badge {
+  display: inline-flex;
+  align-items: center;
+  background: #e3f2fd;
+  color: #1976d2;
+  padding: 6px 12px;
+  margin: 4px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s ease;
 }
 
-.permiso-tag {
-  display: inline-block;
-  background-color: #e0f0ff;
-  padding: 2px 6px;
-  margin: 2px;
-  border-radius: 4px;
+.permiso-badge:hover {
+  background: #bbdefb;
+  transform: translateY(-1px);
 }
 
-.permiso-tag button {
-  margin-left: 4px;
+.permiso-badge .quitar-permiso {
+  margin-left: 8px;
   border: none;
   background: transparent;
+  color: #d32f2f;
   cursor: pointer;
   font-weight: bold;
-  color: #ff4d4f;
+  font-size: 16px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  padding: 0;
 }
 
-.agregar-permiso select {
-  margin-top: 4px;
-  padding: 2px 4px;
+.permiso-badge .quitar-permiso:hover {
+  background: rgba(211, 47, 47, 0.1);
+  transform: rotate(90deg);
+}
+
+/* Botones dentro de la tabla */
+td button {
+  padding: 8px 16px;
+  cursor: pointer;
+  border-radius: 6px;
+  border: none;
+  background: #ffebee;
+  color: #d32f2f;
+  font-weight: 600;
+  font-size: 13px;
+  transition: all 0.2s ease;
+  margin-right: 5px;
+}
+
+td button:hover {
+  background: #ffcdd2;
+  transform: translateY(-1px);
+}
+
+/* Select para agregar permisos */
+td select {
+  padding: 8px 12px;
+  border: 2px solid #e0e0e0;
+  border-radius: 6px;
+  background: white;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  margin-top: 8px;
+  width: 100%;
+  max-width: 250px;
+}
+
+td select:focus {
+  outline: none;
+  border-color: var(--color-primario, #006a71);
+}
+
+/* Loading state */
+.usuarios-roles-container p {
+  text-align: center;
+  font-size: 16px;
+  color: #666;
+  padding: 40px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* Animación de entrada */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.usuarios-roles-container > * {
+  animation: slideDown 0.3s ease;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .agregar-rol-form {
+    flex-direction: column;
+  }
+  
+  .filtro-permisos {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  table {
+    font-size: 13px;
+  }
+  
+  th, td {
+    padding: 10px;
+  }
 }

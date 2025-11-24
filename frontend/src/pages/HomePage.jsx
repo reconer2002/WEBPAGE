@@ -4,6 +4,7 @@ import Header from "../components/Main/Header";
 import Footer from "../components/Main/Footer";
 import paginaService from "../services/paginaService";
 import MainSlider from "../components/Main/MainSlider"; // importamos el slider
+import DisenosDestacados from "../components/Main/DisenosDestacados"; // importamos diseños destacados
 import TestimoniosView from "../components/Main/TestimoniosView"; // importamos testimonios
 
 const HomePage = ({ user, onLogin, onLogout }) => {
@@ -29,13 +30,11 @@ const HomePage = ({ user, onLogin, onLogout }) => {
       {/* Header con usuario */}
       <Header user={user} onLogin={onLogin} onLogout={onLogout} />
 
-      {/* Contenido principal de la Home */}
-      <main style={{ padding: "2rem", textAlign: "center" }}>
-        <h1>¡Bienvenido a la página principal!</h1>
-      </main>
-
       {/* Slider principal */}
       <MainSlider />
+
+      {/* Diseños destacados del superadmin */}
+      <DisenosDestacados />
 
       {/* Sección de testimonios */}
       <TestimoniosView />

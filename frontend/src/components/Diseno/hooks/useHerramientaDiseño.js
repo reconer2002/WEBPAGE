@@ -34,6 +34,11 @@ export const useHerramientaDiseño = (onDisenoGuardado, disenoIdParaEditar = nul
   const [loading, setLoading] = useState(true);
   const [guardandoDiseno, setGuardandoDiseno] = useState(false);
   const [agregandoAlCarrito, setAgregandoAlCarrito] = useState(false);
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [saveModalMessage, setSaveModalMessage] = useState('');
+  const [saveModalType, setSaveModalType] = useState('input'); // 'input', 'success', 'error'
+  const [nombreDisenoPendiente, setNombreDisenoPendiente] = useState('');
+  const [nombreDisenoActual, setNombreDisenoActual] = useState('');
 
   // Estados para edición
   const [textInputValue, setTextInputValue] = useState("");
@@ -51,9 +56,9 @@ export const useHerramientaDiseño = (onDisenoGuardado, disenoIdParaEditar = nul
   const stageRef = useRef(null);
   const inputRef = useRef(null);
 
-  // Constantes
-  const canvasWidth = 400;
-  const canvasHeight = 500;
+  // Constantes - Deben coincidir con el canvas de visualización
+  const canvasWidth = 600;
+  const canvasHeight = 600;
 
   // Función auxiliar para obtener elementos de la vista actual
   const elementos = elementosPorVista[vistaActual] || [];
@@ -117,6 +122,10 @@ export const useHerramientaDiseño = (onDisenoGuardado, disenoIdParaEditar = nul
         try {
           setLoading(true);
           const diseno = await disenosService.getDiseno(disenoIdParaEditar);
+          
+          if (diseno.nombre) {
+            setNombreDisenoActual(diseno.nombre);
+          }
           
           if (diseno.elementos_por_vista) {
             setElementosPorVista(diseno.elementos_por_vista);
@@ -298,29 +307,67 @@ export const useHerramientaDiseño = (onDisenoGuardado, disenoIdParaEditar = nul
     const elemento = elementos.find(el => el.id === selectedId);
     if (!elemento) return;
 
-    const elementWidth = elemento.width || (elemento.text ? elemento.text.length * (elemento.fontSize || 16) * 0.6 : 100);
-    const elementHeight = elemento.height || (elemento.fontSize || 16);
-
-    const { x, y } = calcularPosicionElemento(posicion, canvasWidth, canvasHeight, elementWidth, elementHeight);
-    actualizarElemento(selectedId, { x, y });
+    // Obtener nodo de Konva para medidas reales
+    const stage = stageRef.current;
+    if (!stage) return;
+    
+    const node = stage.findOne(`#${elemento.type === 'text' ? 'text' : 'image'}-${elemento.id}`);
+    if (!node) return;
+    
+    // Obtener el bounding box visual del elemento rotado
+    const clientRect = node.getClientRect();
+    
+    // Calcular posición deseada usando el tamaño visual (rotado)
+    const { x: targetX, y: targetY } = calcularPosicionElemento(
+      posicion, 
+      canvasWidth, 
+      canvasHeight, 
+      clientRect.width, 
+      clientRect.height
+    );
+    
+    // Calcular el offset entre la posición del nodo y su clientRect
+    const offsetX = clientRect.x - node.x();
+    const offsetY = clientRect.y - node.y();
+    
+    // Ajustar para que el bounding box visual esté en la posición deseada
+    const newX = targetX - offsetX;
+    const newY = targetY - offsetY;
+    
+    actualizarElemento(selectedId, { x: newX, y: newY });
   };
 
-  const captureAndUploadViews = async () => {
+  const captureAndUploadViews = async (nombreIngresadoDirecto = null) => {
     try {
-      setGuardandoDiseno(true);
-
-      if (!stageRef.current || !objetoSeleccionado) {
-        alert('Selecciona un objeto antes de guardar');
-        return null;
+      // Si está editando, usar el nombre actual y guardar directamente
+      if (disenoIdParaEditar && !nombreIngresadoDirecto) {
+        if (!stageRef.current || !objetoSeleccionado) {
+          setSaveModalMessage('Selecciona un objeto antes de actualizar');
+          setSaveModalType('error');
+          setShowSaveModal(true);
+          return null;
+        }
+        nombreIngresadoDirecto = nombreDisenoActual;
       }
-
-      const nombreIngresado = prompt("Ingresa un nombre para tu diseño:", 
-        `Diseño ${objetoSeleccionado.articulo_nombre} ${new Date().toLocaleDateString()}`);
       
-      if (!nombreIngresado) {
-        setGuardandoDiseno(false);
+      // Si no hay nombre, mostrar el modal y esperar
+      if (!nombreIngresadoDirecto) {
+        if (!stageRef.current || !objetoSeleccionado) {
+          setSaveModalMessage('Selecciona un objeto antes de guardar');
+          setSaveModalType('error');
+          setShowSaveModal(true);
+          return null;
+        }
+
+        const nombreSugerido = `Diseño ${objetoSeleccionado.articulo_nombre} ${new Date().toLocaleDateString()}`;
+        setNombreDisenoPendiente(nombreSugerido);
+        setSaveModalType('input');
+        setShowSaveModal(true);
         return null;
       }
+
+      setGuardandoDiseno(true);
+      const nombreIngresado = nombreIngresadoDirecto;
 
       const elementoSeleccionadoAntes = selectedId;
       setSelectedId(null);
@@ -350,15 +397,44 @@ export const useHerramientaDiseño = (onDisenoGuardado, disenoIdParaEditar = nul
           const procesados = [];
           
           for (const el of elementosVista) {
-            if (el?.type === 'image' && el.url && !el.url.startsWith('data:')) {
-              const dataurl = await toDataURL(el.url);
-              procesados.push({ ...el, url: dataurl || el.url });
-            } else {
-              procesados.push(el);
+            // Crear un objeto limpio con solo las propiedades necesarias
+            const elementoLimpio = {
+              id: el.id,
+              type: el.type,
+              x: el.x,
+              y: el.y,
+              rotation: el.rotation || 0,
+              scale: el.scale || 1
+            };
+
+            // Propiedades específicas de texto
+            if (el.type === 'text') {
+              elementoLimpio.text = el.text;
+              elementoLimpio.fontSize = el.fontSize;
+              elementoLimpio.fill = el.fill;
+              elementoLimpio.fontFamily = el.fontFamily;
+              elementoLimpio.fontStyle = el.fontStyle;
             }
+
+            // Propiedades específicas de imagen
+            if (el.type === 'image') {
+              elementoLimpio.width = el.width;
+              elementoLimpio.height = el.height;
+              
+              // Convertir URL a base64 si es necesario
+              if (el.url && !el.url.startsWith('data:')) {
+                const dataurl = await toDataURL(el.url);
+                elementoLimpio.url = dataurl || el.url;
+              } else {
+                elementoLimpio.url = el.url;
+              }
+            }
+
+            procesados.push(elementoLimpio);
           }
           resultado[vista] = procesados;
         }
+        
         return resultado;
       };
 
@@ -377,7 +453,9 @@ export const useHerramientaDiseño = (onDisenoGuardado, disenoIdParaEditar = nul
 
       const token = localStorage.getItem('token');
       if (!token) {
-        alert('Debes iniciar sesión para guardar tus diseños');
+        setSaveModalMessage('Debes iniciar sesión para guardar tus diseños');
+        setSaveModalType('error');
+        setShowSaveModal(true);
         setGuardandoDiseno(false);
         return null;
       }
@@ -387,8 +465,7 @@ export const useHerramientaDiseño = (onDisenoGuardado, disenoIdParaEditar = nul
         objeto_id: objetoSeleccionado.id,
         elementos_por_vista: elementosProcesados,
         vista_actual: vistaActual,
-        imagen_preview: dataURL,
-        costo: objetoSeleccionado.precio || 0
+        imagen_preview: dataURL
       };
 
       let response;
@@ -406,7 +483,6 @@ export const useHerramientaDiseño = (onDisenoGuardado, disenoIdParaEditar = nul
       // Lo ponemos ANTES del 'alert', ya que el alert pausa el navegador
       // y nos da tiempo de sobra para enviar el evento.
       try {
-        console.log("--- 🛑 ENVIANDO EVENTO 'save_design' A GA ---");
         Analytics.trackEvent("save_design", {
           category: "Design",
           label: nombreIngresado, // ¡Usamos el nombre que el usuario ingresó!
@@ -419,17 +495,36 @@ export const useHerramientaDiseño = (onDisenoGuardado, disenoIdParaEditar = nul
       }
       // --- FIN DE GOOGLE ANALYTICS ---
 
-      alert(disenoIdParaEditar ? 'Diseño actualizado correctamente' : 'Diseño guardado correctamente');
-      navigate('/disenos');
+      setSaveModalMessage(disenoIdParaEditar ? 'Diseño actualizado correctamente' : 'Diseño guardado correctamente');
+      setSaveModalType('success');
+      setShowSaveModal(true);
+      
+      // Navegar después de un breve delay para que el usuario vea el mensaje
+      setTimeout(() => {
+        setShowSaveModal(false);
+        navigate('/disenos');
+      }, 1500);
 
       return response?.id || disenoIdParaEditar;
     } catch (error) {
       console.error('Error al guardar:', error);
-      alert('Error al guardar el diseño');
+      setSaveModalMessage('Error al guardar el diseño. Por favor, intenta nuevamente.');
+      setSaveModalType('error');
+      setShowSaveModal(true);
       return null;
     } finally {
       setGuardandoDiseno(false);
     }
+  };
+
+  const confirmarGuardadoDesdeModal = async () => {
+    if (!nombreDisenoPendiente.trim()) {
+      setSaveModalMessage('Por favor ingresa un nombre para tu diseño');
+      return;
+    }
+    setSaveModalMessage('');
+    setShowSaveModal(false);
+    await captureAndUploadViews(nombreDisenoPendiente);
   };
 
   const saveAndAddToCart = async () => {
@@ -714,6 +809,15 @@ export const useHerramientaDiseño = (onDisenoGuardado, disenoIdParaEditar = nul
     loading,
     guardandoDiseno,
     agregandoAlCarrito,
+    showSaveModal,
+    setShowSaveModal,
+    saveModalMessage,
+    setSaveModalMessage,
+    saveModalType,
+    nombreDisenoPendiente,
+    setNombreDisenoPendiente,
+    disenoIdParaEditar,
+    nombreDisenoActual,
     textInputValue,
     textStyle,
     setTextStyle,
@@ -737,6 +841,7 @@ export const useHerramientaDiseño = (onDisenoGuardado, disenoIdParaEditar = nul
     cambiarVista,
     posicionarElemento,
     captureAndUploadViews,
+    confirmarGuardadoDesdeModal,
     replaceElements,
     saveAndAddToCart,
     actualizarElemento,

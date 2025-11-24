@@ -1,10 +1,24 @@
 import React, { useEffect, useState } from 'react';
 import pedidosService from '../../services/pedidosService';
 import enviosService from '../../services/enviosService';
-import './ProductosArticulos.css';
+import { exportarDisenosPedidoAPDF } from '../../utils/pdfExportUtils';
+import './PedidosGestion.css';
 
 const ESTADOS = ['pendiente', 'pagado', 'rechazado', 'cancelado'];
 const DELIVERY_ESTADOS = ['pendiente', 'preparando', 'despachado', 'en_transito', 'entregado', 'cancelado'];
+
+const ESTADO_LABELS = {
+  pendiente: 'Pendiente',
+  pagado: 'Pagado',
+  rechazado: 'Rechazado',
+  cancelado: 'Cancelado',
+  preparando: 'Preparando',
+  despachado: 'Despachado',
+  en_transito: 'En tránsito',
+  entregado: 'Entregado',
+  retiro: 'Retiro',
+  delivery: 'Despacho'
+};
 
 const PedidosGestion = () => {
   const [items, setItems] = useState([]);
@@ -13,6 +27,7 @@ const PedidosGestion = () => {
   const [filtroEstado, setFiltroEstado] = useState('');
   const [filtroUsuario, setFiltroUsuario] = useState('');
   const [savingId, setSavingId] = useState(null);
+  const [exportingId, setExportingId] = useState(null);
 
   const load = async () => {
     try {
@@ -57,72 +72,216 @@ const PedidosGestion = () => {
     setItems((prev) => prev.map((p) => p.id === pedidoId ? { ...p, estado_envio } : p));
   };
 
-  // onDeliverySave eliminado: se guarda junto con el estado del pedido en onSaveRow
+  const descargarDocumento = async (pedidoId, tipo) => {
+    try {
+      const token = localStorage.getItem('token');
+      const url = `${import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000'}/api/documentos/${tipo}/${pedidoId}`;
+      
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al descargar el documento');
+      }
+
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = `${tipo}_${pedidoId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(downloadUrl);
+      document.body.removeChild(a);
+    } catch (e) {
+      alert(e?.message || 'Error al descargar el documento');
+    }
+  };
+
+  const exportarDisenosPDF = async (pedidoId) => {
+    try {
+      setExportingId(pedidoId);
+      // Obtener detalles del pedido con diseños
+      const detalles = await pedidosService.getDetalles(pedidoId);
+      
+      if (!detalles || detalles.length === 0) {
+        alert('Este pedido no tiene diseños para exportar');
+        return;
+      }
+
+      // Exportar a PDF
+      await exportarDisenosPedidoAPDF(detalles, pedidoId);
+    } catch (e) {
+      console.error('Error al exportar diseños:', e);
+      alert(e?.message || 'Error al exportar diseños a PDF');
+    } finally {
+      setExportingId(null);
+    }
+  };
 
   return (
-    <div className="productos-container">
-      <h2>Gestión de pedidos</h2>
-      <form onSubmit={onFiltrar} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
-        <label style={{ display: 'grid', gap: 4 }}>
-          <span>Estado</span>
-          <select value={filtroEstado} onChange={(e)=>setFiltroEstado(e.target.value)}>
-            <option value="">Todos</option>
-            {ESTADOS.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
-        </label>
-        <label style={{ display: 'grid', gap: 4 }}>
-          <span>ID Usuario</span>
-          <input value={filtroUsuario} onChange={(e)=>setFiltroUsuario(e.target.value)} placeholder="Ej: 1" />
-        </label>
-        <button className="btn" type="submit">Filtrar</button>
-      </form>
+    <div className="pedidos-container">
+      <div className="pedidos-header">
+        <div className="pedidos-title-section">
+          <h2>Gestión de pedidos</h2>
+          <p className="pedidos-subtitle">Administra y monitorea todos los pedidos del sistema</p>
+        </div>
+      </div>
 
-      {loading ? <p>Cargando pedidos…</p> : error ? <p style={{ color: '#b91c1c' }}>{error}</p> : (
-        <table className="tabla-articulos">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Usuario</th>
-              <th>Email</th>
-              <th>Fecha</th>
-              <th>Total</th>
-              <th>Estado</th>
-              <th>Envios</th>
-              <th>Acción</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map(it => (
-              <tr key={it.id}>
-                <td>#{it.id}</td>
-                <td>{it.usuario_nombre} (#{it.usuario_id})</td>
-                <td>{it.usuario_email}</td>
-                <td>{new Date(it.fecha).toLocaleString()}</td>
-                <td>${Number(it.costo||0).toLocaleString('es-CL')}</td>
-                <td>
-                  <select value={it.estado} onChange={(e)=>onEstadoChange(it.id, e.target.value)} disabled={savingId===it.id}>
-                    {ESTADOS.map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </td>
-                <td>
-                  {it.envio_id ? (
-                    <div style={{ display: 'grid', gap: 6 }}>
-                      <small style={{ color: '#64748b' }}>Método: {it.envio_metodo || '-'}</small>
-                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                        <select value={it.estado_envio || 'pendiente'} onChange={(e)=>onDeliveryChange(it.id, e.target.value)} disabled={savingId===it.id}>
-                          {DELIVERY_ESTADOS.map(s => <option key={s} value={s}>{s}</option>)}
+      <div className="filtros-card">
+        <h3>Filtros de búsqueda</h3>
+        <form onSubmit={onFiltrar} className="filtros-form">
+          <div className="filtro-group">
+            <label>Estado del pedido</label>
+            <select value={filtroEstado} onChange={(e)=>setFiltroEstado(e.target.value)}>
+              <option value="">Todos los estados</option>
+              {ESTADOS.map(s => <option key={s} value={s}>{ESTADO_LABELS[s] || s}</option>)}
+            </select>
+          </div>
+          <div className="filtro-group">
+            <label>ID de usuario</label>
+            <input 
+              type="number" 
+              value={filtroUsuario} 
+              onChange={(e)=>setFiltroUsuario(e.target.value)} 
+              placeholder="Ingresa el ID del usuario" 
+            />
+          </div>
+          <button className="btn-filtrar" type="submit">Aplicar filtros</button>
+        </form>
+      </div>
+
+      {loading ? (
+        <div className="loading-state">
+          <div className="spinner"></div>
+          <p>Cargando pedidos...</p>
+        </div>
+      ) : error ? (
+        <div className="error-state">
+          <p>{error}</p>
+        </div>
+      ) : items.length === 0 ? (
+        <div className="empty-state">
+          <p>No se encontraron pedidos con los filtros aplicados</p>
+        </div>
+      ) : (
+        <div className="pedidos-table-container">
+          <table className="pedidos-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Usuario</th>
+                <th>Fecha</th>
+                <th>Total</th>
+                <th>Estado Pedido</th>
+                <th>Envío</th>
+                <th>Documento</th>
+                <th>Diseños</th>
+                <th>Acción</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map(it => (
+                <tr key={it.id}>
+                  <td className="pedido-id">#{it.id}</td>
+                  <td>
+                    <div className="usuario-info">
+                      <span className="usuario-nombre">{it.usuario_nombre}</span>
+                      <span className="usuario-id">ID: {it.usuario_id}</span>
+                      <span className="usuario-email">{it.usuario_email}</span>
+                    </div>
+                  </td>
+                  <td className="pedido-fecha">
+                    {new Date(it.fecha).toLocaleDateString('es-CL', {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </td>
+                  <td className="pedido-total">${Number(it.costo||0).toLocaleString('es-CL')}</td>
+                  <td>
+                    <select 
+                      className="estado-select" 
+                      value={it.estado} 
+                      onChange={(e)=>onEstadoChange(it.id, e.target.value)} 
+                      disabled={savingId===it.id}
+                    >
+                      {ESTADOS.map(s => <option key={s} value={s}>{ESTADO_LABELS[s] || s}</option>)}
+                    </select>
+                  </td>
+                  <td>
+                    {it.envio_id ? (
+                      <div className="envio-info">
+                        <span className="envio-metodo">
+                          {ESTADO_LABELS[it.envio_metodo] || it.envio_metodo || 'Despacho'}
+                        </span>
+                        <select 
+                          className="envio-estado-select" 
+                          value={it.estado_envio || 'pendiente'} 
+                          onChange={(e)=>onDeliveryChange(it.id, e.target.value)} 
+                          disabled={savingId===it.id}
+                        >
+                          {DELIVERY_ESTADOS.map(s => <option key={s} value={s}>{ESTADO_LABELS[s] || s}</option>)}
                         </select>
                       </div>
+                    ) : (
+                      <span className="no-envio">Sin envío</span>
+                    )}
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      {it.tipo_documento === 'boleta' && (
+                        <button 
+                          className="btn-documento" 
+                          onClick={() => descargarDocumento(it.id, 'boleta')}
+                          title="Descargar Boleta"
+                        >
+                          📄 Boleta
+                        </button>
+                      )}
+                      {it.tipo_documento === 'factura' && (
+                        <button 
+                          className="btn-documento" 
+                          onClick={() => descargarDocumento(it.id, 'factura')}
+                          title="Descargar Factura"
+                        >
+                          📋 Factura
+                        </button>
+                      )}
+                      {!it.tipo_documento && (
+                        <span className="no-documento">Sin documento</span>
+                      )}
                     </div>
-                  ) : (
-                    <span>-</span>
-                  )}
-                </td>
-                <td><button className="btn" onClick={()=>onSaveRow(it.id)} disabled={savingId===it.id}>Guardar</button></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                  </td>
+                  <td>
+                    <button 
+                      className="btn-exportar" 
+                      onClick={() => exportarDisenosPDF(it.id)} 
+                      disabled={exportingId === it.id}
+                      title="Exportar diseños a PDF"
+                    >
+                      {exportingId === it.id ? '⏳ Exportando...' : '📥 Exportar'}
+                    </button>
+                  </td>
+                  <td>
+                    <button 
+                      className="btn-guardar" 
+                      onClick={()=>onSaveRow(it.id)} 
+                      disabled={savingId===it.id}
+                    >
+                      {savingId===it.id ? 'Guardando...' : 'Guardar'}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

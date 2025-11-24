@@ -32,10 +32,11 @@ async function hasQtyColumn() {
 }
 
 // Util: obtiene o crea carrito del usuario en tablas del dump (carritos)
-async function getOrCreateCartId(userId) {
-  const [[car]] = await db.query('SELECT id FROM carritos WHERE usuario_id = ? ORDER BY id DESC LIMIT 1', [userId]);
+async function getOrCreateCartId(userId, dbConn) {
+  const connection = dbConn || db;
+  const [[car]] = await connection.query('SELECT id FROM carritos WHERE usuario_id = ? ORDER BY id DESC LIMIT 1', [userId]);
   if (car) return car.id;
-  const [res] = await db.query('INSERT INTO carritos (usuario_id, cantidad_disenos, costo) VALUES (?, 0, 0)', [userId]);
+  const [res] = await connection.query('INSERT INTO carritos (usuario_id, cantidad_disenos, costo) VALUES (?, 0, 0)', [userId]);
   return res.insertId;
 }
 
@@ -66,9 +67,10 @@ function toJsonArrayOrNull(val) {
 }
 
 // Actualiza agregados de carritos (cantidad_disenos, costo)
-async function updateCartTotals(cartId) {
+async function updateCartTotals(cartId, dbConn) {
+  const connection = dbConn || db;
   const hasQty = await hasQtyColumn();
-  const [[row]] = await db.query(
+  const [[row]] = await connection.query(
     `SELECT ${hasQty ? 'IFNULL(SUM(cd.cantidad),0)' : 'IFNULL(COUNT(*),0)'} AS cantidad,
             IFNULL(SUM(COALESCE(o.precio, a.precio) ${hasQty ? ' * cd.cantidad' : ''}),0) AS costo
        FROM carrito_disenos cd
@@ -78,7 +80,7 @@ async function updateCartTotals(cartId) {
       WHERE cd.carrito_id = ?`,
     [cartId]
   );
-  await db.query('UPDATE carritos SET cantidad_disenos = ?, costo = ? WHERE id = ?', [row.cantidad || 0, row.costo || 0, cartId]);
+  await connection.query('UPDATE carritos SET cantidad_disenos = ?, costo = ? WHERE id = ?', [row.cantidad || 0, row.costo || 0, cartId]);
 }
 
 // Reglas de descuento por cantidad (fallback si el producto no define bulk)
@@ -184,19 +186,32 @@ router.post('/items', auth, async (req, res) => {
   try {
     const designId = Number.isFinite(parseInt(req.body?.designId, 10)) ? parseInt(req.body.designId, 10) : null;
     if (!designId) return res.status(400).json({ error: 'Se requiere designId' });
-    const [[own]] = await db.query('SELECT id FROM disenos WHERE id = ? AND usuario_id = ?', [designId, req.user.id]);
-    if (!own) return res.status(404).json({ error: 'Diseño no encontrado' });
-    const cartId = await getOrCreateCartId(req.user.id);
+    
+    // Verificar que el diseño existe y pertenece al usuario O es del superadmin
+    const [[diseno]] = await req.db.query(
+      `SELECT d.id, d.usuario_id, r.nombre AS rol_nombre
+       FROM disenos d
+       JOIN usuarios u ON u.id = d.usuario_id
+       JOIN roles r ON r.id = u.rol_id
+       WHERE d.id = ? AND (d.usuario_id = ? OR r.nombre = 'superadmin')`,
+      [designId, req.user.id]
+    );
+    
+    if (!diseno) return res.status(404).json({ error: 'Diseño no encontrado' });
+    
+    const cartId = await getOrCreateCartId(req.user.id, req.db);
     const hasQty = await hasQtyColumn();
+    
     if (hasQty) {
-      await db.query(
+      await req.db.query(
         'INSERT INTO carrito_disenos (carrito_id, diseno_id, cantidad) VALUES (?, ?, 1) ON DUPLICATE KEY UPDATE cantidad = cantidad + 1',
         [cartId, designId]
       );
     } else {
-      await db.query('INSERT INTO carrito_disenos (carrito_id, diseno_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE diseno_id = diseno_id', [cartId, designId]);
+      await req.db.query('INSERT INTO carrito_disenos (carrito_id, diseno_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE diseno_id = diseno_id', [cartId, designId]);
     }
-    await updateCartTotals(cartId);
+    
+    await updateCartTotals(cartId, req.db);
     res.json({ message: 'Agregado al carrito' });
   } catch (err) {
     console.error('Error agregando al carrito:', err);

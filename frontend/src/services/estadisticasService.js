@@ -44,3 +44,37 @@ export const getDisenosPorVariante = async (articuloId) => {
   const res = await api.get(`/estadisticas/articulos/${articuloId}/variantes-disenos`);
   return res.data;
 };
+
+/**
+ * 🆕 Obtiene el ranking de productos más vendidos con sus métricas.
+ * @returns {Promise<Object>} { rankingVentas, productosSinVentas, metricas }
+ */
+export const getRankingProductos = async () => {
+  const res = await api.get("/estadisticas/productos/ranking");
+  
+  // Normalizar fotos en los rankings
+  if (res.data.rankingVentas) {
+    res.data.rankingVentas = res.data.rankingVentas.map(normalizarArticulo);
+  }
+  if (res.data.productosSinVentas) {
+    res.data.productosSinVentas = res.data.productosSinVentas.map(normalizarArticulo);
+  }
+  
+  return res.data;
+};
+
+/**
+ * 🆕 Obtiene métricas detalladas de un producto específico.
+ * @param {number} productoId ID del producto
+ * @returns {Promise<Object>} { producto, metricas, ventasPorMes, topClientes }
+ */
+export const getDetalleProducto = async (productoId) => {
+  const res = await api.get(`/estadisticas/productos/${productoId}/detalle`);
+  
+  // Normalizar foto del producto
+  if (res.data.producto) {
+    res.data.producto = normalizarArticulo(res.data.producto);
+  }
+  
+  return res.data;
+};

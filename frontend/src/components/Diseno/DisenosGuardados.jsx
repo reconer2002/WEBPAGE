@@ -1,14 +1,35 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import "./DisenosGuardados.css";
 import disenosService from "../../services/disenosService";
 import cartService from "../../services/cartService";
+import objetosService from "../../services/objetosService";
+import diseniosBaseService from "../../services/diseniosBaseService";
+import articulosService from "../../services/articulosService";
 
 const DisenosGuardados = () => {
   const [disenos, setDisenos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [addingId, setAddingId] = useState(null);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [selectedDiseno, setSelectedDiseno] = useState(null);
+  const [editingName, setEditingName] = useState('');
+  const [tempVista, setTempVista] = useState('');
+  const [previewImage, setPreviewImage] = useState(null);
+  const canvasRef = useRef(null);
   const navigate = useNavigate();
+
+  // Effect para generar preview cuando se abre el modal
+  useEffect(() => {
+    if (editModalOpen && selectedDiseno && tempVista && canvasRef.current) {
+      // Pequeño delay para asegurar que el canvas esté completamente montado
+      const timer = setTimeout(() => {
+        generarPreviewVista(tempVista);
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [editModalOpen, selectedDiseno, tempVista]);
 
   useEffect(() => {
     const cargarDisenos = async () => {
@@ -77,6 +98,167 @@ const DisenosGuardados = () => {
     return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
   };
 
+  const handleUpdateVista = (nuevaVista) => {
+    if (!selectedDiseno) return;
+    setTempVista(nuevaVista);
+    // Esperar un frame para asegurar que el estado se haya actualizado
+    setTimeout(() => generarPreviewVista(nuevaVista), 50);
+  };
+
+  const generarPreviewVista = async (vista) => {
+    if (!selectedDiseno || !canvasRef.current) return;
+    
+    try {
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext('2d');
+      canvas.width = 400;
+      canvas.height = 500;
+      
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Cargar datos necesarios
+      const objetos = await objetosService.getObjetos(selectedDiseno.articulo_id);
+      const diseniosBase = await diseniosBaseService.getAll();
+      
+      const objeto = objetos.find(o => o.id === selectedDiseno.objeto_id);
+      if (!objeto) return;
+      
+      const disenioBase = diseniosBase.find(d => d.id === objeto.disenio_base_id);
+      if (!disenioBase) return;
+      
+      // Mapear la vista al campo correcto en la base de datos
+      const vistaMap = {
+        'frente': 'frente',
+        'detras': 'espalda',
+        'izquierda': 'izquierda',
+        'derecha': 'derecha'
+      };
+      
+      const vistaKey = vistaMap[vista];
+      const imagenVista = disenioBase[vistaKey];
+      
+      if (!imagenVista) return;
+      
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      
+      img.onload = () => {
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        
+        // Obtener elementos de la vista correctamente
+        let elementos = [];
+        if (selectedDiseno.elementos_por_vista && typeof selectedDiseno.elementos_por_vista === 'object') {
+          elementos = selectedDiseno.elementos_por_vista[vista] || [];
+        }
+        
+        let imagenesRestantes = elementos.filter(el => el.type === 'image').length;
+        
+        elementos.forEach(el => {
+          if (el.type === 'text') {
+            ctx.save();
+            // Para texto, rotar desde la esquina superior izquierda (comportamiento de Konva por defecto)
+            ctx.translate(el.x, el.y);
+            ctx.rotate((el.rotation || 0) * Math.PI / 180);
+            ctx.font = `${el.fontStyle === 'bold' ? 'bold' : el.fontStyle === 'italic' ? 'italic' : 'normal'} ${el.fontSize}px ${el.fontFamily || 'Arial'}`;
+            ctx.fillStyle = el.fill || '#000000';
+            ctx.textBaseline = 'top';
+            ctx.fillText(el.text, 0, 0);
+            ctx.restore();
+          } else if (el.type === 'image' && el.url) {
+            const imgEl = new Image();
+            imgEl.crossOrigin = 'anonymous';
+            imgEl.onload = () => {
+              ctx.save();
+              // Para imágenes, Konva rota desde la esquina superior izquierda por defecto
+              // (a menos que se especifique offset, que no usamos)
+              ctx.translate(el.x, el.y);
+              ctx.rotate((el.rotation || 0) * Math.PI / 180);
+              ctx.drawImage(imgEl, 0, 0, el.width, el.height);
+              ctx.restore();
+              
+              imagenesRestantes--;
+              if (imagenesRestantes === 0) {
+                setPreviewImage(canvas.toDataURL());
+              }
+            };
+            imgEl.onerror = () => {
+              imagenesRestantes--;
+              if (imagenesRestantes === 0) {
+                setPreviewImage(canvas.toDataURL());
+              }
+            };
+            imgEl.src = el.url;
+          }
+        });
+        
+        // Si no hay imágenes, actualizar preview inmediatamente
+        if (imagenesRestantes === 0) {
+          setPreviewImage(canvas.toDataURL());
+        }
+      };
+      
+      img.onerror = () => {};
+      
+      const imgUrl = imagenVista.startsWith('http') ? imagenVista : `${BACKEND_URL}${imagenVista}`;
+      img.src = imgUrl;
+      
+    } catch (error) {
+      // Error silencioso
+    }
+  };
+
+  const handleSaveChanges = async () => {
+    if (!selectedDiseno) return;
+    
+    try {
+      // Usar el preview generado si existe, sino mantener el anterior
+      const nuevaImagenPreview = previewImage || selectedDiseno.imagen_preview;
+      
+      const updates = {
+        nombre: editingName,
+        objeto_id: selectedDiseno.objeto_id,
+        elementos_por_vista: selectedDiseno.elementos_por_vista,
+        vista_actual: tempVista,
+        imagen_preview: nuevaImagenPreview,
+        costo: selectedDiseno.costo
+      };
+      
+      await disenosService.actualizarDiseno(selectedDiseno.id, updates);
+      
+      // Recargar los diseños desde el servidor para asegurar que estén actualizados
+      const disenosActualizados = await disenosService.getDisenos();
+      setDisenos(disenosActualizados);
+      
+      setEditModalOpen(false);
+      setSelectedDiseno(null);
+      setPreviewImage(null);
+    } catch (error) {
+      console.error('Error al actualizar diseño:', error);
+      alert('Error al actualizar el diseño');
+    }
+  };
+
+  const handleCloseEditModal = () => {
+    setEditModalOpen(false);
+    setSelectedDiseno(null);
+    setTempVista('');
+    setPreviewImage(null);
+  };
+
+  const handleDeleteDiseno = async () => {
+    if (!selectedDiseno) return;
+    
+    try {
+      await disenosService.eliminarDiseno(selectedDiseno.id);
+      setDisenos(disenos.filter((d) => d.id !== selectedDiseno.id));
+      setDeleteModalOpen(false);
+      setSelectedDiseno(null);
+    } catch (error) {
+      console.error('Error al eliminar diseño:', error);
+      alert('Error al eliminar el diseño');
+    }
+  };
+
   return (
     <div className="disenos-guardados">
       <h2>Tus Diseños Guardados</h2>
@@ -143,8 +325,21 @@ const DisenosGuardados = () => {
               <div className="diseno-actions">
                 <button
                   className="editar-btn"
-                  onClick={() => {
-                    navigate(`/disenos/editar/${diseno.id}`);
+                  onClick={async () => {
+                    try {
+                      const disenoCompleto = await disenosService.getDiseno(diseno.id);
+                      
+                      setSelectedDiseno(disenoCompleto);
+                      setEditingName(disenoCompleto.nombre);
+                      const vistaInicial = disenoCompleto.vista_actual || 'frente';
+                      setTempVista(vistaInicial);
+                      setPreviewImage(null);
+                      setEditModalOpen(true);
+                      // El useEffect se encargará de generar el preview
+                    } catch (error) {
+                      console.error('Error al cargar diseño:', error);
+                      alert('Error al cargar el diseño');
+                    }
                   }}
                 >
                   Editar
@@ -177,20 +372,9 @@ const DisenosGuardados = () => {
                 </button>
                 <button
                   className="eliminar-btn"
-                  onClick={async () => {
-                    if (
-                      window.confirm(
-                        "¿Estás seguro de que quieres eliminar este diseño?"
-                      )
-                    ) {
-                      try {
-                        await disenosService.eliminarDiseno(diseno.id);
-                        setDisenos(disenos.filter((d) => d.id !== diseno.id));
-                      } catch (error) {
-                        console.error("Error al eliminar diseño:", error);
-                        alert("Error al eliminar el diseño");
-                      }
-                    }
+                  onClick={() => {
+                    setSelectedDiseno(diseno);
+                    setDeleteModalOpen(true);
                   }}
                 >
                   Eliminar
@@ -200,6 +384,122 @@ const DisenosGuardados = () => {
           ))}
           </div>
         </>
+      )}
+
+      {editModalOpen && selectedDiseno && (
+        <div className="modal-backdrop" onClick={handleCloseEditModal}>
+          <div className="modal-card edit-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>✏️ Opciones de Diseño</h3>
+              <button className="modal-close-btn" onClick={handleCloseEditModal}>✕</button>
+            </div>
+            <div className="modal-body">
+              <canvas ref={canvasRef} style={{ display: 'none' }} />
+              <div className="edit-preview">
+                <img
+                  src={previewImage || resolveImage(selectedDiseno.imagen_preview, selectedDiseno.articulo_imagen) || makePlaceholder(selectedDiseno)}
+                  alt={selectedDiseno.nombre}
+                  onError={(e) => {
+                    const fallback = resolveImage(selectedDiseno.articulo_imagen) || makePlaceholder(selectedDiseno);
+                    if (e.currentTarget.src !== fallback) {
+                      e.currentTarget.src = fallback;
+                    }
+                  }}
+                />
+              </div>
+              <div className="edit-option">
+                <label>Nombre del diseño:</label>
+                <input
+                  type="text"
+                  className="modal-input"
+                  value={editingName}
+                  onChange={(e) => setEditingName(e.target.value)}
+                  placeholder="Nombre del diseño"
+                />
+              </div>
+              <div className="edit-option">
+                <label>Vista por defecto:</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                  <button 
+                    className={`vista-btn ${tempVista === 'frente' ? 'active' : ''}`}
+                    onClick={() => handleUpdateVista('frente')}
+                    key={`frente-${tempVista}`}
+                  >
+                    👤 Frente
+                  </button>
+                  <button 
+                    className={`vista-btn ${tempVista === 'detras' ? 'active' : ''}`}
+                    onClick={() => handleUpdateVista('detras')}
+                    key={`detras-${tempVista}`}
+                  >
+                    🔄 Detrás
+                  </button>
+                  <button 
+                    className={`vista-btn ${tempVista === 'izquierda' ? 'active' : ''}`}
+                    onClick={() => handleUpdateVista('izquierda')}
+                    key={`izquierda-${tempVista}`}
+                  >
+                    ⬅️ Izquierda
+                  </button>
+                  <button 
+                    className={`vista-btn ${tempVista === 'derecha' ? 'active' : ''}`}
+                    onClick={() => handleUpdateVista('derecha')}
+                    key={`derecha-${tempVista}`}
+                  >
+                    ➡️ Derecha
+                  </button>
+                </div>
+              </div>
+              <div className="edit-option">
+                <button 
+                  className="option-btn edit-in-tool-btn"
+                  onClick={() => {
+                    setEditModalOpen(false);
+                    navigate(`/disenos/editar/${selectedDiseno.id}`);
+                  }}
+                >
+                  🎨 Editar diseño en herramienta
+                </button>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="modal-btn modal-btn-secondary" onClick={handleCloseEditModal}>
+                Cancelar
+              </button>
+              <button 
+                className="modal-btn modal-btn-primary"
+                onClick={handleSaveChanges}
+                disabled={!editingName.trim()}
+              >
+                Actualizar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteModalOpen && selectedDiseno && (
+        <div className="modal-backdrop" onClick={() => setDeleteModalOpen(false)}>
+          <div className="modal-card delete-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header error">
+              <div className="modal-icon">⚠</div>
+              <h3>¿Eliminar diseño?</h3>
+            </div>
+            <div className="modal-body">
+              <p className="modal-message">
+                ¿Estás seguro de que deseas eliminar el diseño <strong>"{selectedDiseno.nombre}"</strong>? Esta acción no se puede deshacer.
+              </p>
+            </div>
+            <div className="modal-footer">
+              <button className="modal-btn modal-btn-secondary" onClick={() => setDeleteModalOpen(false)}>
+                Cancelar
+              </button>
+              <button className="modal-btn modal-btn-danger" onClick={handleDeleteDiseno}>
+                Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -3,6 +3,8 @@ const jwt = require('jsonwebtoken');
 const router = express.Router();
 const db = require('../db');
 const auth = require('../middleware/auth');
+const { generarBoletaPDF, generarFacturaPDF } = require('../services/documentGenerator');
+const { enviarBoleta, enviarFactura } = require('../services/emailService');
 
 const SECRET = process.env.JWT_SECRET || 'secret';
 
@@ -30,7 +32,7 @@ function estimateShipping(shipping) {
 let HAS_QTY_COL = null;
 async function hasQtyColumn(conn) {
   if (HAS_QTY_COL !== null) return HAS_QTY_COL;
-  const c = conn || db;
+  const c = conn;
   const [[{ cnt }]] = await c.query(
     `SELECT COUNT(*) AS cnt FROM information_schema.columns
       WHERE table_schema = DATABASE() AND table_name = 'carrito_disenos' AND column_name = 'cantidad'`
@@ -39,18 +41,18 @@ async function hasQtyColumn(conn) {
   return HAS_QTY_COL;
 }
 
-async function getOrCreateCartId(userId) {
-  const [[car]] = await db.query('SELECT id FROM carritos WHERE usuario_id = ? ORDER BY id DESC LIMIT 1', [userId]);
+async function getOrCreateCartId(dbConn, userId) {
+  const [[car]] = await dbConn.query('SELECT id FROM carritos WHERE usuario_id = ? ORDER BY id DESC LIMIT 1', [userId]);
   if (car) return car.id;
-  const [res] = await db.query('INSERT INTO carritos (usuario_id, cantidad_disenos, costo) VALUES (?, 0, 0)', [userId]);
+  const [res] = await dbConn.query('INSERT INTO carritos (usuario_id, cantidad_disenos, costo) VALUES (?, 0, 0)', [userId]);
   return res.insertId;
 }
 
 // Calcula items y totales del carrito (mismo criterio que cart route)
-async function computeCartSummary(userId) {
-  const cartId = await getOrCreateCartId(userId);
-  const hasQty = await hasQtyColumn();
-  const [rows] = await db.query(
+async function computeCartSummary(dbConn, userId) {
+  const cartId = await getOrCreateCartId(dbConn, userId);
+  const hasQty = await hasQtyColumn(dbConn);
+  const [rows] = await dbConn.query(
     `SELECT 
        cd.diseno_id        AS design_id,
        ${hasQty ? 'cd.cantidad' : '1'} AS quantity,
@@ -118,10 +120,10 @@ async function computeCartSummary(userId) {
 }
 
 // Verifica stock
-async function checkAvailability(userId) {
-  const cartId = await getOrCreateCartId(userId);
-  const hasQty = await hasQtyColumn();
-  const [rows] = await db.query(
+async function checkAvailability(dbConn, userId) {
+  const cartId = await getOrCreateCartId(dbConn, userId);
+  const hasQty = await hasQtyColumn(dbConn);
+  const [rows] = await dbConn.query(
     `SELECT a.id AS product_id, ${hasQty ? 'SUM(cd.cantidad)' : 'COUNT(*)'} AS quantity, IFNULL(inv.stock,0) AS stock
        FROM carrito_disenos cd
        JOIN disenos d  ON d.id = cd.diseno_id
@@ -141,7 +143,7 @@ async function checkAvailability(userId) {
 // GET /api/checkout/summary
 router.get('/summary', auth, async (req, res) => {
   try {
-    const data = await computeCartSummary(req.user.id);
+    const data = await computeCartSummary(req.db, req.user.id);
     res.json(data);
   } catch (err) {
     console.error('Error en summary checkout:', err);
@@ -153,14 +155,14 @@ router.get('/summary', auth, async (req, res) => {
 router.post('/session', auth, async (req, res) => {
   try {
     const { docType, docData } = req.body || {};
-    const availability = await checkAvailability(req.user.id);
+    const availability = await checkAvailability(req.db, req.user.id);
     if (!availability.ok) return res.status(409).json({ error: 'Stock insuficiente', problems: availability.problems });
-    const summary = await computeCartSummary(req.user.id);
+    const summary = await computeCartSummary(req.db, req.user.id);
     const orderTotal = Number(summary.totals.total || 0);
     const cartId = summary.cartId;
 
     // Crear pedido en estado pendiente
-    const [ins] = await db.query(
+    const [ins] = await req.db.query(
       `INSERT INTO pedidos (usuario_id, carrito_id, costo, fecha, estado) VALUES (?, ?, ?, NOW(), ?)`,
       [req.user.id, cartId, orderTotal, 'pendiente']
     );
@@ -171,7 +173,7 @@ router.post('/session', auth, async (req, res) => {
     const calc = estimateShipping(shipping || {});
     const totalWithShipping = orderTotal + (calc?.price || 0);
     // Actualizar costo del pedido para que incluya envío
-    await db.query('UPDATE pedidos SET costo = ? WHERE id = ?', [totalWithShipping, orderId]);
+    await req.db.query('UPDATE pedidos SET costo = ? WHERE id = ?', [totalWithShipping, orderId]);
     const token = jwt.sign({ orderId, uid: req.user.id, total: totalWithShipping, doc: { type: docType || null, data: docData || null }, ship: { ...(shipping || {}), _calc: calc } }, SECRET, { expiresIn: '30m' });
     const redirectUrl = `/checkout/mock?orderId=${orderId}&token=${encodeURIComponent(token)}`;
 
@@ -184,7 +186,7 @@ router.post('/session', auth, async (req, res) => {
 
 // POST /api/checkout/mock/confirm { orderId, token, status: 'approved'|'rejected' }
 router.post('/mock/confirm', auth, async (req, res) => {
-  const conn = await db.getConnection();
+  const conn = await req.db.getConnection();
   try {
     const { orderId, token, status } = req.body || {};
     if (!orderId || !token) return res.status(400).json({ error: 'orderId y token son requeridos' });
@@ -205,7 +207,7 @@ router.post('/mock/confirm', auth, async (req, res) => {
     // Confirmar: antes de vaciar el carrito, obtener un resumen para almacenar items del pedido
     let summaryForOrder = null;
     try {
-      summaryForOrder = await computeCartSummary(req.user.id);
+      summaryForOrder = await computeCartSummary(conn, req.user.id);
     } catch (_) {}
 
     // Confirmar: descontar stock y vaciar carrito (basado en cart checkout)
@@ -228,40 +230,90 @@ router.post('/mock/confirm', auth, async (req, res) => {
       }
       await conn.query('UPDATE objetos SET existencias = existencias - ? WHERE id = ?', [qty, it.objeto_id]);
     }
-    await conn.query('DELETE FROM carrito_disenos WHERE carrito_id = ?', [ord.carrito_id]);
-    await conn.query('UPDATE pedidos SET estado = ? WHERE id = ?', ['pagado', orderId]);
-
-    // Persistir items del pedido (resumen) para futuras consultas (e.g., Mis compras con imagen)
+    
+    // Persistir items del pedido ANTES de vaciar el carrito
     try {
       if (summaryForOrder && Array.isArray(summaryForOrder.items)) {
         for (const it of summaryForOrder.items) {
           const unitPrice = Number(it.price || 0);
           const objId = Number(it.objeto_id || 0) || null;
-          const datos = JSON.stringify({ image: it.image, product_id: it.product_id, name: it.name });
           // Insertar una fila por cada diseño involucrado
           const ids = Array.isArray(it.design_ids) ? it.design_ids : (it.design_id ? [it.design_id] : []);
           for (const did of ids) {
-            await conn.query(
-              `INSERT INTO disenos_pedido (pedido_id, usuario_id, objeto_id, nombre_diseno, datos, costo)
-               VALUES (?, ?, ?, ?, ?, ?)` ,
-              [orderId, req.user.id, objId, String(it.name || 'Diseño'), datos, unitPrice]
+            // Obtener datos completos del diseño desde la tabla disenos
+            const [[designData]] = await conn.query(
+              `SELECT d.nombre, d.elementos_por_vista, d.vista_actual, d.imagen_preview,
+                      db.frente, db.espalda, db.izquierda, db.derecha
+               FROM disenos d
+               LEFT JOIN objetos o ON o.id = d.objeto_id
+               LEFT JOIN disenios_base db ON db.id = o.disenio_base_id
+               WHERE d.id = ?`,
+              [did]
             );
+            
+            if (designData) {
+              // Parsear elementos_por_vista para obtener vistas_disponibles
+              let elementosPorVista = {};
+              try {
+                if (typeof designData.elementos_por_vista === 'string') {
+                  elementosPorVista = JSON.parse(designData.elementos_por_vista);
+                } else if (designData.elementos_por_vista) {
+                  elementosPorVista = designData.elementos_por_vista;
+                }
+              } catch (_) {}
+              
+              const vistasDisponibles = Object.keys(elementosPorVista);
+              
+              // Construir imagenes_vistas
+              const imagenesVistas = {};
+              if (designData.frente) imagenesVistas.frente = designData.frente;
+              if (designData.espalda) imagenesVistas.detras = designData.espalda;
+              if (designData.izquierda) imagenesVistas.izquierda = designData.izquierda;
+              if (designData.derecha) imagenesVistas.derecha = designData.derecha;
+              
+              const datos = JSON.stringify({
+                image: it.image,
+                product_id: it.product_id,
+                name: it.name,
+                elementos_por_vista: elementosPorVista,
+                vista_actual: designData.vista_actual,
+                vistas_disponibles: vistasDisponibles,
+                imagen_preview: designData.imagen_preview,
+                imagenes_vistas: imagenesVistas
+              });
+              
+              await conn.query(
+                `INSERT INTO disenos_pedido (pedido_id, usuario_id, objeto_id, nombre_diseno, datos, costo)
+                 VALUES (?, ?, ?, ?, ?, ?)` ,
+                [orderId, req.user.id, objId, String(designData.nombre || it.name || 'Diseño'), datos, unitPrice]
+              );
+            }
           }
         }
       }
     } catch (e) {
-      // No bloquear el pago por este registro auxiliar
-      console.warn('No se pudo persistir disenos_pedido para pedido', orderId, e?.message);
+      // Si falla el guardado de diseños, hacer rollback de todo
+      await conn.rollback();
+      console.error('Error persistiendo disenos_pedido para pedido', orderId, e);
+      return res.status(500).json({ error: 'Error al guardar diseños del pedido' });
     }
+    
+    // Ahora sí, vaciar el carrito
+    await conn.query('DELETE FROM carrito_disenos WHERE carrito_id = ?', [ord.carrito_id]);
+    await conn.query('UPDATE pedidos SET estado = ? WHERE id = ?', ['pagado', orderId]);
 
     // Insertar documento tributario según doc en token, sin alterar esquema
     const doc = payload?.doc || {};
+    let emailDestinatario = null;
+    let pdfGenerado = null;
+    
     if (doc?.type === 'boleta') {
       // Fallbacks desde configuracion_pagina si existen
       const [[cfg]] = await conn.query('SELECT telefono1, correo_contacto, direccion FROM configuracion_pagina ORDER BY id ASC LIMIT 1');
       const b = doc.data || {};
-      const now = new Date();
-      await conn.query(
+      emailDestinatario = String(b.gmail || cfg?.correo_contacto || 'N/A');
+      
+      const [boletaResult] = await conn.query(
         `INSERT INTO boletas (pedido_id, nombre_responsable, rut_responsable, razon_social, direccion_casa_matriz, telefono_contacto, gmail, direccion_web, fecha_emision, monto)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)` ,
         [
@@ -271,15 +323,48 @@ router.post('/mock/confirm', auth, async (req, res) => {
           String(b.razon_social || 'N/A'),
           String(b.direccion_casa_matriz || cfg?.direccion || 'N/A'),
           String(b.telefono_contacto || cfg?.telefono1 || 'N/A'),
-          String(b.gmail || cfg?.correo_contacto || 'N/A'),
+          emailDestinatario,
           b.direccion_web ? String(b.direccion_web) : null,
           Number(ord.costo || 0),
         ]
       );
+
+      // Generar PDF de la boleta
+      try {
+        const boletaData = {
+          pedido_id: orderId,
+          nombre_responsable: String(b.nombre_responsable || 'N/A'),
+          rut_responsable: String(b.rut_responsable || 'N/A'),
+          razon_social: String(b.razon_social || 'Mentes Creativas Store'),
+          direccion_casa_matriz: String(b.direccion_casa_matriz || cfg?.direccion || 'N/A'),
+          telefono_contacto: String(b.telefono_contacto || cfg?.telefono1 || 'N/A'),
+          gmail: emailDestinatario,
+          direccion_web: b.direccion_web ? String(b.direccion_web) : null,
+          fecha_emision: new Date(),
+          monto: Number(ord.costo || 0),
+          items: summaryForOrder?.items || []
+        };
+        
+        pdfGenerado = await generarBoletaPDF(boletaData);
+        
+        // Enviar por email
+        if (emailDestinatario && emailDestinatario !== 'N/A') {
+          const emailResult = await enviarBoleta(emailDestinatario, pdfGenerado, orderId);
+          if (!emailResult.success) {
+            console.warn('⚠️ No se pudo enviar la boleta por email:', emailResult.error || emailResult.message);
+          }
+        }
+      } catch (pdfError) {
+        console.error('❌ Error generando/enviando PDF de boleta:', pdfError);
+        // No bloqueamos el pedido por error en PDF
+      }
+      
     } else if (doc?.type === 'factura') {
       const [[cfg]] = await conn.query('SELECT telefono1, direccion FROM configuracion_pagina ORDER BY id ASC LIMIT 1');
       const f = doc.data || {};
-      await conn.query(
+      emailDestinatario = String(f.email || 'N/A'); // Asumiendo que el email viene en f.email
+      
+      const [facturaResult] = await conn.query(
         `INSERT INTO facturas (
             pedido_id, nombre_responsable, rut_responsable, razon_social, direccion_casa_matriz, telefono_contacto,
             nombre_cliente, rut_cliente, giro, direccion, comuna, telefono, ciudad, referencia
@@ -301,6 +386,44 @@ router.post('/mock/confirm', auth, async (req, res) => {
           f.referencia ? String(f.referencia) : null,
         ]
       );
+
+      // Generar PDF de la factura
+      try {
+        const facturaData = {
+          pedido_id: orderId,
+          nombre_responsable: String(f.nombre_responsable || 'N/A'),
+          rut_responsable: String(f.rut_responsable || 'N/A'),
+          razon_social: String(f.razon_social || 'Mentes Creativas Store'),
+          direccion_casa_matriz: String(f.direccion_casa_matriz || cfg?.direccion || 'N/A'),
+          telefono_contacto: String(f.telefono_contacto || cfg?.telefono1 || 'N/A'),
+          nombre_cliente: String(f.nombre_cliente || 'N/A'),
+          rut_cliente: String(f.rut_cliente || 'N/A'),
+          giro: String(f.giro || 'N/A'),
+          direccion: String(f.direccion || 'N/A'),
+          comuna: String(f.comuna || 'N/A'),
+          telefono: String(f.telefono || 'N/A'),
+          ciudad: String(f.ciudad || 'N/A'),
+          referencia: f.referencia ? String(f.referencia) : null,
+          fecha_emision: new Date(),
+          monto: Number(ord.costo || 0),
+          items: summaryForOrder?.items || []
+        };
+        
+        pdfGenerado = await generarFacturaPDF(facturaData);
+        
+        // Enviar por email (necesitamos el email del cliente para facturas)
+        // Por ahora usamos el email del formulario de contacto si existe
+        const emailCliente = emailDestinatario !== 'N/A' ? emailDestinatario : null;
+        if (emailCliente) {
+          const emailResult = await enviarFactura(emailCliente, pdfGenerado, orderId);
+          if (!emailResult.success) {
+            console.warn('⚠️ No se pudo enviar la factura por email:', emailResult.error || emailResult.message);
+          }
+        }
+      } catch (pdfError) {
+        console.error('❌ Error generando/enviando PDF de factura:', pdfError);
+        // No bloqueamos el pedido por error en PDF
+      }
     }
     // Crear registro de envío
     const ship = payload?.ship || {};

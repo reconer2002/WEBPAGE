@@ -1,205 +1,272 @@
 import React, { useEffect, useState } from "react";
-import { PieChart, Pie, Cell, Tooltip, Legend } from "recharts"; 
-import { getArticulosEstadisticas, getDisenosPorVariante } from "../../services/estadisticasService";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from "recharts";
+import { getRankingProductos, getDetalleProducto } from "../../services/estadisticasService";
 import "./InformesArticulos.css";
 
-const COLORS = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40'];
-
-// Componente auxiliar para el gráfico circular (sin cambios)
-const VarianteDesignsPieChart = ({ data, categoryName }) => {
-  // ... (código VarianteDesignsPieChart anterior)
-  const chartData = data
-    .filter(item => item.nombre_categoria === categoryName)
-    .map(item => ({
-      name: item.valor,
-      value: item.total_disenos
-    }));
-
-  const totalDesigns = chartData.reduce((sum, item) => sum + item.value, 0);
-
-  if (totalDesigns === 0) {
-    return <p>No hay diseños generados para esta categoría.</p>;
-  }
-
-  return (
-    <div className="variantes-chart-container">
-      <h4>Distribución por Categoría: {categoryName}</h4>
-      <p>Total de Diseños Únicos en {categoryName}: {totalDesigns}</p>
-      <PieChart width={450} height={350}>
-        <Pie
-          data={chartData}
-          dataKey="value"
-          nameKey="name"
-          cx="50%"
-          cy="50%"
-          outerRadius={120}
-          fill="#8884d8"
-          label={({ name, percent }) => `${name} (${(percent * 100).toFixed(1)}%)`}
-          labelLine={false}
-        >
-          {chartData.map((entry, index) => (
-            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-          ))}
-        </Pie>
-        <Tooltip />
-        <Legend layout="vertical" align="right" verticalAlign="middle" wrapperStyle={{ paddingLeft: '20px' }}/>
-      </PieChart>
-    </div>
-  );
-};
-
-
 const InformesArticulos = () => {
-  const [resumen, setResumen] = useState({
-    totalArticulos: 0,
-    totalVariantes: 0,
-    totalDisenos: 0,
-    listaArticulos: [],
-  });
+  const [datosRanking, setDatosRanking] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [articuloSeleccionado, setArticuloSeleccionado] = useState(null);
-  const [disenosVariantes, setDisenosVariantes] = useState([]);
-  const [loadingVariantes, setLoadingVariantes] = useState(false);
-  const [categoriasUnicas, setCategoriasUnicas] = useState([]);
+  const [productoSeleccionado, setProductoSeleccionado] = useState(null);
+  const [detalleProducto, setDetalleProducto] = useState(null);
+  const [loadingDetalle, setLoadingDetalle] = useState(false);
+  const [vistaActual, setVistaActual] = useState('masVendidos'); // 'masVendidos' o 'sinVentas'
 
-
-  // Cargar resumen y lista de artículos
+  // Cargar ranking inicial
   useEffect(() => {
-    const fetchResumen = async () => {
+    const fetchRanking = async () => {
       try {
         setLoading(true);
-        const data = await getArticulosEstadisticas(); 
-        setResumen(data);
+        const data = await getRankingProductos();
+        setDatosRanking(data);
       } catch (err) {
-        console.error("Error cargando resumen de artículos:", err);
+        console.error("Error cargando ranking de productos:", err);
       } finally {
         setLoading(false);
       }
     };
-    fetchResumen();
+    fetchRanking();
   }, []);
 
-  // Cargar diseños por variante al seleccionar un artículo
+  // Cargar detalle del producto seleccionado
   useEffect(() => {
-    if (articuloSeleccionado) {
-      const fetchVariantes = async () => {
+    if (productoSeleccionado) {
+      const fetchDetalle = async () => {
         try {
-          setLoadingVariantes(true);
-          const data = await getDisenosPorVariante(articuloSeleccionado.id);
-          setDisenosVariantes(data);
-          
-          const uniqueCategories = [...new Set(data.map(item => item.nombre_categoria))];
-          setCategoriasUnicas(uniqueCategories);
-          
+          setLoadingDetalle(true);
+          const data = await getDetalleProducto(productoSeleccionado.id);
+          setDetalleProducto(data);
         } catch (err) {
-          console.error("Error cargando variantes de diseño:", err);
-          setDisenosVariantes([]);
-          setCategoriasUnicas([]); 
+          console.error("Error cargando detalle del producto:", err);
+          setDetalleProducto(null);
         } finally {
-          setLoadingVariantes(false);
+          setLoadingDetalle(false);
         }
       };
-      fetchVariantes();
+      fetchDetalle();
     } else {
-      setDisenosVariantes([]);
-      setCategoriasUnicas([]);
+      setDetalleProducto(null);
     }
-  }, [articuloSeleccionado]);
+  }, [productoSeleccionado]);
 
-
-  const handleClickArticulo = (art) => {
-    setArticuloSeleccionado(art);
+  const handleClickProducto = (producto) => {
+    setProductoSeleccionado(producto);
   };
 
   const handleCerrar = () => {
-    setArticuloSeleccionado(null);
+    setProductoSeleccionado(null);
   };
 
-  if (loading) return <p>Cargando informes de artículos...</p>;
+  const formatearMoneda = (valor) => {
+    return new Intl.NumberFormat('es-CL', {
+      style: 'currency',
+      currency: 'CLP',
+      minimumFractionDigits: 0
+    }).format(valor || 0);
+  };
+
+  if (loading) return <div className="loading-state"><p>Cargando ranking de productos...</p></div>;
+
+  const productosAMostrar = vistaActual === 'masVendidos' 
+    ? datosRanking?.rankingVentas || []
+    : datosRanking?.productosSinVentas || [];
 
   return (
     <div className="informes-articulos-container">
-      <h3>📈 Informes - Artículos y Diseños</h3>
+      <h3>🏆 Ranking de Productos</h3>
 
-      {/* SECCIÓN RESUMEN (sin cambios) */}
+      {/* MÉTRICAS GENERALES */}
       <div className="estadisticas-resumen">
         <div className="resumen-card">
-          <h4>Total Artículos</h4>
-          <p className="big-number">{resumen.totalArticulos.toLocaleString()}</p>
+          <h4>Productos Vendidos</h4>
+          <p className="big-number">{datosRanking?.metricas?.total_productos_vendidos?.toLocaleString() || 0}</p>
         </div>
         <div className="resumen-card">
-          <h4>Total Variantes</h4>
-          <p className="big-number">{resumen.totalVariantes.toLocaleString()}</p>
+          <h4>Ingresos Totales</h4>
+          <p className="big-number">{formatearMoneda(datosRanking?.metricas?.ingresos_totales_global)}</p>
         </div>
         <div className="resumen-card">
-          <h4>Total Diseños (Activos + Comprados)</h4>
-          <p className="big-number">{resumen.totalDisenos.toLocaleString()}</p>
+          <h4>Pedidos Completados</h4>
+          <p className="big-number">{datosRanking?.metricas?.total_pedidos_completados?.toLocaleString() || 0}</p>
+        </div>
+        <div className="resumen-card">
+          <h4>Clientes Únicos</h4>
+          <p className="big-number">{datosRanking?.metricas?.total_clientes?.toLocaleString() || 0}</p>
         </div>
       </div>
 
       <hr />
 
-      <section className="grid-contenido">
-        {/* GRID DE ARTÍCULOS (Mostrador) - Tarjeta General */}
-        <div className={`mostrador ${articuloSeleccionado ? "reducido" : "completo"}`}>
-            {/* 💡 TÍTULO CENTRADO Y FIJO DENTRO DE LA TARJETA GENERAL */}
-            <h4 className="mostrador-titulo-instruccion">
-                Selecciona un Artículo para ver sus estadísticas
-            </h4>
-            
-            <div className="articulos-grid-scroll"> {/* Nuevo div para controlar el scroll del grid */}
-                <div className="articulos-grid">
-                    {resumen.listaArticulos.length === 0 && <p>No hay artículos para informar.</p>}
+      {/* SELECTOR DE VISTA */}
+      <div className="vista-selector">
+        <button 
+          className={vistaActual === 'masVendidos' ? 'active' : ''}
+          onClick={() => setVistaActual('masVendidos')}
+        >
+          📊 Más Vendidos ({datosRanking?.rankingVentas?.length || 0})
+        </button>
+        <button 
+          className={vistaActual === 'sinVentas' ? 'active' : ''}
+          onClick={() => setVistaActual('sinVentas')}
+        >
+          ⚠️ Sin Ventas ({datosRanking?.productosSinVentas?.length || 0})
+        </button>
+      </div>
 
-                    {resumen.listaArticulos.map((art) => (
-                      <div
-                        key={art.id}
-                        className="item-articulo"
-                        onClick={() => handleClickArticulo(art)}
-                        style={{
-                          border:
-                            articuloSeleccionado && articuloSeleccionado.id === art.id
-                              ? "2px solid #007bff"
-                              : "1px solid #ddd",
-                        }}
-                      >
-                        <div className="contenedor-foto">
-                          {art.foto && <img src={art.foto} alt={art.nombre} />}
+      <section className="grid-contenido">
+        {/* TABLA DE RANKING */}
+        <div className={`mostrador ${productoSeleccionado ? "reducido" : "completo"}`}>
+          <h4 className="mostrador-titulo-instruccion">
+            {vistaActual === 'masVendidos' 
+              ? 'Haz clic en un producto para ver sus métricas detalladas' 
+              : 'Productos sin ventas registradas'}
+          </h4>
+          
+          <div className="ranking-table-container">
+            {productosAMostrar.length === 0 ? (
+              <p className="empty-message">No hay productos en esta categoría.</p>
+            ) : (
+              <table className="ranking-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Producto</th>
+                    <th>Precio</th>
+                    {vistaActual === 'masVendidos' && (
+                      <>
+                        <th>Unidades Vendidas</th>
+                        <th>Ingresos</th>
+                        <th>Pedidos</th>
+                        <th>Clientes</th>
+                      </>
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {productosAMostrar.map((producto, index) => (
+                    <tr 
+                      key={producto.id}
+                      onClick={() => vistaActual === 'masVendidos' && handleClickProducto(producto)}
+                      className={vistaActual === 'masVendidos' ? 'clickable' : ''}
+                      style={{
+                        backgroundColor: productoSeleccionado?.id === producto.id ? '#e3f2fd' : 'transparent'
+                      }}
+                    >
+                      <td className="ranking-position">{index + 1}</td>
+                      <td className="producto-info">
+                        <div className="producto-cell">
+                          {producto.foto && (
+                            <img src={producto.foto} alt={producto.variantes} className="producto-mini-img" />
+                          )}
+                          <div className="producto-text">
+                            <span className="nombre-objeto">{producto.nombre_articulo}</span>
+                            <span className="nombre-articulo-sub">{producto.variantes}</span>
+                          </div>
                         </div>
-                        <p className="nombre-articulo">{art.nombre}</p>
-                        <span className="precio-articulo">${art.precio}</span>
-                      </div>
-                    ))}
-                </div>
-            </div>
+                      </td>
+                      <td>{formatearMoneda(producto.precio)}</td>
+                      {vistaActual === 'masVendidos' && (
+                        <>
+                          <td className="metric-cell">{producto.total_unidades_vendidas?.toLocaleString()}</td>
+                          <td className="metric-cell highlight">{formatearMoneda(producto.ingresos_totales)}</td>
+                          <td className="metric-cell">{producto.total_pedidos?.toLocaleString()}</td>
+                          <td className="metric-cell">{producto.clientes_unicos?.toLocaleString()}</td>
+                        </>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
         </div>
 
-        {/* PANEL LATERAL DE DETALLE Y GRÁFICO (Seleccion) */}
-        <div className={`seleccion ${articuloSeleccionado ? "abierto" : "cerrado"}`}>
-          {articuloSeleccionado && (
+        {/* PANEL LATERAL DE DETALLE */}
+        <div className={`seleccion ${productoSeleccionado ? "abierto" : "cerrado"}`}>
+          {productoSeleccionado && (
             <div className="contenido">
               <div className="cerrar" onClick={handleCerrar}>
                 &#x2715;
               </div>
-              <h3>Estadísticas de {articuloSeleccionado.nombre}</h3>
               
-              {loadingVariantes ? (
-                <p>Cargando información de variantes...</p>
-              ) : (
-                <div className="charts-container">
-                  {/* GENERAR GRÁFICO POR CADA CATEGORÍA ÚNICA */}
-                  {categoriasUnicas.map(category => (
-                    <VarianteDesignsPieChart 
-                      key={category} 
-                      data={disenosVariantes} 
-                      categoryName={category} 
-                    />
-                  ))}
-                  
-                  {categoriasUnicas.length === 0 && (
-                    <p>El artículo no tiene variantes definidas o no hay diseños asociados.</p>
+              <div className="detalle-header">
+                {productoSeleccionado.foto && (
+                  <img src={productoSeleccionado.foto} alt={productoSeleccionado.variantes} className="producto-detalle-img" />
+                )}
+                <h3>{productoSeleccionado.nombre_articulo}</h3>
+                <p className="producto-articulo">{productoSeleccionado.variantes}</p>
+                <p className="producto-precio">{formatearMoneda(productoSeleccionado.precio)}</p>
+              </div>
+
+              {loadingDetalle ? (
+                <p>Cargando métricas...</p>
+              ) : detalleProducto ? (
+                <div className="detalle-metricas">
+                  {/* MÉTRICAS CLAVE */}
+                  <div className="metricas-grid">
+                    <div className="metrica-card">
+                      <span className="metrica-label">Unidades Vendidas</span>
+                      <span className="metrica-valor">{detalleProducto.metricas.unidades_vendidas?.toLocaleString()}</span>
+                    </div>
+                    <div className="metrica-card">
+                      <span className="metrica-label">Ingresos Totales</span>
+                      <span className="metrica-valor destacado">{formatearMoneda(detalleProducto.metricas.ingresos_totales)}</span>
+                    </div>
+                    <div className="metrica-card">
+                      <span className="metrica-label">Pedidos</span>
+                      <span className="metrica-valor">{detalleProducto.metricas.pedidos_totales?.toLocaleString()}</span>
+                    </div>
+                    <div className="metrica-card">
+                      <span className="metrica-label">Clientes Únicos</span>
+                      <span className="metrica-valor">{detalleProducto.metricas.clientes_unicos?.toLocaleString()}</span>
+                    </div>
+                  </div>
+
+                  {/* GRÁFICO DE VENTAS POR MES */}
+                  {detalleProducto.ventasPorMes && detalleProducto.ventasPorMes.length > 0 && (
+                    <div className="chart-section">
+                      <h4>📈 Ventas por Mes (Últimos 6 meses)</h4>
+                      <ResponsiveContainer width="100%" height={250}>
+                        <LineChart data={[...detalleProducto.ventasPorMes].reverse()}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="mes" />
+                          <YAxis yAxisId="left" />
+                          <YAxis yAxisId="right" orientation="right" />
+                          <Tooltip />
+                          <Legend />
+                          <Line yAxisId="left" type="monotone" dataKey="unidades_vendidas" stroke="#8884d8" name="Unidades" />
+                          <Line yAxisId="right" type="monotone" dataKey="ingresos" stroke="#82ca9d" name="Ingresos" />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+
+                  {/* TOP CLIENTES */}
+                  {detalleProducto.topClientes && detalleProducto.topClientes.length > 0 && (
+                    <div className="top-clientes-section">
+                      <h4>👥 Top Clientes</h4>
+                      <table className="mini-table">
+                        <thead>
+                          <tr>
+                            <th>Cliente</th>
+                            <th>Cantidad</th>
+                            <th>Total Gastado</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {detalleProducto.topClientes.map((cliente, index) => (
+                            <tr key={index}>
+                              <td>{cliente.nombre}</td>
+                              <td>{cliente.cantidad_comprada}</td>
+                              <td>{formatearMoneda(cliente.total_gastado)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   )}
                 </div>
+              ) : (
+                <p>No se pudieron cargar los detalles del producto.</p>
               )}
             </div>
           )}

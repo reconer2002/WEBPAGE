@@ -1,7 +1,14 @@
 const express = require('express');
 const path = require('path');
+const cors = require('cors');
 const app = express();
 require('dotenv').config();
+
+// ✅ Configurar CORS
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  credentials: true
+}));
 
 // ✅ Middleware para JSON
 // Aceptar payloads grandes (canvas base64) hasta 10MB
@@ -67,8 +74,14 @@ app.use('/api/pedidos', pedidosRouter);
 const enviosRouter = require('./routes/envios');
 app.use('/api/envios', enviosRouter);
 
+const documentosRouter = require('./routes/documentos');
+app.use('/api/documentos', documentosRouter);
+
 const terminosRouter = require('./routes/terminos');
 app.use("/api/terminos", terminosRouter);
+
+const featuresRouter = require('./routes/features');
+app.use('/api/features', featuresRouter);
 
 // ✅ Archivos estáticos con CORS para permitir captura del canvas
 app.use(
@@ -82,4 +95,4 @@ app.use(
 );
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Servidor corriendo en puerto ${PORT}`));
+app.listen(PORT, () => {});

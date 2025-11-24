@@ -1,0 +1,94 @@
+.funcionalidad-deshabilitada-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 60vh;
+  padding: 2rem;
+  background-color: #f5f5f5;
+}
+
+.funcionalidad-deshabilitada-content {
+  background: white;
+  border-radius: 12px;
+  padding: 3rem 2rem;
+  max-width: 500px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.funcionalidad-deshabilitada-icon {
+  font-size: 4rem;
+  margin-bottom: 1.5rem;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+.funcionalidad-deshabilitada-content h2 {
+  color: #333;
+  font-size: 1.75rem;
+  margin-bottom: 1rem;
+  font-weight: 600;
+}
+
+.funcionalidad-deshabilitada-content p {
+  color: #666;
+  font-size: 1.1rem;
+  margin-bottom: 0.75rem;
+  line-height: 1.6;
+}
+
+.funcionalidad-deshabilitada-subtitle {
+  color: #999 !important;
+  font-size: 0.95rem !important;
+  margin-bottom: 2rem !important;
+}
+
+.funcionalidad-deshabilitada-button {
+  background-color: var(--color-primario, #006a71);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 0.875rem 2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 106, 113, 0.2);
+}
+
+.funcionalidad-deshabilitada-button:hover {
+  background-color: var(--color-primario-hover, #005560);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 106, 113, 0.3);
+}
+
+.funcionalidad-deshabilitada-button:active {
+  transform: translateY(0);
+}
+
+@media (max-width: 768px) {
+  .funcionalidad-deshabilitada-content {
+    padding: 2rem 1.5rem;
+  }
+
+  .funcionalidad-deshabilitada-icon {
+    font-size: 3rem;
+  }
+
+  .funcionalidad-deshabilitada-content h2 {
+    font-size: 1.5rem;
+  }
+
+  .funcionalidad-deshabilitada-content p {
+    font-size: 1rem;
+  }
+}

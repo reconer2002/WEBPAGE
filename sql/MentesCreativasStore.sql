@@ -158,7 +158,7 @@ CREATE TABLE `categorias_mantenedor` (
 
 LOCK TABLES `categorias_mantenedor` WRITE;
 /*!40000 ALTER TABLE `categorias_mantenedor` DISABLE KEYS */;
-INSERT INTO `categorias_mantenedor` VALUES (1,'USUARIOS',6),(2,'PAGINA',9),(3,'TESTIMONIOS',13),(4,'PRODUCTOS',14),(5,'INFORMES',18);
+INSERT INTO `categorias_mantenedor` VALUES (1,'USUARIOS',6),(2,'PAGINA',9),(3,'PRODUCTOS',14),(4,'INFORMES',18);
 /*!40000 ALTER TABLE `categorias_mantenedor` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -689,7 +689,7 @@ CREATE TABLE `subcategorias_mantenedor` (
 
 LOCK TABLES `subcategorias_mantenedor` WRITE;
 /*!40000 ALTER TABLE `subcategorias_mantenedor` DISABLE KEYS */;
-INSERT INTO `subcategorias_mantenedor` VALUES (1,1,'cuentas',8),(2,1,'roles',7),(3,2,'configuracion',10),(4,2,'conexion',11),(5,2,'colores',12),(6,3,'testimonios',13),(7,4,'articulos',15),(8,5,'estadisticas',18),(9,5,'articulos',18),(10,4,'pedidos',19);
+INSERT INTO `subcategorias_mantenedor` VALUES (1,1,'cuentas',8),(2,1,'roles',7),(3,1,'testimonios',13),(4,2,'configuracion',10),(5,2,'colores',12),(6,2,'funcionalidades',10),(7,3,'articulos',15),(8,3,'pedidos',19),(9,3,'DisenosBase',15),(10,4,'estadisticas',18),(11,4,'articulos',18);
 /*!40000 ALTER TABLE `subcategorias_mantenedor` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -822,3 +822,48 @@ UNLOCK TABLES;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
 -- Dump completed on 2025-10-29 21:37:55
+
+--
+-- Tabla para configuración de funcionalidades (Sistema de suspensión de features)
+-- Agregado: 2025-11-23
+--
+
+DROP TABLE IF EXISTS `features_config`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `features_config` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `feature_key` varchar(100) NOT NULL,
+  `feature_name` varchar(255) NOT NULL,
+  `description` text,
+  `is_enabled` tinyint(1) DEFAULT '1',
+  `category` varchar(50) DEFAULT 'general',
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `feature_key` (`feature_key`),
+  KEY `idx_feature_key` (`feature_key`),
+  KEY `idx_is_enabled` (`is_enabled`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `features_config`
+--
+
+LOCK TABLES `features_config` WRITE;
+/*!40000 ALTER TABLE `features_config` DISABLE KEYS */;
+INSERT INTO `features_config` (`feature_key`, `feature_name`, `description`, `is_enabled`, `category`) VALUES
+('design_tool', 'Herramienta de Diseño', 'Permite a los usuarios crear y editar diseños personalizados', 1, 'design'),
+('saved_designs', 'Diseños Guardados', 'Permite a los usuarios ver y gestionar sus diseños guardados', 1, 'design'),
+('shopping_cart', 'Carrito de Compras', 'Permite a los usuarios agregar productos al carrito y comprar', 1, 'commerce'),
+('checkout', 'Proceso de Pago', 'Permite a los usuarios completar la compra', 1, 'commerce'),
+('user_profile', 'Perfil de Usuario', 'Permite a los usuarios ver y editar su perfil', 1, 'account'),
+('order_history', 'Historial de Pedidos', 'Permite a los usuarios ver sus compras anteriores', 1, 'account'),
+('product_catalog', 'Catálogo de Productos', 'Muestra el catálogo de productos disponibles', 1, 'commerce'),
+('testimonials', 'Testimonios', 'Muestra testimonios de clientes en la página principal', 1, 'content');
+/*!40000 ALTER TABLE `features_config` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Dumping events for database 'MentesCreativasStore'
+--

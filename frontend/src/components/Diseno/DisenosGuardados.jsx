@@ -111,8 +111,8 @@ const DisenosGuardados = () => {
     try {
       const canvas = canvasRef.current;
       const ctx = canvas.getContext('2d');
-      canvas.width = 400;
-      canvas.height = 500;
+      canvas.width = 600;
+      canvas.height = 600;
       
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       
@@ -143,7 +143,24 @@ const DisenosGuardados = () => {
       img.crossOrigin = 'anonymous';
       
       img.onload = () => {
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        // Calcular dimensiones manteniendo aspect ratio (EXACTAMENTE IGUAL que CanvasDiseño y CanvasVisualizacion)
+        const imgRatio = img.width / img.height;
+        const canvasRatio = canvas.width / canvas.height;
+        
+        let drawWidth, drawHeight, offsetX = 0, offsetY = 0;
+        
+        if (imgRatio > canvasRatio) {
+          drawWidth = canvas.width;
+          drawHeight = canvas.width / imgRatio;
+          offsetY = (canvas.height - drawHeight) / 2;
+        } else {
+          drawHeight = canvas.height;
+          drawWidth = canvas.height * imgRatio;
+          offsetX = (canvas.width - drawWidth) / 2;
+        }
+        
+        // Dibujar imagen con aspect ratio
+        ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
         
         // Obtener elementos de la vista correctamente
         let elementos = [];
@@ -156,8 +173,8 @@ const DisenosGuardados = () => {
         elementos.forEach(el => {
           if (el.type === 'text') {
             ctx.save();
-            // Para texto, rotar desde la esquina superior izquierda (comportamiento de Konva por defecto)
-            ctx.translate(el.x, el.y);
+            // Aplicar offset (igual que en CanvasDiseño/CanvasVisualizacion)
+            ctx.translate(el.x + offsetX, el.y + offsetY);
             ctx.rotate((el.rotation || 0) * Math.PI / 180);
             ctx.font = `${el.fontStyle === 'bold' ? 'bold' : el.fontStyle === 'italic' ? 'italic' : 'normal'} ${el.fontSize}px ${el.fontFamily || 'Arial'}`;
             ctx.fillStyle = el.fill || '#000000';
@@ -169,9 +186,8 @@ const DisenosGuardados = () => {
             imgEl.crossOrigin = 'anonymous';
             imgEl.onload = () => {
               ctx.save();
-              // Para imágenes, Konva rota desde la esquina superior izquierda por defecto
-              // (a menos que se especifique offset, que no usamos)
-              ctx.translate(el.x, el.y);
+              // Aplicar offset (igual que en CanvasDiseño/CanvasVisualizacion)
+              ctx.translate(el.x + offsetX, el.y + offsetY);
               ctx.rotate((el.rotation || 0) * Math.PI / 180);
               ctx.drawImage(imgEl, 0, 0, el.width, el.height);
               ctx.restore();

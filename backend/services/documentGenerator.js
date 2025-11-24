@@ -62,15 +62,15 @@ async function generarBoletaPDF(data) {
         // Tabla de productos
         const tableTop = doc.y;
         const itemX = 50;
-        const qtyX = 350;
-        const priceX = 420;
-        const totalX = 490;
+        const qtyX = 300;
+        const priceX = 380;
+        const totalX = 480;
 
         doc.fontSize(9).font('Helvetica-Bold');
         doc.text('Producto', itemX, tableTop);
-        doc.text('Cant.', qtyX, tableTop);
-        doc.text('Precio', priceX, tableTop);
-        doc.text('Total', totalX, tableTop);
+        doc.text('Cant.', qtyX, tableTop, { width: 50, align: 'center' });
+        doc.text('Precio', priceX, tableTop, { width: 70, align: 'right' });
+        doc.text('Total', totalX, tableTop, { width: 70, align: 'right' });
         
         doc.moveTo(itemX, tableTop + 15).lineTo(550, tableTop + 15).stroke();
         
@@ -78,10 +78,10 @@ async function generarBoletaPDF(data) {
         doc.font('Helvetica');
         
         data.items.forEach(item => {
-          doc.text(item.name || 'Producto', itemX, y, { width: 280 });
-          doc.text(item.quantity || 1, qtyX, y);
-          doc.text(`$${Number(item.price || 0).toLocaleString('es-CL')}`, priceX, y);
-          doc.text(`$${Number((item.price || 0) * (item.quantity || 1)).toLocaleString('es-CL')}`, totalX, y);
+          doc.text(item.name || 'Producto', itemX, y, { width: 240 });
+          doc.text(item.quantity || 1, qtyX, y, { width: 50, align: 'center' });
+          doc.text(`$${Number(item.price || 0).toLocaleString('es-CL')}`, priceX, y, { width: 70, align: 'right' });
+          doc.text(`$${Number((item.price || 0) * (item.quantity || 1)).toLocaleString('es-CL')}`, totalX, y, { width: 70, align: 'right' });
           y += 20;
         });
         
@@ -182,15 +182,15 @@ async function generarFacturaPDF(data) {
         // Tabla de productos
         const tableTop = doc.y;
         const itemX = 50;
-        const qtyX = 350;
-        const priceX = 420;
-        const totalX = 490;
+        const qtyX = 300;
+        const priceX = 380;
+        const totalX = 480;
 
         doc.fontSize(9).font('Helvetica-Bold');
         doc.text('Producto', itemX, tableTop);
-        doc.text('Cant.', qtyX, tableTop);
-        doc.text('Precio', priceX, tableTop);
-        doc.text('Total', totalX, tableTop);
+        doc.text('Cant.', qtyX, tableTop, { width: 50, align: 'center' });
+        doc.text('Precio', priceX, tableTop, { width: 70, align: 'right' });
+        doc.text('Total', totalX, tableTop, { width: 70, align: 'right' });
         
         doc.moveTo(itemX, tableTop + 15).lineTo(550, tableTop + 15).stroke();
         
@@ -200,10 +200,10 @@ async function generarFacturaPDF(data) {
         let subtotal = 0;
         data.items.forEach(item => {
           const itemTotal = (item.price || 0) * (item.quantity || 1);
-          doc.text(item.name || 'Producto', itemX, y, { width: 280 });
-          doc.text(item.quantity || 1, qtyX, y);
-          doc.text(`$${Number(item.price || 0).toLocaleString('es-CL')}`, priceX, y);
-          doc.text(`$${Number(itemTotal).toLocaleString('es-CL')}`, totalX, y);
+          doc.text(item.name || 'Producto', itemX, y, { width: 240 });
+          doc.text(item.quantity || 1, qtyX, y, { width: 50, align: 'center' });
+          doc.text(`$${Number(item.price || 0).toLocaleString('es-CL')}`, priceX, y, { width: 70, align: 'right' });
+          doc.text(`$${Number(itemTotal).toLocaleString('es-CL')}`, totalX, y, { width: 70, align: 'right' });
           subtotal += itemTotal;
           y += 20;
         });
@@ -211,10 +211,12 @@ async function generarFacturaPDF(data) {
         doc.moveDown(2);
 
         // Subtotal, IVA y Total
-        const totalsX = 420;
+        const totalsX = 380;
         doc.fontSize(10).font('Helvetica-Bold');
-        doc.text(`Subtotal: $${Number(subtotal).toLocaleString('es-CL')}`, totalsX, doc.y);
-        doc.text(`IVA (19%): $${Number(subtotal * 0.19).toLocaleString('es-CL')}`, totalsX, doc.y);
+        doc.text(`Subtotal:`, totalsX, doc.y, { continued: true, width: 70, align: 'right' });
+        doc.text(` $${Number(subtotal).toLocaleString('es-CL')}`, { width: 100, align: 'right' });
+        doc.text(`IVA (19%):`, totalsX, doc.y, { continued: true, width: 70, align: 'right' });
+        doc.text(` $${Number(subtotal * 0.19).toLocaleString('es-CL')}`, { width: 100, align: 'right' });
         doc.moveDown(0.5);
       }
 

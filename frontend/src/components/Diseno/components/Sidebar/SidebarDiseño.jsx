@@ -20,6 +20,7 @@ const SidebarDiseño = ({
   onHandleImageUpload,
   onEliminarElemento,
   onDuplicarElemento,
+  onIniciarGuardado,
   onCaptureAndUploadViews,
   onSaveAndAddToCart
 }) => {
@@ -210,7 +211,7 @@ const SidebarDiseño = ({
             <div className="sidebar-section">
               <button 
                 className="save-btn" 
-                onClick={() => onCaptureAndUploadViews()} 
+                onClick={() => onIniciarGuardado()} 
                 style={{ 
                   width: "100%", 
                   marginBottom: "8px",

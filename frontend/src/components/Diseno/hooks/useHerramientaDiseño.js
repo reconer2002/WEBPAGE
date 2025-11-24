@@ -200,12 +200,12 @@ export const useHerramientaDiseño = (onDisenoGuardado, disenoIdParaEditar = nul
 
   // Funciones de manipulación de elementos
   const agregarTexto = () => {
-    const marginY = 120;
     const fontSize = 20;
     const text = "Texto";
     const estimatedWidth = text.length * fontSize * 0.6;
+    // Centrar en el medio absoluto del canvas
     const x = (canvasWidth - estimatedWidth) / 2;
-    const y = marginY;
+    const y = canvasHeight / 2;
     
     const nuevoTexto = { 
       id: Date.now(), 
@@ -231,8 +231,6 @@ export const useHerramientaDiseño = (onDisenoGuardado, disenoIdParaEditar = nul
   };
 
   const agregarImagen = (url, originalWidth = 100, originalHeight = 100) => {
-    const marginY = 120;
-    
     // Escalar la imagen si es muy grande, manteniendo la proporción
     const maxWidth = 200;
     const maxHeight = 200;
@@ -250,8 +248,9 @@ export const useHerramientaDiseño = (onDisenoGuardado, disenoIdParaEditar = nul
       }
     }
     
+    // Centrar en el medio absoluto del canvas
     const x = (canvasWidth - width) / 2;
-    const y = marginY;
+    const y = (canvasHeight - height) / 2;
     
     const nuevaImagen = { 
       id: Date.now(), 
@@ -272,6 +271,15 @@ export const useHerramientaDiseño = (onDisenoGuardado, disenoIdParaEditar = nul
     setCurrentImageRotation(0);
   };
 
+  // Función para validar tamaño de imagen en base64
+  const validateImageSize = (base64String) => {
+    // Calcular tamaño aproximado en bytes
+    const base64Length = base64String.length - (base64String.indexOf(',') + 1);
+    const sizeInBytes = (base64Length * 3) / 4;
+    const sizeInMB = sizeInBytes / (1024 * 1024);
+    return sizeInMB <= 5;
+  };
+
   const handleImageUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -279,14 +287,38 @@ export const useHerramientaDiseño = (onDisenoGuardado, disenoIdParaEditar = nul
       alert("Por favor selecciona un archivo de imagen válido");
       return;
     }
-    const url = URL.createObjectURL(file);
-    
-    // Crear una imagen temporal para obtener las dimensiones originales
-    const img = new Image();
-    img.onload = () => {
-      agregarImagen(url, img.width, img.height);
+
+    // Validar tamaño del archivo (5MB)
+    const maxSize = 5 * 1024 * 1024; // 5MB en bytes
+    if (file.size > maxSize) {
+      setSaveModalMessage('La imagen excede el límite de 5MB. Por favor, usa una imagen más pequeña.');
+      setSaveModalType('error');
+      setShowSaveModal(true);
+      e.target.value = "";
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target.result;
+      
+      // Validar tamaño base64
+      if (!validateImageSize(dataUrl)) {
+        setSaveModalMessage('La imagen excede el límite de 5MB. Por favor, usa una imagen más pequeña.');
+        setSaveModalType('error');
+        setShowSaveModal(true);
+        e.target.value = "";
+        return;
+      }
+
+      // Crear una imagen temporal para obtener las dimensiones originales
+      const img = new Image();
+      img.onload = () => {
+        agregarImagen(dataUrl, img.width, img.height);
+      };
+      img.src = dataUrl;
     };
-    img.src = url;
+    reader.readAsDataURL(file);
     
     e.target.value = "";
   };
@@ -340,21 +372,21 @@ export const useHerramientaDiseño = (onDisenoGuardado, disenoIdParaEditar = nul
     actualizarElemento(selectedId, { x: newX, y: newY });
   };
 
-  const captureAndUploadViews = async () => {
+  const captureAndUploadViews = async (nombreIngresado = null, skipNavigation = false) => {
     try {
       // Si está editando, usar el nombre actual y guardar directamente
-      if (disenoIdParaEditar && !nombreIngresadoDirecto) {
+      if (disenoIdParaEditar && !nombreIngresado) {
         if (!stageRef.current || !objetoSeleccionado) {
           setSaveModalMessage('Selecciona un objeto antes de actualizar');
           setSaveModalType('error');
           setShowSaveModal(true);
           return null;
         }
-        nombreIngresadoDirecto = nombreDisenoActual;
+        nombreIngresado = nombreDisenoActual;
       }
       
       // Si no hay nombre, mostrar el modal y esperar
-      if (!nombreIngresadoDirecto) {
+      if (!nombreIngresado) {
         if (!stageRef.current || !objetoSeleccionado) {
           setSaveModalMessage('Selecciona un objeto antes de guardar');
           setSaveModalType('error');
@@ -370,7 +402,6 @@ export const useHerramientaDiseño = (onDisenoGuardado, disenoIdParaEditar = nul
       }
 
       setGuardandoDiseno(true);
-      const nombreIngresado = nombreIngresadoDirecto;
 
       const elementoSeleccionadoAntes = selectedId;
       setSelectedId(null);
@@ -425,11 +456,23 @@ export const useHerramientaDiseño = (onDisenoGuardado, disenoIdParaEditar = nul
               elementoLimpio.height = el.height;
               
               // Convertir URL a base64 si es necesario
+              let imageDataUrl;
               if (el.url && !el.url.startsWith('data:')) {
-                const dataurl = await toDataURL(el.url);
-                elementoLimpio.url = dataurl || el.url;
+                imageDataUrl = await toDataURL(el.url);
+                elementoLimpio.url = imageDataUrl || el.url;
               } else {
+                imageDataUrl = el.url;
                 elementoLimpio.url = el.url;
+              }
+
+              // Validar tamaño de la imagen
+              if (imageDataUrl && !validateImageSize(imageDataUrl)) {
+                setSelectedId(elementoSeleccionadoAntes);
+                setGuardandoDiseno(false);
+                setSaveModalMessage(`La imagen en la vista "${vista}" excede el límite de 5MB. Por favor, usa una imagen más pequeña.`);
+                setSaveModalType('error');
+                setShowSaveModal(true);
+                return null;
               }
             }
 
@@ -442,6 +485,11 @@ export const useHerramientaDiseño = (onDisenoGuardado, disenoIdParaEditar = nul
       };
 
       const elementosProcesados = await procesarElementosPorVista();
+      
+      // Si hubo error en la validación, retornar null
+      if (!elementosProcesados) {
+        return null;
+      }
 
       const stage = stageRef.current;
       const dataURL = stage.toDataURL({ pixelRatio: 2 });
@@ -498,8 +546,17 @@ export const useHerramientaDiseño = (onDisenoGuardado, disenoIdParaEditar = nul
       }
       // --- FIN DE GOOGLE ANALYTICS ---
 
-      alert(disenoIdParaEditar ? 'Diseño actualizado correctamente' : 'Diseño guardado correctamente');
-      navigate('/disenos');
+      if (!skipNavigation) {
+        setSaveModalMessage(disenoIdParaEditar ? '¡Diseño actualizado exitosamente!' : '¡Diseño guardado exitosamente!');
+        setSaveModalType('success');
+        setShowSaveModal(true);
+        
+        // Navegar después de 1.5 segundos
+        setTimeout(() => {
+          setShowSaveModal(false);
+          navigate('/disenos');
+        }, 1500);
+      }
 
       return response?.id || disenoIdParaEditar;
     } catch (error) {
@@ -510,6 +567,29 @@ export const useHerramientaDiseño = (onDisenoGuardado, disenoIdParaEditar = nul
       return null;
     } finally {
       setGuardandoDiseno(false);
+    }
+  };
+
+  // Función para iniciar el guardado (muestra el modal o guarda directamente si está editando)
+  const iniciarGuardado = async () => {
+    if (!stageRef.current || !objetoSeleccionado) {
+      setSaveModalMessage('Selecciona un objeto antes de guardar');
+      setSaveModalType('error');
+      setShowSaveModal(true);
+      return;
+    }
+
+    // Si está editando, usar el nombre actual directamente
+    if (disenoIdParaEditar && nombreDisenoActual) {
+      await captureAndUploadViews(nombreDisenoActual);
+    } else {
+      // Si es nuevo, mostrar modal para pedir nombre
+      const nombreSugerido = `Diseño ${objetoSeleccionado.articulo_nombre} ${new Date().toLocaleDateString()}`;
+      setNombreDisenoPendiente(nombreSugerido);
+      setSaveModalType('input');
+      setSaveModalMessage('');
+      setModoAgregarAlCarrito(false);
+      setShowSaveModal(true);
     }
   };
 
@@ -858,6 +938,7 @@ export const useHerramientaDiseño = (onDisenoGuardado, disenoIdParaEditar = nul
     saveModalType,
     nombreDisenoPendiente,
     setNombreDisenoPendiente,
+    modoAgregarAlCarrito,
     disenoIdParaEditar,
     nombreDisenoActual,
     textInputValue,
@@ -882,6 +963,7 @@ export const useHerramientaDiseño = (onDisenoGuardado, disenoIdParaEditar = nul
     handleObjetoSelect,
     cambiarVista,
     posicionarElemento,
+    iniciarGuardado,
     captureAndUploadViews,
     confirmarGuardadoDesdeModal,
     replaceElements,

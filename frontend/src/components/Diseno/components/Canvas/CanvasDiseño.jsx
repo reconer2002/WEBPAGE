@@ -30,6 +30,28 @@ const CanvasDiseño = ({
 }) => {
   const [baseImage] = useImage(resolveUrl(imagenesVistas[vistaActual] || ""), 'anonymous');
 
+  // Calcular dimensiones manteniendo el aspect ratio (EXACTAMENTE IGUAL a CanvasVisualizacion)
+  const imageDimensions = React.useMemo(() => {
+    if (!baseImage) return { width: canvasWidth, height: canvasHeight, x: 0, y: 0 };
+    
+    const imgRatio = baseImage.width / baseImage.height;
+    const canvasRatio = canvasWidth / canvasHeight;
+    
+    let width, height, x = 0, y = 0;
+    
+    if (imgRatio > canvasRatio) {
+      width = canvasWidth;
+      height = canvasWidth / imgRatio;
+      y = (canvasHeight - height) / 2;
+    } else {
+      height = canvasHeight;
+      width = canvasHeight * imgRatio;
+      x = (canvasWidth - width) / 2;
+    }
+    
+    return { width, height, x, y };
+  }, [baseImage, canvasWidth, canvasHeight]);
+
   return (
     <div className="preview-column">
       <div className="canvas-inner">
@@ -43,7 +65,15 @@ const CanvasDiseño = ({
             }}
           >
             <Layer>
-              {baseImage && <KonvaImage image={baseImage} width={canvasWidth} height={canvasHeight} />}
+              {baseImage && (
+                <KonvaImage 
+                  image={baseImage} 
+                  width={imageDimensions.width} 
+                  height={imageDimensions.height}
+                  x={imageDimensions.x}
+                  y={imageDimensions.y}
+                />
+              )}
               {elementos.map((el) => {
                 if (el.type === "text") {
                   const isSelected = el.id === selectedId;
@@ -51,8 +81,8 @@ const CanvasDiseño = ({
                     <React.Fragment key={el.id}>
                       <Text
                         id={`text-${el.id}`}
-                        x={el.x}
-                        y={el.y}
+                        x={el.x + imageDimensions.x}
+                        y={el.y + imageDimensions.y}
                         text={el.text}
                         fontSize={el.fontSize}
                         fill={el.fill}
@@ -63,7 +93,7 @@ const CanvasDiseño = ({
                         rotation={el.rotation || 0}
                         scale={{ x: el.scale || 1, y: el.scale || 1 }}
                         draggable
-                        onDragEnd={(e) => onUpdateElement(el.id, { x: e.target.x(), y: e.target.y() })}
+                        onDragEnd={(e) => onUpdateElement(el.id, { x: e.target.x() - imageDimensions.x, y: e.target.y() - imageDimensions.y })}
                         onTransform={(e) => {
                           const node = e.target;
                           const newRotation = node.rotation();
@@ -85,8 +115,8 @@ const CanvasDiseño = ({
                           const newFontSize = Math.max(8, Math.round(el.fontSize * Math.max(scaleX, scaleY)));
                           const newRotation = node.rotation();
                           onUpdateElement(el.id, { 
-                            x: node.x(), 
-                            y: node.y(), 
+                            x: node.x() - imageDimensions.x, 
+                            y: node.y() - imageDimensions.y, 
                             rotation: newRotation, 
                             fontSize: newFontSize, 
                             scale: 1 
@@ -110,6 +140,7 @@ const CanvasDiseño = ({
                     <ImagenElemento 
                       key={el.id} 
                       el={el} 
+                      imageOffset={imageDimensions}
                       onUpdate={onUpdateElement} 
                       isSelected={selectedId === el.id} 
                       onSelect={() => onSelectElement(el)} 

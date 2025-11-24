@@ -49,10 +49,10 @@ const renderVistaEnCanvas = async (imagenBase, elementos) => {
   return new Promise(async (resolve, reject) => {
     try {
       const canvas = document.createElement('canvas');
-      // Aumentar resolución para mejor calidad (3x)
+      // Canvas de 600x600 como en todos los otros lugares
       const scale = 3;
-      canvas.width = 400 * scale;
-      canvas.height = 500 * scale;
+      canvas.width = 600 * scale;
+      canvas.height = 600 * scale;
       const ctx = canvas.getContext('2d');
       
       // Escalar el contexto
@@ -60,7 +60,7 @@ const renderVistaEnCanvas = async (imagenBase, elementos) => {
       
       // Fondo blanco
       ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, 400, 500);
+      ctx.fillRect(0, 0, 600, 600);
       
       // Cargar y dibujar imagen base
       const imgBase = new Image();
@@ -71,7 +71,24 @@ const renderVistaEnCanvas = async (imagenBase, elementos) => {
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
         
-        ctx.drawImage(imgBase, 0, 0, 400, 500);
+        // Calcular dimensiones manteniendo aspect ratio (EXACTAMENTE IGUAL que en todos los canvas)
+        const imgRatio = imgBase.width / imgBase.height;
+        const canvasRatio = 600 / 600;
+        
+        let drawWidth, drawHeight, offsetX = 0, offsetY = 0;
+        
+        if (imgRatio > canvasRatio) {
+          drawWidth = 600;
+          drawHeight = 600 / imgRatio;
+          offsetY = (600 - drawHeight) / 2;
+        } else {
+          drawHeight = 600;
+          drawWidth = 600 * imgRatio;
+          offsetX = (600 - drawWidth) / 2;
+        }
+        
+        // Dibujar imagen base con aspect ratio
+        ctx.drawImage(imgBase, offsetX, offsetY, drawWidth, drawHeight);
         
         // Procesar elementos
         const imagenesElementos = elementos.filter(el => el.type === 'image');
@@ -89,7 +106,8 @@ const renderVistaEnCanvas = async (imagenBase, elementos) => {
         for (const el of elementos) {
           if (el.type === 'text') {
             ctx.save();
-            ctx.translate(el.x, el.y);
+            // Aplicar offset (igual que en todos los canvas)
+            ctx.translate(el.x + offsetX, el.y + offsetY);
             ctx.rotate((el.rotation || 0) * Math.PI / 180);
             ctx.font = `${el.fontStyle === 'bold' ? 'bold' : el.fontStyle === 'italic' ? 'italic' : 'normal'} ${el.fontSize}px ${el.fontFamily || 'Arial'}`;
             ctx.fillStyle = el.fill || '#000000';
@@ -102,7 +120,8 @@ const renderVistaEnCanvas = async (imagenBase, elementos) => {
             
             imgEl.onload = () => {
               ctx.save();
-              ctx.translate(el.x, el.y);
+              // Aplicar offset (igual que en todos los canvas)
+              ctx.translate(el.x + offsetX, el.y + offsetY);
               ctx.rotate((el.rotation || 0) * Math.PI / 180);
               ctx.drawImage(imgEl, 0, 0, el.width, el.height);
               ctx.restore();
@@ -189,14 +208,13 @@ export const exportarDisenosPedidoAPDF = async (detalles, pedidoId) => {
           try {
             const dataUrl = await renderVistaEnCanvas(imagenBase, elementos);
             
-            // Calcular dimensiones para el PDF (mantener aspecto 4:5)
-            const pdfWidth = 120; // mm
-            const pdfHeight = 150; // mm
-            const x = (210 - pdfWidth) / 2; // centrar en A4
+            // Calcular dimensiones para el PDF (cuadrado para mantener aspect ratio)
+            const pdfSize = 120; // mm (cuadrado)
+            const x = (210 - pdfSize) / 2; // centrar en A4
             const y = 35;
 
-            // Usar JPEG con máxima calidad para mejor compresión y calidad
-            pdf.addImage(dataUrl, 'PNG', x, y, pdfWidth, pdfHeight, undefined, 'FAST');
+            // Usar PNG con máxima calidad
+            pdf.addImage(dataUrl, 'PNG', x, y, pdfSize, pdfSize, undefined, 'FAST');
           } catch (error) {
             console.error(`Error al renderizar vista ${vista}:`, error);
             pdf.setFontSize(10);

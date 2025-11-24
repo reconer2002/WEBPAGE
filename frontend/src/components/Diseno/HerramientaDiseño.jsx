@@ -25,6 +25,7 @@ const HerramientaDiseño = ({ editarId }) => {
     nombreDisenoPendiente,
     setNombreDisenoPendiente,
     confirmarGuardadoDesdeModal,
+    modoAgregarAlCarrito,
     disenoIdParaEditar,
     nombreDisenoActual,
     textInputValue,
@@ -45,6 +46,7 @@ const HerramientaDiseño = ({ editarId }) => {
     handleObjetoSelect,
     cambiarVista,
     posicionarElemento,
+    iniciarGuardado,
     captureAndUploadViews,
     actualizarElemento,
     eliminarElemento,
@@ -301,9 +303,136 @@ const HerramientaDiseño = ({ editarId }) => {
         onHandleImageUpload={handleImageUpload}
         onEliminarElemento={eliminarElemento}
         onDuplicarElemento={duplicarElemento}
+        onIniciarGuardado={iniciarGuardado}
         onCaptureAndUploadViews={captureAndUploadViews}
         onSaveAndAddToCart={saveAndAddToCart}
       />
+
+      {/* Modal para guardar diseño */}
+      {showSaveModal && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "100%",
+            height: "100%",
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 9999,
+          }}
+          onClick={() => {
+            if (saveModalType !== 'input') {
+              setShowSaveModal(false);
+            }
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: "white",
+              padding: "24px",
+              borderRadius: "8px",
+              maxWidth: "400px",
+              width: "90%",
+              boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {saveModalType === 'input' ? (
+              <>
+                <h3 style={{ marginTop: 0, marginBottom: "16px", fontSize: "18px", fontWeight: "600" }}>
+                  {modoAgregarAlCarrito ? '🛒 Agregar al carrito' : '💾 Guardar diseño'}
+                </h3>
+                <label style={{ display: "block", marginBottom: "16px" }}>
+                  <div style={{ marginBottom: "8px", fontSize: "14px", color: "#374151" }}>
+                    Nombre del diseño:
+                  </div>
+                  <input
+                    type="text"
+                    value={nombreDisenoPendiente}
+                    onChange={(e) => setNombreDisenoPendiente(e.target.value)}
+                    placeholder="Ingresa un nombre..."
+                    autoFocus
+                    style={{
+                      width: "100%",
+                      padding: "8px 12px",
+                      fontSize: "14px",
+                      border: "1px solid #d1d5db",
+                      borderRadius: "4px",
+                      boxSizing: "border-box",
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        confirmarGuardadoDesdeModal();
+                      } else if (e.key === 'Escape') {
+                        setShowSaveModal(false);
+                      }
+                    }}
+                  />
+                </label>
+                <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+                  <button
+                    onClick={() => setShowSaveModal(false)}
+                    style={{
+                      padding: "8px 16px",
+                      fontSize: "14px",
+                      backgroundColor: "#e5e7eb",
+                      border: "none",
+                      borderRadius: "4px",
+                      cursor: "pointer",
+                    }}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={confirmarGuardadoDesdeModal}
+                    disabled={!nombreDisenoPendiente.trim()}
+                    style={{
+                      padding: "8px 16px",
+                      fontSize: "14px",
+                      backgroundColor: nombreDisenoPendiente.trim() ? "#3b82f6" : "#93c5fd",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "4px",
+                      cursor: nombreDisenoPendiente.trim() ? "pointer" : "not-allowed",
+                    }}
+                  >
+                    {modoAgregarAlCarrito ? 'Agregar al carrito' : 'Guardar'}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ textAlign: "center", marginBottom: "16px" }}>
+                  <div style={{ fontSize: "48px", marginBottom: "8px" }}>
+                    {saveModalType === 'success' ? '✅' : '❌'}
+                  </div>
+                  <p style={{ margin: 0, fontSize: "14px", color: "#374151" }}>
+                    {saveModalMessage}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowSaveModal(false)}
+                  style={{
+                    width: "100%",
+                    padding: "8px 16px",
+                    fontSize: "14px",
+                    backgroundColor: "#3b82f6",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "4px",
+                    cursor: "pointer",
+                  }}
+                >
+                  Cerrar
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -13,7 +13,7 @@ const resolveUrl = (u) => {
   return s;
 };
 
-const ImagenElemento = ({ el, onUpdate, isSelected, onSelect, onTransform }) => {
+const ImagenElemento = ({ el, onUpdate, isSelected, onSelect, onTransform, imageOffset = { x: 0, y: 0 } }) => {
   const [img] = useImage(el.url, "Anonymous");
   const shapeRef = useRef();
   const trRef = useRef();
@@ -31,8 +31,8 @@ const ImagenElemento = ({ el, onUpdate, isSelected, onSelect, onTransform }) => 
         id={`image-${el.id}`}
         ref={shapeRef}
         image={img}
-        x={el.x}
-        y={el.y}
+        x={el.x + imageOffset.x}
+        y={el.y + imageOffset.y}
         width={el.width}
         height={el.height}
         offsetX={0}
@@ -42,7 +42,7 @@ const ImagenElemento = ({ el, onUpdate, isSelected, onSelect, onTransform }) => 
         onClick={() => onSelect && onSelect()}
         onTap={() => onSelect && onSelect()}
         onDragEnd={(e) => {
-          onUpdate(el.id, { x: e.target.x(), y: e.target.y() });
+          onUpdate(el.id, { x: e.target.x() - imageOffset.x, y: e.target.y() - imageOffset.y });
         }}
         onTransform={(e) => {
           // Actualizar en tiempo real mientras se transforma
@@ -66,8 +66,8 @@ const ImagenElemento = ({ el, onUpdate, isSelected, onSelect, onTransform }) => 
           node.scaleY(1);
           
           onUpdate(el.id, {
-            x: node.x(),
-            y: node.y(),
+            x: node.x() - imageOffset.x,
+            y: node.y() - imageOffset.y,
             rotation: node.rotation(),
             width: Math.max(20, Math.round(node.width() * scaleX)),
             height: Math.max(20, Math.round(node.height() * scaleY)),

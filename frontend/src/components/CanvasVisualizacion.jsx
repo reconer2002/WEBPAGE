@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Stage, Layer, Text, Image as KonvaImage } from "react-konva";
 import useImage from "use-image";
 
@@ -39,6 +39,28 @@ const CanvasVisualizacion = ({
 }) => {
   const [baseImage] = useImage(resolveUrl(imagenBase), 'anonymous');
 
+  // Calcular dimensiones manteniendo el aspect ratio (EXACTAMENTE IGUAL a CanvasDiseño)
+  const imageDimensions = useMemo(() => {
+    if (!baseImage) return { width: canvasWidth, height: canvasHeight, x: 0, y: 0 };
+    
+    const imgRatio = baseImage.width / baseImage.height;
+    const canvasRatio = canvasWidth / canvasHeight;
+    
+    let width, height, x = 0, y = 0;
+    
+    if (imgRatio > canvasRatio) {
+      width = canvasWidth;
+      height = canvasWidth / imgRatio;
+      y = (canvasHeight - height) / 2;
+    } else {
+      height = canvasHeight;
+      width = canvasHeight * imgRatio;
+      x = (canvasWidth - width) / 2;
+    }
+    
+    return { width, height, x, y };
+  }, [baseImage, canvasWidth, canvasHeight]);
+
   return (
     <div style={{ 
       display: 'flex', 
@@ -54,8 +76,10 @@ const CanvasVisualizacion = ({
           {baseImage && (
             <KonvaImage 
               image={baseImage} 
-              width={canvasWidth} 
-              height={canvasHeight} 
+              width={imageDimensions.width} 
+              height={imageDimensions.height}
+              x={imageDimensions.x}
+              y={imageDimensions.y}
             />
           )}
           
@@ -65,14 +89,17 @@ const CanvasVisualizacion = ({
               return (
                 <Text
                   key={el.id || idx}
-                  x={el.x || 0}
-                  y={el.y || 0}
+                  x={(el.x || 0) + imageDimensions.x}
+                  y={(el.y || 0) + imageDimensions.y}
                   text={el.contenido || el.text || ""}
                   fontSize={el.tamano || el.fontSize || 20}
                   fill={el.color || el.fill || "#000000"}
                   fontFamily={el.fuente || el.fontFamily || "Arial"}
                   fontStyle={el.fontStyle || "normal"}
                   rotation={el.rotacion || el.rotation || 0}
+                  scale={{ x: 1, y: 1 }}
+                  offsetX={0}
+                  offsetY={0}
                 />
               );
             }
@@ -83,8 +110,8 @@ const CanvasVisualizacion = ({
                   key={el.id || idx} 
                   el={{
                     src: el.url || el.src,
-                    x: el.x || 0,
-                    y: el.y || 0,
+                    x: (el.x || 0) + imageDimensions.x,
+                    y: (el.y || 0) + imageDimensions.y,
                     width: el.ancho || el.width || 100,
                     height: el.alto || el.height || 100,
                     rotation: el.rotacion || el.rotation || 0

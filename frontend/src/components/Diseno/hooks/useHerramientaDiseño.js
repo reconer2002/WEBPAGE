@@ -35,6 +35,14 @@ export const useHerramientaDiseño = (onDisenoGuardado, disenoIdParaEditar = nul
   const [guardandoDiseno, setGuardandoDiseno] = useState(false);
   const [agregandoAlCarrito, setAgregandoAlCarrito] = useState(false);
 
+  // Estados para modal de guardado
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [saveModalMessage, setSaveModalMessage] = useState('');
+  const [saveModalType, setSaveModalType] = useState('input'); // 'input', 'success', 'error'
+  const [nombreDisenoPendiente, setNombreDisenoPendiente] = useState('');
+  const [nombreDisenoActual, setNombreDisenoActual] = useState('');
+  const [modoAgregarAlCarrito, setModoAgregarAlCarrito] = useState(false);
+
   // Estados para edición
   const [textInputValue, setTextInputValue] = useState("");
   const [textStyle, setTextStyle] = useState({ 
